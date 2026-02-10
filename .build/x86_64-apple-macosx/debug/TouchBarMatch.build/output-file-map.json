@@ -1,0 +1,41 @@
+{
+  "": {
+    "swift-dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/master.swiftdeps"
+  },
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/AppDelegate.swift": {
+    "dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/AppDelegate.d",
+    "object": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/AppDelegate.swift.o",
+    "swiftmodule": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/AppDelegate~partial.swiftmodule",
+    "swift-dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/AppDelegate.swiftdeps"
+  },
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameState.swift": {
+    "dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameState.d",
+    "object": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameState.swift.o",
+    "swiftmodule": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameState~partial.swiftmodule",
+    "swift-dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameState.swiftdeps"
+  },
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameTouchBarView.swift": {
+    "dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameTouchBarView.d",
+    "object": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameTouchBarView.swift.o",
+    "swiftmodule": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameTouchBarView~partial.swiftmodule",
+    "swift-dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameTouchBarView.swiftdeps"
+  },
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameViewController.swift": {
+    "dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameViewController.d",
+    "object": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameViewController.swift.o",
+    "swiftmodule": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameViewController~partial.swiftmodule",
+    "swift-dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/GameViewController.swiftdeps"
+  },
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/Piece.swift": {
+    "dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/Piece.d",
+    "object": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/Piece.swift.o",
+    "swiftmodule": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/Piece~partial.swiftmodule",
+    "swift-dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/Piece.swiftdeps"
+  },
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/main.swift": {
+    "dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/main.d",
+    "object": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/main.swift.o",
+    "swiftmodule": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/TouchBarMatch.build/main.swiftdeps"
+  }
+}

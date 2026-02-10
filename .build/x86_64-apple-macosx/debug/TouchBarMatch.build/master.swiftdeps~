@@ -1,0 +1,11 @@
+version: "Apple Swift version 5.7.2 (swiftlang-5.7.2.135.5 clang-1400.0.29.51)"
+options: "7713b0a4265f56bdca661cf19a559ac9ecdf304ec8cfd136e990d435ce3f0cf1"
+build_start_time: [1770649353, 73316097]
+build_end_time: [1770649363, 474588871]
+inputs:
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/AppDelegate.swift": [1770645554, 834611415]
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameState.swift": [1770645490, 793786048]
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameTouchBarView.swift": [1770648927, 462611675]
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameViewController.swift": [1770645547, 959445953]
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/Piece.swift": [1770645481, 90549707]
+  "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/main.swift": [1770645562, 460694313]
