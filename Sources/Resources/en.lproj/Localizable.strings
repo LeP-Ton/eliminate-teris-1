@@ -1,0 +1,28 @@
+"window.title" = "Eliminate Teris 1";
+"instructions.text" = "Activate this app and play on the Touch Bar.\nDrag tiles to swap them; match 3 or more to clear.\nMulti-touch swapping is supported.";
+
+"language.label" = "Language";
+"language.english" = "English";
+"language.chinese" = "Chinese";
+"language.japanese" = "Japanese";
+"language.korean" = "Korean";
+"language.russian" = "Russian";
+
+"mode.label" = "Mode";
+"mode.free" = "Free";
+"mode.score_attack" = "Score Attack";
+"mode.speed_run" = "Speed Run";
+
+"option.time" = "Time";
+"option.target_score" = "Target";
+"option.minute_format" = "%d min";
+"option.target_format" = "%d pts";
+
+"start.label" = "Start";
+
+"hud.score_attack" = "Score: %d   Time Left: %@";
+"hud.speed_run" = "Score: %d/%d   Time: %@";
+
+"result.waiting_start" = "Ready. Turn on Start to begin.";
+"result.score_attack_finished" = "Time's up! Final score: %d";
+"result.speed_run_finished" = "Target reached in %@";

@@ -1,0 +1,28 @@
+"window.title" = "テリス消去1";
+"instructions.text" = "アプリをアクティブにして、Touch Bar でプレイしてください。\nタイルをドラッグして入れ替え、3 個以上そろえると消去されます。\nマルチタッチでの入れ替えに対応しています。";
+
+"language.label" = "言語";
+"language.english" = "英語";
+"language.chinese" = "中国語";
+"language.japanese" = "日本語";
+"language.korean" = "韓国語";
+"language.russian" = "ロシア語";
+
+"mode.label" = "モード";
+"mode.free" = "フリー";
+"mode.score_attack" = "スコアアタック";
+"mode.speed_run" = "スピードラン";
+
+"option.time" = "時間";
+"option.target_score" = "目標スコア";
+"option.minute_format" = "%d分";
+"option.target_format" = "%d点";
+
+"start.label" = "開始";
+
+"hud.score_attack" = "スコア: %d   残り時間: %@";
+"hud.speed_run" = "スコア: %d/%d   経過時間: %@";
+
+"result.waiting_start" = "準備完了。開始をオンにするとスタートします。";
+"result.score_attack_finished" = "時間切れ！最終スコア: %d";
+"result.speed_run_finished" = "%@ で目標達成";

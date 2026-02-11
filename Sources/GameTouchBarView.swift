@@ -1,26 +1,126 @@
 import Cocoa
 
+enum GameMode: Equatable {
+    case free
+    case scoreAttack(duration: TimeInterval)
+    case speedRun(targetScore: Int)
+}
+
+struct GameSnapshot {
+    let mode: GameMode
+    let score: Int
+    let elapsedTime: TimeInterval
+    let remainingTime: TimeInterval?
+    let targetScore: Int?
+    let isRunning: Bool
+    let isFinished: Bool
+}
+
 final class GameBoardController {
     private struct Observer {
         weak var owner: AnyObject?
         let callback: () -> Void
     }
 
-    private let state: GameState
+    private let columnsCount: Int
+    private var state: GameState
+    private var mode: GameMode = .free
+    private var roundStartDate = Date()
+    private var stoppedElapsedTime: TimeInterval = 0
+    private var isRunningRound = true
+    private var isFinished = false
+
     private var lockedIndices: Set<Int> = []
     private var selectedIndex: Int?
     private var observers: [UUID: Observer] = [:]
 
     init(columns: Int) {
+        self.columnsCount = columns
         self.state = GameState(columns: columns)
     }
 
-    var score: Int {
-        return state.score
+    var columns: Int {
+        return columnsCount
     }
 
-    var columns: Int {
-        return state.columns
+    func configure(mode: GameMode) {
+        self.mode = mode
+        resetBoard(startDate: Date())
+        stoppedElapsedTime = 0
+        isRunningRound = isFreeMode
+        isFinished = false
+        notifyChange()
+    }
+
+    func startRound() {
+        guard !isFreeMode else { return }
+
+        resetBoard(startDate: Date())
+        stoppedElapsedTime = 0
+        isRunningRound = true
+        isFinished = false
+        notifyChange()
+    }
+
+    func tick(now: Date = Date()) {
+        guard !isFreeMode else { return }
+        guard isRunningRound else { return }
+
+        _ = updateFinishedState(now: now)
+        notifyChange()
+    }
+
+    func snapshot(now: Date = Date()) -> GameSnapshot {
+        _ = updateFinishedState(now: now)
+
+        let elapsed: TimeInterval
+        if isRunningRound {
+            elapsed = max(0, now.timeIntervalSince(roundStartDate))
+        } else {
+            elapsed = stoppedElapsedTime
+        }
+
+        switch mode {
+        case .free:
+            return GameSnapshot(
+                mode: mode,
+                score: state.score,
+                elapsedTime: elapsed,
+                remainingTime: nil,
+                targetScore: nil,
+                isRunning: true,
+                isFinished: isFinished
+            )
+
+        case .scoreAttack(let duration):
+            let remaining: TimeInterval
+            if isRunningRound || isFinished {
+                remaining = max(0, duration - elapsed)
+            } else {
+                remaining = duration
+            }
+
+            return GameSnapshot(
+                mode: mode,
+                score: state.score,
+                elapsedTime: elapsed,
+                remainingTime: remaining,
+                targetScore: nil,
+                isRunning: isRunningRound,
+                isFinished: isFinished
+            )
+
+        case .speedRun(let targetScore):
+            return GameSnapshot(
+                mode: mode,
+                score: state.score,
+                elapsedTime: elapsed,
+                remainingTime: nil,
+                targetScore: targetScore,
+                isRunning: isRunningRound,
+                isFinished: isFinished
+            )
+        }
     }
 
     func tile(at index: Int) -> PieceKind {
@@ -37,6 +137,7 @@ final class GameBoardController {
 
     @discardableResult
     func lock(_ index: Int) -> Bool {
+        guard canInteract() else { return false }
         guard !lockedIndices.contains(index) else { return false }
         lockedIndices.insert(index)
         notifyChange()
@@ -49,6 +150,8 @@ final class GameBoardController {
     }
 
     func handleTap(at index: Int) {
+        guard canInteract() else { return }
+
         if let selected = selectedIndex {
             if selected == index {
                 selectedIndex = nil
@@ -67,6 +170,7 @@ final class GameBoardController {
     }
 
     func performSwap(from leftIndex: Int, to rightIndex: Int) {
+        guard canInteract() else { return }
         guard abs(leftIndex - rightIndex) == 1 else { return }
         guard !lockedIndices.contains(leftIndex), !lockedIndices.contains(rightIndex) else { return }
 
@@ -76,6 +180,8 @@ final class GameBoardController {
         lockedIndices.remove(leftIndex)
         lockedIndices.remove(rightIndex)
         selectedIndex = nil
+
+        _ = updateFinishedState(now: Date())
         notifyChange()
     }
 
@@ -87,6 +193,62 @@ final class GameBoardController {
 
     func removeObserver(_ id: UUID) {
         observers.removeValue(forKey: id)
+    }
+
+    private var isFreeMode: Bool {
+        if case .free = mode {
+            return true
+        }
+        return false
+    }
+
+    private func resetBoard(startDate: Date) {
+        state = GameState(columns: columnsCount)
+        lockedIndices.removeAll()
+        selectedIndex = nil
+        roundStartDate = startDate
+    }
+
+    private func canInteract(now: Date = Date()) -> Bool {
+        _ = updateFinishedState(now: now)
+        if isFreeMode {
+            return !isFinished
+        }
+        return isRunningRound && !isFinished
+    }
+
+    @discardableResult
+    private func updateFinishedState(now: Date) -> Bool {
+        let previousFinished = isFinished
+
+        if isFreeMode {
+            isFinished = false
+            return previousFinished != isFinished
+        }
+
+        guard isRunningRound else {
+            return false
+        }
+
+        let elapsed = max(0, now.timeIntervalSince(roundStartDate))
+
+        switch mode {
+        case .free:
+            isFinished = false
+        case .scoreAttack(let duration):
+            isFinished = elapsed >= duration
+        case .speedRun(let targetScore):
+            isFinished = state.score >= targetScore
+        }
+
+        if isFinished {
+            isRunningRound = false
+            stoppedElapsedTime = elapsed
+            lockedIndices.removeAll()
+            selectedIndex = nil
+        }
+
+        return previousFinished != isFinished
     }
 
     private func notifyChange() {
@@ -109,9 +271,6 @@ final class GameBoardController {
 final class GameTouchBarView: NSView {
     private enum Layout {
         static let controlHeight: CGFloat = 30
-        static let minScoreAreaWidth: CGFloat = 74
-        static let maxScoreAreaWidth: CGFloat = 120
-        static let scoreAreaRatio: CGFloat = 0.12
         static let tileOuterInsetX: CGFloat = 2
         static let tileOuterInsetY: CGFloat = 1
         static let tileInnerInsetX: CGFloat = 4
@@ -126,18 +285,16 @@ final class GameTouchBarView: NSView {
     private let controller: GameBoardController
     private let columnRange: Range<Int>
     private let columnCount: Int
-    private let showsScore: Bool
 
     private var observerToken: UUID?
     private var activeTouches: [ObjectIdentifier: TouchState] = [:]
 
-    init(columnRange: Range<Int>, controller: GameBoardController, showsScore: Bool) {
+    init(columnRange: Range<Int>, controller: GameBoardController) {
         precondition(!columnRange.isEmpty, "columnRange must contain at least one column")
 
         self.columnRange = columnRange
         self.columnCount = columnRange.count
         self.controller = controller
-        self.showsScore = showsScore
 
         super.init(frame: .zero)
 
@@ -185,10 +342,6 @@ final class GameTouchBarView: NSView {
 
             drawCellBackground(in: rect, highlighted: isLocked || isSelected)
             drawPiece(controller.tile(at: globalIndex), in: rect, highlighted: isLocked || isSelected)
-        }
-
-        if showsScore {
-            drawScore()
         }
     }
 
@@ -271,22 +424,6 @@ final class GameTouchBarView: NSView {
         controller.handleTap(at: index)
     }
 
-    private func drawScore() {
-        let scoreText = "Score \(controller.score)"
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.8)
-        ]
-        let text = scoreText as NSString
-        let size = text.size(withAttributes: attributes)
-
-        let origin = CGPoint(
-            x: availableBoardWidth + (scoreAreaWidth - size.width) * 0.5,
-            y: bounds.midY - size.height * 0.5
-        )
-        text.draw(at: origin, withAttributes: attributes)
-    }
-
     private func drawCellBackground(in rect: CGRect, highlighted: Bool) {
         let inset = rect.insetBy(dx: Layout.tileOuterInsetX, dy: Layout.tileOuterInsetY)
         let path = NSBezierPath(roundedRect: inset, xRadius: 7, yRadius: 7)
@@ -360,23 +497,12 @@ final class GameTouchBarView: NSView {
         return columnRange.lowerBound + localIndex
     }
 
-    private var availableBoardWidth: CGFloat {
-        return max(0, bounds.width - scoreAreaWidth)
-    }
-
     private var boardWidth: CGFloat {
-        return availableBoardWidth
+        return max(0, bounds.width)
     }
 
     private var boardOriginX: CGFloat {
         return 0
-    }
-
-    private var scoreAreaWidth: CGFloat {
-        guard showsScore else { return 0 }
-
-        let proposedWidth = bounds.width * Layout.scoreAreaRatio
-        return min(Layout.maxScoreAreaWidth, max(Layout.minScoreAreaWidth, proposedWidth))
     }
 
     private func isValidIndex(_ index: Int) -> Bool {

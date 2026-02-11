@@ -1,0 +1,28 @@
+"window.title" = "消除俄罗斯方块1";
+"instructions.text" = "请先激活应用，再在触控栏上游玩。\n拖动方块交换位置，连成 3 个及以上即可消除。\n支持多点触控交换。";
+
+"language.label" = "语言";
+"language.english" = "英语";
+"language.chinese" = "简体中文";
+"language.japanese" = "日语";
+"language.korean" = "韩语";
+"language.russian" = "俄语";
+
+"mode.label" = "模式";
+"mode.free" = "自由";
+"mode.score_attack" = "竞分";
+"mode.speed_run" = "竞速";
+
+"option.time" = "时间";
+"option.target_score" = "目标分数";
+"option.minute_format" = "%d 分钟";
+"option.target_format" = "%d 分";
+
+"start.label" = "开始";
+
+"hud.score_attack" = "得分：%d   剩余时间：%@";
+"hud.speed_run" = "得分：%d/%d   已用时间：%@";
+
+"result.waiting_start" = "准备就绪，打开开始开关后计时。";
+"result.score_attack_finished" = "时间到！最终得分：%d";
+"result.speed_run_finished" = "达成目标，用时 %@";

@@ -6,13 +6,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let viewController = GameViewController()
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 240),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 300),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.center()
-        window.title = "Touch Bar Match"
+        window.title = Localizer.shared.string("window.title")
         window.contentViewController = viewController
         window.touchBar = viewController.makeTouchBar()
         window.makeFirstResponder(viewController)

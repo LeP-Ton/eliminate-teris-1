@@ -1,0 +1,28 @@
+"window.title" = "Устранение Терис 1";
+"instructions.text" = "Активируйте приложение и играйте на Touch Bar.\nПеретаскивайте плитки, чтобы менять их местами; 3 и более подряд исчезают.\nПоддерживается мультитач-обмен.";
+
+"language.label" = "Язык";
+"language.english" = "Английский";
+"language.chinese" = "Китайский";
+"language.japanese" = "Японский";
+"language.korean" = "Корейский";
+"language.russian" = "Русский";
+
+"mode.label" = "Режим";
+"mode.free" = "Свободный";
+"mode.score_attack" = "На очки";
+"mode.speed_run" = "На скорость";
+
+"option.time" = "Время";
+"option.target_score" = "Цель";
+"option.minute_format" = "%d мин";
+"option.target_format" = "%d очк.";
+
+"start.label" = "Старт";
+
+"hud.score_attack" = "Очки: %d   Осталось: %@";
+"hud.speed_run" = "Очки: %d/%d   Время: %@";
+
+"result.waiting_start" = "Готово. Включите «Старт», чтобы начать.";
+"result.score_attack_finished" = "Время вышло! Итоговые очки: %d";
+"result.speed_run_finished" = "Цель достигнута за %@";

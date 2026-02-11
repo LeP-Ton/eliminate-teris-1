@@ -1,0 +1,28 @@
+"window.title" = "테리스 제거 1";
+"instructions.text" = "앱을 활성화한 뒤 Touch Bar에서 플레이하세요.\n타일을 드래그해 교환하고, 3개 이상 맞추면 제거됩니다.\n멀티터치 교환을 지원합니다.";
+
+"language.label" = "언어";
+"language.english" = "영어";
+"language.chinese" = "중국어";
+"language.japanese" = "일본어";
+"language.korean" = "한국어";
+"language.russian" = "러시아어";
+
+"mode.label" = "모드";
+"mode.free" = "자유";
+"mode.score_attack" = "점수전";
+"mode.speed_run" = "스피드런";
+
+"option.time" = "시간";
+"option.target_score" = "목표 점수";
+"option.minute_format" = "%d분";
+"option.target_format" = "%d점";
+
+"start.label" = "시작";
+
+"hud.score_attack" = "점수: %d   남은 시간: %@";
+"hud.speed_run" = "점수: %d/%d   경과 시간: %@";
+
+"result.waiting_start" = "준비 완료. 시작을 켜면 타이머가 시작됩니다.";
+"result.score_attack_finished" = "시간 종료! 최종 점수: %d";
+"result.speed_run_finished" = "%@ 만에 목표 달성";

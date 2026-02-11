@@ -2,17 +2,21 @@
 import PackageDescription
 
 let package = Package(
-    name: "TouchBarMatch",
+    name: "EliminateTeris1",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v12)
     ],
     products: [
-        .executable(name: "TouchBarMatch", targets: ["TouchBarMatch"])
+        .executable(name: "Eliminate Teris 1", targets: ["EliminateTeris1"])
     ],
     targets: [
         .executableTarget(
-            name: "TouchBarMatch",
-            path: "Sources"
+            name: "EliminateTeris1",
+            path: "Sources",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )
