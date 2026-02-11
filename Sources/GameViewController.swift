@@ -2,12 +2,14 @@ import Cocoa
 
 final class GameViewController: NSViewController, NSTouchBarDelegate {
     private let columns = 12
-    private lazy var touchBarView = GameTouchBarView(columns: columns)
+    private lazy var controller = GameBoardController(columns: columns)
+    private lazy var gameTouchBarView = GameTouchBarView(columnRange: 0..<columns, controller: controller, showsScore: true)
+
     private lazy var gameTouchBar: NSTouchBar = {
         let bar = NSTouchBar()
         bar.delegate = self
         bar.defaultItemIdentifiers = [.game]
-        bar.principalItemIdentifier = .game
+        bar.escapeKeyReplacementItemIdentifier = .escapePlaceholder
         bar.customizationAllowedItemIdentifiers = []
         bar.customizationRequiredItemIdentifiers = [.game]
         return bar
@@ -43,13 +45,32 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
+        if identifier == .escapePlaceholder {
+            let item = NSCustomTouchBarItem(identifier: .escapePlaceholder)
+            let placeholder = NSView(frame: .zero)
+            placeholder.translatesAutoresizingMaskIntoConstraints = false
+            item.view = placeholder
+
+            NSLayoutConstraint.activate([
+                placeholder.widthAnchor.constraint(equalToConstant: 0),
+                placeholder.heightAnchor.constraint(equalToConstant: 30)
+            ])
+            return item
+        }
+
         guard identifier == .game else { return nil }
         let item = NSCustomTouchBarItem(identifier: .game)
-        item.view = touchBarView
+        gameTouchBarView.translatesAutoresizingMaskIntoConstraints = false
+        item.view = gameTouchBarView
+
+        NSLayoutConstraint.activate([
+            gameTouchBarView.heightAnchor.constraint(equalToConstant: gameTouchBarView.intrinsicContentSize.height)
+        ])
         return item
     }
 }
 
 extension NSTouchBarItem.Identifier {
     static let game = NSTouchBarItem.Identifier("com.touchbarmatch.game")
+    static let escapePlaceholder = NSTouchBarItem.Identifier("com.touchbarmatch.escape-placeholder")
 }
