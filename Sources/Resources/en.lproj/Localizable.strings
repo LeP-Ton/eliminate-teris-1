@@ -18,11 +18,13 @@
 "option.minute_format" = "%d min";
 "option.target_format" = "%d pts";
 
-"start.label" = "Start";
+"start.label" = "Action";
+"start.action_start" = "Start";
+"start.action_restart" = "Restart";
 
 "hud.score_attack" = "Score: %d   Time Left: %@";
 "hud.speed_run" = "Score: %d/%d   Time: %@";
 
-"result.waiting_start" = "Ready. Turn on Start to begin.";
+"result.waiting_start" = "Ready. Click Start to begin.";
 "result.score_attack_finished" = "Time's up! Final score: %d";
 "result.speed_run_finished" = "Target reached in %@";

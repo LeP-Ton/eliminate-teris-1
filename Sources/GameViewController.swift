@@ -77,12 +77,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return label
     }()
 
-    private lazy var startSwitch: NSSwitch = {
-        let toggle = NSSwitch(frame: .zero)
-        toggle.target = self
-        toggle.action = #selector(startSwitchChanged(_:))
-        toggle.translatesAutoresizingMaskIntoConstraints = false
-        return toggle
+    private lazy var startButton: NSButton = {
+        let button = NSButton(title: "", target: self, action: #selector(startButtonTapped(_:)))
+        button.bezelStyle = .rounded
+        button.controlSize = .regular
+        button.imagePosition = .imageLeading
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
     }()
 
     private lazy var competitiveInfoLabel: NSTextField = {
@@ -122,7 +123,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             optionTitleLabel,
             optionPopup,
             startTitleLabel,
-            startSwitch
+            startButton
         ])
         stack.orientation = .horizontal
         stack.alignment = .centerY
@@ -251,16 +252,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         applyModeSelection(resetGame: true)
     }
 
-    @objc private func startSwitchChanged(_ sender: NSSwitch) {
-        let selection = currentModeSelection
-        guard selection != .free else { return }
-
-        if sender.state == .on {
-            controller.startRound()
-        } else {
-            controller.configure(mode: gameMode(for: selection))
-        }
-
+    @objc private func startButtonTapped(_ sender: NSButton) {
+        guard currentModeSelection != .free else { return }
+        controller.startRound()
         updateCompetitiveInfo()
     }
 
@@ -271,10 +265,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func applyModeSelection(resetGame: Bool) {
         let selection = currentModeSelection
         populateOptionPopup(for: selection)
-        updateStartSwitchVisibility(for: selection)
+        updateStartControlVisibility(for: selection)
 
         if resetGame {
-            startSwitch.state = .off
             controller.configure(mode: gameMode(for: selection))
         }
 
@@ -299,7 +292,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         modePopup.selectItem(at: min(selectedModeIndex, 2))
 
         populateOptionPopup(for: currentModeSelection)
-        updateStartSwitchVisibility(for: currentModeSelection)
+        updateStartControlVisibility(for: currentModeSelection)
+        applyStartButtonAppearance(isRestart: false)
     }
 
     private func configureLanguagePopup() {
@@ -346,16 +340,17 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         }
     }
 
-    private func updateStartSwitchVisibility(for selection: ModeSelection) {
+    private func updateStartControlVisibility(for selection: ModeSelection) {
         let isCompetitive = selection != .free
         startTitleLabel.isHidden = !isCompetitive
-        startSwitch.isHidden = !isCompetitive
-        startSwitch.isEnabled = isCompetitive
+        startButton.isHidden = !isCompetitive
+        startButton.isEnabled = isCompetitive
     }
 
     private func updateCompetitiveInfo() {
         let snapshot = controller.snapshot()
         syncHudTimer(with: snapshot)
+        updateStartControl(for: snapshot)
 
         switch snapshot.mode {
         case .free:
@@ -371,7 +366,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             if snapshot.isFinished {
                 resultLabel.isHidden = false
                 resultLabel.stringValue = localizedFormat("result.score_attack_finished", snapshot.score)
-                startSwitch.state = .off
             } else if !snapshot.isRunning {
                 resultLabel.isHidden = false
                 resultLabel.stringValue = localized("result.waiting_start")
@@ -389,7 +383,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             if snapshot.isFinished {
                 resultLabel.isHidden = false
                 resultLabel.stringValue = localizedFormat("result.speed_run_finished", elapsed)
-                startSwitch.state = .off
             } else if !snapshot.isRunning {
                 resultLabel.isHidden = false
                 resultLabel.stringValue = localized("result.waiting_start")
@@ -397,6 +390,29 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
                 resultLabel.isHidden = true
                 resultLabel.stringValue = ""
             }
+        }
+    }
+
+    private func updateStartControl(for snapshot: GameSnapshot) {
+        switch snapshot.mode {
+        case .free:
+            applyStartButtonAppearance(isRestart: false)
+        case .scoreAttack, .speedRun:
+            let isRestart = snapshot.isRunning || snapshot.isFinished
+            applyStartButtonAppearance(isRestart: isRestart)
+        }
+    }
+
+    private func applyStartButtonAppearance(isRestart: Bool) {
+        let titleKey = isRestart ? "start.action_restart" : "start.action_start"
+        let symbolName = isRestart ? "arrow.clockwise" : "play.fill"
+        let title = localized(titleKey)
+
+        startButton.title = title
+        if let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: title) {
+            startButton.image = symbol
+        } else {
+            startButton.image = nil
         }
     }
 

@@ -18,11 +18,13 @@
 "option.minute_format" = "%d 分钟";
 "option.target_format" = "%d 分";
 
-"start.label" = "开始";
+"start.label" = "状态";
+"start.action_start" = "开始";
+"start.action_restart" = "重新开始";
 
 "hud.score_attack" = "得分：%d   剩余时间：%@";
 "hud.speed_run" = "得分：%d/%d   已用时间：%@";
 
-"result.waiting_start" = "准备就绪，打开开始开关后计时。";
+"result.waiting_start" = "准备就绪，点击开始后计时。";
 "result.score_attack_finished" = "时间到！最终得分：%d";
 "result.speed_run_finished" = "达成目标，用时 %@";

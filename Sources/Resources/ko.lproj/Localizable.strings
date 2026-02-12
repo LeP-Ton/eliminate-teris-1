@@ -18,11 +18,13 @@
 "option.minute_format" = "%d분";
 "option.target_format" = "%d점";
 
-"start.label" = "시작";
+"start.label" = "상태";
+"start.action_start" = "시작";
+"start.action_restart" = "다시 시작";
 
 "hud.score_attack" = "점수: %d   남은 시간: %@";
 "hud.speed_run" = "점수: %d/%d   경과 시간: %@";
 
-"result.waiting_start" = "준비 완료. 시작을 켜면 타이머가 시작됩니다.";
+"result.waiting_start" = "준비 완료. 시작을 누르면 타이머가 시작됩니다.";
 "result.score_attack_finished" = "시간 종료! 최종 점수: %d";
 "result.speed_run_finished" = "%@ 만에 목표 달성";

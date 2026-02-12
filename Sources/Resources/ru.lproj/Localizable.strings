@@ -18,11 +18,13 @@
 "option.minute_format" = "%d мин";
 "option.target_format" = "%d очк.";
 
-"start.label" = "Старт";
+"start.label" = "Состояние";
+"start.action_start" = "Старт";
+"start.action_restart" = "Начать заново";
 
 "hud.score_attack" = "Очки: %d   Осталось: %@";
 "hud.speed_run" = "Очки: %d/%d   Время: %@";
 
-"result.waiting_start" = "Готово. Включите «Старт», чтобы начать.";
+"result.waiting_start" = "Готово. Нажмите «Старт», чтобы начать.";
 "result.score_attack_finished" = "Время вышло! Итоговые очки: %d";
 "result.speed_run_finished" = "Цель достигнута за %@";
