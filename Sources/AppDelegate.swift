@@ -6,7 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let viewController = GameViewController()
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: 860, height: 520),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false

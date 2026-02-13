@@ -1,4 +1,11 @@
 "window.title" = "テリス消去1";
+"window.subtitle" = "ピクセル Touch Bar チャレンジ";
+"panel.settings" = "対局設定";
+"panel.status" = "盤面ステータス";
+"status.ready" = "待機";
+"status.running" = "プレイ中";
+"status.finish" = "終了";
+"status.combo" = "コンボ x%d";
 "instructions.text" = "アプリをアクティブにして、Touch Bar でプレイしてください。\nタイルをドラッグして入れ替え、3 個以上そろえると消去されます。\nマルチタッチでの入れ替えに対応しています。";
 
 "language.label" = "言語";

@@ -1,4 +1,11 @@
 "window.title" = "Устранение Терис 1";
+"window.subtitle" = "Пиксельный вызов Touch Bar";
+"panel.settings" = "Параметры раунда";
+"panel.status" = "Статус поля";
+"status.ready" = "ГОТОВО";
+"status.running" = "ИГРА";
+"status.finish" = "ФИНИШ";
+"status.combo" = "КОМБО x%d";
 "instructions.text" = "Активируйте приложение и играйте на Touch Bar.\nПеретаскивайте плитки, чтобы менять их местами; 3 и более подряд исчезают.\nПоддерживается мультитач-обмен.";
 
 "language.label" = "Язык";

@@ -1,4 +1,11 @@
 "window.title" = "Eliminate Teris 1";
+"window.subtitle" = "Pixel Touch Bar Challenge";
+"panel.settings" = "Mission Setup";
+"panel.status" = "Board Status";
+"status.ready" = "READY";
+"status.running" = "RUNNING";
+"status.finish" = "FINISH";
+"status.combo" = "COMBO x%d";
 "instructions.text" = "Activate this app and play on the Touch Bar.\nDrag tiles to swap them; match 3 or more to clear.\nMulti-touch swapping is supported.";
 
 "language.label" = "Language";

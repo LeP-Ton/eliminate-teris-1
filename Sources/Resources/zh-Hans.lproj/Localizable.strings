@@ -1,4 +1,11 @@
 "window.title" = "消除俄罗斯方块1";
+"window.subtitle" = "像素风触控栏方块挑战";
+"panel.settings" = "对局设置";
+"panel.status" = "棋盘状态";
+"status.ready" = "待机";
+"status.running" = "进行中";
+"status.finish" = "结束";
+"status.combo" = "连击 x%d";
 "instructions.text" = "请先激活应用，再在触控栏上游玩。\n拖动方块交换位置，连成 3 个及以上即可消除。\n支持多点触控交换。";
 
 "language.label" = "语言";
