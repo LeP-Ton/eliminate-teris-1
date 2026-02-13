@@ -1,7 +1,7 @@
 "window.title" = "テリス消去1";
 "window.subtitle" = "ピクセル Touch Bar チャレンジ";
-"panel.settings" = "対局設定";
-"panel.status" = "盤面ステータス";
+"panel.settings" = "ゲーム設定";
+"panel.status" = "時間とスコア";
 "status.ready" = "待機";
 "status.running" = "プレイ中";
 "status.finish" = "終了";

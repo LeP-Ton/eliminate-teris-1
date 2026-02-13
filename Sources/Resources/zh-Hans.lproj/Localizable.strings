@@ -1,7 +1,7 @@
 "window.title" = "消除俄罗斯方块1";
 "window.subtitle" = "像素风触控栏方块挑战";
-"panel.settings" = "对局设置";
-"panel.status" = "棋盘状态";
+"panel.settings" = "游戏设置";
+"panel.status" = "时间与得分";
 "status.ready" = "待机";
 "status.running" = "进行中";
 "status.finish" = "结束";

@@ -1,7 +1,7 @@
 "window.title" = "Устранение Терис 1";
 "window.subtitle" = "Пиксельный вызов Touch Bar";
-"panel.settings" = "Параметры раунда";
-"panel.status" = "Статус поля";
+"panel.settings" = "Настройки игры";
+"panel.status" = "Время и счёт";
 "status.ready" = "ГОТОВО";
 "status.running" = "ИГРА";
 "status.finish" = "ФИНИШ";

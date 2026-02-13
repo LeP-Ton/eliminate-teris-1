@@ -1,7 +1,7 @@
 "window.title" = "Eliminate Teris 1";
 "window.subtitle" = "Pixel Touch Bar Challenge";
-"panel.settings" = "Mission Setup";
-"panel.status" = "Board Status";
+"panel.settings" = "Game Settings";
+"panel.status" = "Time & Score";
 "status.ready" = "READY";
 "status.running" = "RUNNING";
 "status.finish" = "FINISH";

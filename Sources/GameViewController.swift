@@ -105,6 +105,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         label.wantsLayer = true
         label.layer?.cornerRadius = 5
         label.layer?.masksToBounds = true
+        label.isHidden = true
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -267,7 +268,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     override func loadView() {
-        let view = ArcadeStageView(frame: NSRect(x: 0, y: 0, width: 860, height: 520))
+        let view = ArcadeStageView(frame: NSRect(x: 0, y: 0, width: 720, height: 520))
         self.view = view
 
         view.addSubview(contentStack)
@@ -290,8 +291,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             pixelBannerView.heightAnchor.constraint(equalToConstant: 88),
 
             cardsStack.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
-            settingsCardView.widthAnchor.constraint(greaterThanOrEqualToConstant: 410),
-            statusCardView.widthAnchor.constraint(greaterThanOrEqualToConstant: 280),
+            settingsCardView.widthAnchor.constraint(greaterThanOrEqualToConstant: 390),
+            statusCardView.widthAnchor.constraint(greaterThanOrEqualToConstant: 250),
 
             settingsCardStack.topAnchor.constraint(equalTo: settingsCardView.topAnchor, constant: 14),
             settingsCardStack.leadingAnchor.constraint(equalTo: settingsCardView.leadingAnchor, constant: 14),
@@ -353,7 +354,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         super.viewDidAppear()
         view.window?.touchBar = gameTouchBar
         view.window?.makeFirstResponder(self)
-        view.window?.minSize = NSSize(width: 760, height: 450)
+        view.window?.minSize = NSSize(width: 720, height: 450)
         updateWindowTitle()
     }
 
@@ -597,13 +598,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func updateStatusBadge(with snapshot: GameSnapshot) {
         switch snapshot.mode {
         case .free:
-            setStatusBadge(text: localized("status.ready"), tone: .ready)
+            hideStatusBadge()
 
         case .scoreAttack, .speedRun:
             if snapshot.isFinished {
                 setStatusBadge(text: localized("status.finish"), tone: .finish)
             } else if !snapshot.isRunning {
-                setStatusBadge(text: localized("status.ready"), tone: .ready)
+                hideStatusBadge()
             } else if comboStreak >= 2 {
                 setStatusBadge(text: localizedFormat("status.combo", comboStreak), tone: .combo)
             } else {
@@ -613,6 +614,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private func setStatusBadge(text: String, tone: BadgeTone) {
+        statusBadgeLabel.isHidden = false
         statusBadgeLabel.stringValue = "  \(text)  "
 
         switch tone {
@@ -638,6 +640,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         }
 
         statusBadgeLabel.layer?.borderWidth = 1
+    }
+
+    private func hideStatusBadge() {
+        statusBadgeLabel.stringValue = ""
+        statusBadgeLabel.isHidden = true
     }
 
     private func resetRuntimeIndicators() {

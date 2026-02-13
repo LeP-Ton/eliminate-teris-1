@@ -1,7 +1,7 @@
 "window.title" = "테리스 제거 1";
 "window.subtitle" = "픽셀 Touch Bar 챌린지";
-"panel.settings" = "대전 설정";
-"panel.status" = "보드 상태";
+"panel.settings" = "게임 설정";
+"panel.status" = "시간 및 점수";
 "status.ready" = "대기";
 "status.running" = "진행중";
 "status.finish" = "종료";
