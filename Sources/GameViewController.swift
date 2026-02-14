@@ -21,11 +21,23 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         case finish
     }
 
+    private struct RecordPanelContext {
+        let modeKey: ModeRecordKey
+        let detailValue: Int
+        let modeTagText: String
+        let detailTagText: String
+
+        var scopeID: String {
+            return ModeRecordStore.scopeID(mode: modeKey, detailValue: detailValue)
+        }
+    }
+
     private let localizer = Localizer.shared
 
     private let columns = 12
     private let scoreAttackMinutes = [1, 2, 3]
     private let speedRunTargets = [300, 600, 900]
+    private let recordStore = ModeRecordStore.shared
 
     private lazy var controller = GameBoardController(columns: columns)
     private lazy var gameTouchBarView = GameTouchBarView(columnRange: 0..<columns, controller: controller)
@@ -37,6 +49,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private var comboStreak = 0
     private var lastObservedScore = 0
     private var lastScoreGainDate: Date?
+    private var hasSavedFinishedRecord = false
+    private var latestRecordIDByMode: [String: String] = [:]
 
     private lazy var headerIconView: NSImageView = {
         let imageView = NSImageView()
@@ -101,7 +115,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let label = NSTextField(labelWithString: "")
         label.alignment = .center
         label.textColor = NSColor.white
-        label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .heavy)
+        label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .heavy)
         label.wantsLayer = true
         label.layer?.cornerRadius = 5
         label.layer?.masksToBounds = true
@@ -232,12 +246,100 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return stack
     }()
 
+    private lazy var rightColumnStack: NSStackView = {
+        let stack = NSStackView(views: [statusCardView, recordsCardView])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.distribution = .fill
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
+    }()
+
     private lazy var cardsStack: NSStackView = {
-        let stack = NSStackView(views: [settingsCardView, statusCardView])
+        let stack = NSStackView(views: [settingsCardView, rightColumnStack])
         stack.orientation = .horizontal
         stack.alignment = .top
         stack.distribution = .fill
         stack.spacing = 14
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
+    }()
+
+    private lazy var recordsTitleLabel: NSTextField = {
+        return makeSectionTitleLabel()
+    }()
+
+    private lazy var recordsModeTagView: RecordTagView = {
+        let view = RecordTagView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.isHidden = true
+        return view
+    }()
+
+    private lazy var recordsDetailTagView: RecordTagView = {
+        let view = RecordTagView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.isHidden = true
+        return view
+    }()
+
+    private lazy var recordsHeaderStack: NSStackView = {
+        let stack = NSStackView(views: [recordsTitleLabel, recordsModeTagView, recordsDetailTagView])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 6
+        stack.detachesHiddenViews = true
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
+    }()
+
+    private lazy var recordsTextView: NSTextView = {
+        let textView = NSTextView(frame: .zero)
+        textView.isEditable = false
+        textView.isSelectable = false
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.importsGraphics = false
+        textView.textContainerInset = NSSize(width: 2, height: 2)
+        textView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        textView.textColor = NSColor.white.withAlphaComponent(0.88)
+        textView.string = ""
+        textView.minSize = NSSize(width: 0, height: 0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.heightTracksTextView = false
+        textView.textContainer?.lineFragmentPadding = 0
+        return textView
+    }()
+
+    private lazy var recordsScrollView: NSScrollView = {
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.documentView = recordsTextView
+        return scrollView
+    }()
+
+    private lazy var recordsCardView: PixelFrameCardView = {
+        let view = PixelFrameCardView(accentColor: NSColor.systemOrange)
+        view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        view.isHidden = true
+        return view
+    }()
+
+    private lazy var recordsCardStack: NSStackView = {
+        let stack = NSStackView(views: [recordsHeaderStack, recordsScrollView])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
         return stack
     }()
@@ -274,6 +376,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         view.addSubview(contentStack)
         settingsCardView.addSubview(settingsCardStack)
         statusCardView.addSubview(statusCardStack)
+        recordsCardView.addSubview(recordsCardStack)
 
         NSLayoutConstraint.activate([
             contentStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 22),
@@ -292,7 +395,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
             cardsStack.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             settingsCardView.widthAnchor.constraint(greaterThanOrEqualToConstant: 390),
-            statusCardView.widthAnchor.constraint(greaterThanOrEqualToConstant: 250),
+            settingsCardView.widthAnchor.constraint(greaterThanOrEqualTo: rightColumnStack.widthAnchor, multiplier: 1.24),
+            rightColumnStack.widthAnchor.constraint(greaterThanOrEqualToConstant: 250),
+            rightColumnStack.heightAnchor.constraint(lessThanOrEqualTo: settingsCardView.heightAnchor),
+            statusCardView.widthAnchor.constraint(equalTo: rightColumnStack.widthAnchor),
+            recordsCardView.widthAnchor.constraint(equalTo: rightColumnStack.widthAnchor),
 
             settingsCardStack.topAnchor.constraint(equalTo: settingsCardView.topAnchor, constant: 14),
             settingsCardStack.leadingAnchor.constraint(equalTo: settingsCardView.leadingAnchor, constant: 14),
@@ -304,10 +411,18 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             statusCardStack.trailingAnchor.constraint(equalTo: statusCardView.trailingAnchor, constant: -14),
             statusCardStack.bottomAnchor.constraint(equalTo: statusCardView.bottomAnchor, constant: -14),
 
+            recordsCardStack.topAnchor.constraint(equalTo: recordsCardView.topAnchor, constant: 14),
+            recordsCardStack.leadingAnchor.constraint(equalTo: recordsCardView.leadingAnchor, constant: 14),
+            recordsCardStack.trailingAnchor.constraint(equalTo: recordsCardView.trailingAnchor, constant: -14),
+            recordsCardStack.bottomAnchor.constraint(equalTo: recordsCardView.bottomAnchor, constant: -14),
+
             controlsGrid.widthAnchor.constraint(equalTo: settingsCardStack.widthAnchor),
             statusBadgeLabel.widthAnchor.constraint(lessThanOrEqualTo: statusCardStack.widthAnchor),
             competitiveInfoLabel.widthAnchor.constraint(equalTo: statusCardStack.widthAnchor),
             resultLabel.widthAnchor.constraint(equalTo: statusCardStack.widthAnchor),
+            recordsHeaderStack.widthAnchor.constraint(lessThanOrEqualTo: recordsCardStack.widthAnchor),
+            recordsScrollView.widthAnchor.constraint(equalTo: recordsCardStack.widthAnchor),
+            recordsScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 72),
             instructionsLabel.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
 
             languagePopup.widthAnchor.constraint(equalToConstant: 240),
@@ -356,6 +471,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         view.window?.makeFirstResponder(self)
         view.window?.minSize = NSSize(width: 720, height: 450)
         updateWindowTitle()
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        refreshRecordsTextLayout()
     }
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
@@ -413,6 +533,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     @objc private func startButtonTapped(_ sender: NSButton) {
         guard currentModeSelection != .free else { return }
         resetRuntimeIndicators()
+        hasSavedFinishedRecord = false
         controller.startRound()
         updateCompetitiveInfo()
     }
@@ -428,6 +549,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
         if resetGame {
             resetRuntimeIndicators()
+            hasSavedFinishedRecord = false
             controller.configure(mode: gameMode(for: selection))
         }
 
@@ -441,6 +563,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         subtitleLabel.stringValue = localized("window.subtitle")
         settingsTitleLabel.stringValue = localized("panel.settings")
         statusTitleLabel.stringValue = localized("panel.status")
+        recordsTitleLabel.stringValue = localized("panel.records")
         languageTitleLabel.stringValue = localized("language.label")
         modeTitleLabel.stringValue = localized("mode.label")
         startTitleLabel.stringValue = ""
@@ -461,7 +584,10 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
         populateOptionPopup(for: currentModeSelection)
         updateStartControlVisibility(for: currentModeSelection)
-        updateStartControl(for: controller.snapshot())
+
+        let snapshot = controller.snapshot()
+        updateStartControl(for: snapshot)
+        updateRecordPanel(with: snapshot)
     }
 
     private func configureLanguagePopup() {
@@ -518,6 +644,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         syncHudTimer(with: snapshot)
         updateStartControl(for: snapshot)
         updateStatusBadge(with: snapshot)
+        persistModeRecordIfNeeded(with: snapshot)
+        updateRecordPanel(with: snapshot)
 
         switch snapshot.mode {
         case .free:
@@ -722,6 +850,264 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         view.window?.title = localized("window.title")
     }
 
+    private func persistModeRecordIfNeeded(with snapshot: GameSnapshot) {
+        guard let context = recordPanelContext(for: snapshot.mode) else {
+            hasSavedFinishedRecord = false
+            return
+        }
+
+        guard snapshot.isFinished else {
+            hasSavedFinishedRecord = false
+            return
+        }
+
+        guard !hasSavedFinishedRecord else { return }
+
+        let insertedRecord: ModeRecord?
+        switch snapshot.mode {
+        case .free:
+            insertedRecord = nil
+
+        case .scoreAttack:
+            insertedRecord = recordStore.addScoreAttackRecord(
+                score: snapshot.score,
+                elapsedTime: snapshot.elapsedTime,
+                durationMinutes: context.detailValue
+            )
+
+        case .speedRun:
+            insertedRecord = recordStore.addSpeedRunRecord(
+                score: snapshot.score,
+                elapsedTime: snapshot.elapsedTime,
+                targetScore: context.detailValue
+            )
+        }
+
+        hasSavedFinishedRecord = true
+
+        if let insertedRecord {
+            let topRecordID = recordStore.records(for: context.modeKey, detailValue: context.detailValue).first?.id
+            if topRecordID == insertedRecord.id {
+                latestRecordIDByMode[context.scopeID] = insertedRecord.id
+            } else {
+                latestRecordIDByMode.removeValue(forKey: context.scopeID)
+            }
+        }
+    }
+
+    private func updateRecordPanel(with snapshot: GameSnapshot) {
+        guard let context = recordPanelContext(for: snapshot.mode) else {
+            recordsCardView.isHidden = true
+            recordsTitleLabel.stringValue = localized("panel.records")
+            recordsModeTagView.isHidden = true
+            recordsDetailTagView.isHidden = true
+            setRecordsText("")
+            return
+        }
+
+        recordsCardView.isHidden = false
+        recordsTitleLabel.stringValue = localized("panel.records")
+        configureRecordTag(
+            recordsModeTagView,
+            text: context.modeTagText,
+            fillColor: NSColor(calibratedRed: 0.96, green: 0.56, blue: 0.18, alpha: 0.26),
+            borderColor: NSColor(calibratedRed: 1.0, green: 0.74, blue: 0.32, alpha: 0.82)
+        )
+        configureRecordTag(
+            recordsDetailTagView,
+            text: context.detailTagText,
+            fillColor: NSColor(calibratedRed: 0.96, green: 0.56, blue: 0.18, alpha: 0.26),
+            borderColor: NSColor(calibratedRed: 1.0, green: 0.74, blue: 0.32, alpha: 0.82)
+        )
+
+        let records = recordStore.records(for: context.modeKey, detailValue: context.detailValue)
+        guard !records.isEmpty else {
+            setRecordsText(localized("records.empty"))
+            return
+        }
+
+        let newestRecordID = latestRecordIDByMode[context.scopeID]
+        setRecordRows(records, modeKey: context.modeKey, newestRecordID: newestRecordID)
+    }
+
+    private func setRecordRows(_ records: [ModeRecord], modeKey: ModeRecordKey, newestRecordID: String?) {
+        let availableWidth = max(recordsScrollView.contentSize.width - 2, 180)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.tabStops = [NSTextTab(textAlignment: .right, location: availableWidth, options: [:])]
+        paragraphStyle.defaultTabInterval = availableWidth
+        paragraphStyle.lineBreakMode = .byTruncatingTail
+        paragraphStyle.minimumLineHeight = 24
+        paragraphStyle.maximumLineHeight = 24
+        paragraphStyle.lineSpacing = 7
+
+        let metricAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold),
+            .foregroundColor: NSColor.white.withAlphaComponent(0.94),
+            .paragraphStyle: paragraphStyle
+        ]
+        let dateAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+            .foregroundColor: NSColor.white.withAlphaComponent(0.48),
+            .paragraphStyle: paragraphStyle
+        ]
+        let newAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy),
+            .foregroundColor: NSColor.systemOrange.withAlphaComponent(0.95),
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let content = NSMutableAttributedString()
+        for (index, record) in records.enumerated() {
+            let row = NSMutableAttributedString()
+            row.append(rankTagAttributedText(rank: index + 1))
+            row.append(NSAttributedString(string: " "))
+            row.append(NSAttributedString(string: recordMetricText(for: modeKey, record: record), attributes: metricAttributes))
+
+            if record.id == newestRecordID {
+                let marker = localized("records.new_suffix").trimmingCharacters(in: .whitespaces)
+                row.append(NSAttributedString(string: " \(marker)", attributes: newAttributes))
+            }
+
+            row.append(NSAttributedString(string: "\t", attributes: metricAttributes))
+            row.append(NSAttributedString(string: recordDateText(for: record), attributes: dateAttributes))
+            row.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: row.length))
+            content.append(row)
+
+            if index < records.count - 1 {
+                content.append(NSAttributedString(string: "\n"))
+            }
+        }
+
+        setRecordsText(content)
+    }
+
+    private func rankTagAttributedText(rank: Int) -> NSAttributedString {
+        let attachment = NSTextAttachment()
+        let image = rankTagImage(rank: rank)
+        attachment.image = image
+        attachment.bounds = NSRect(x: 0, y: -1, width: image.size.width, height: image.size.height)
+        return NSAttributedString(attachment: attachment)
+    }
+
+    private func rankTagImage(rank: Int) -> NSImage {
+        let text = String(rank)
+        let font = NSFont.monospacedSystemFont(ofSize: 9, weight: .heavy)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white.withAlphaComponent(0.96)
+        ]
+        let textSize = (text as NSString).size(withAttributes: attributes)
+        let horizontalInset: CGFloat = 6
+        let verticalInset: CGFloat = 2
+        let size = NSSize(
+            width: ceil(textSize.width + horizontalInset * 2),
+            height: ceil(textSize.height + verticalInset * 2)
+        )
+
+        let image = NSImage(size: size)
+        image.lockFocus()
+
+        let rect = NSRect(origin: .zero, size: size)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4)
+        NSColor(calibratedRed: 0.96, green: 0.56, blue: 0.18, alpha: 0.24).setFill()
+        path.fill()
+        NSColor(calibratedRed: 1.0, green: 0.74, blue: 0.32, alpha: 0.85).setStroke()
+        path.lineWidth = 1
+        path.stroke()
+
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let drawAttributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white.withAlphaComponent(0.96),
+            .paragraphStyle: paragraph
+        ]
+        let textRect = NSRect(
+            x: 0,
+            y: floor((size.height - textSize.height) / 2),
+            width: size.width,
+            height: textSize.height
+        )
+        (text as NSString).draw(in: textRect, withAttributes: drawAttributes)
+
+        image.unlockFocus()
+        return image
+    }
+
+    private func recordMetricText(for modeKey: ModeRecordKey, record: ModeRecord) -> String {
+        switch modeKey {
+        case .scoreAttack:
+            return localizedFormat("records.metric.score", record.score)
+        case .speedRun:
+            return formatClock(record.elapsedTime)
+        }
+    }
+
+    private func recordDateText(for record: ModeRecord) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = localizer.locale
+        formatter.dateFormat = localized("records.date_format")
+        return formatter.string(from: Date(timeIntervalSince1970: record.createdAt))
+    }
+
+    private func recordPanelContext(for mode: GameMode) -> RecordPanelContext? {
+        switch mode {
+        case .free:
+            return nil
+
+        case .scoreAttack(let duration):
+            let minutes = max(1, Int((duration / 60).rounded()))
+            return RecordPanelContext(
+                modeKey: .scoreAttack,
+                detailValue: minutes,
+                modeTagText: localized("mode.score_attack"),
+                detailTagText: localizedFormat("option.minute_format", minutes)
+            )
+
+        case .speedRun(let targetScore):
+            let normalizedTarget = max(1, targetScore)
+            return RecordPanelContext(
+                modeKey: .speedRun,
+                detailValue: normalizedTarget,
+                modeTagText: localized("mode.speed_run"),
+                detailTagText: localizedFormat("option.target_format", normalizedTarget)
+            )
+        }
+    }
+
+    private func setRecordsText(_ text: String) {
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: NSColor.white.withAlphaComponent(0.9)
+        ]
+        let attributed = NSAttributedString(string: text, attributes: attributes)
+        setRecordsText(attributed)
+    }
+
+    private func setRecordsText(_ attributed: NSAttributedString) {
+        recordsTextView.textStorage?.setAttributedString(attributed)
+        refreshRecordsTextLayout()
+    }
+
+    private func refreshRecordsTextLayout() {
+        guard let textContainer = recordsTextView.textContainer,
+              let layoutManager = recordsTextView.layoutManager else {
+            return
+        }
+
+        let width = max(recordsScrollView.contentSize.width, 1)
+        textContainer.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+        layoutManager.ensureLayout(for: textContainer)
+
+        let usedRect = layoutManager.usedRect(for: textContainer)
+        let requiredHeight = max(
+            usedRect.height + recordsTextView.textContainerInset.height * 2,
+            recordsScrollView.contentSize.height
+        )
+
+        recordsTextView.frame = NSRect(x: 0, y: 0, width: width, height: requiredHeight)
+    }
+
     private func formatClock(_ interval: TimeInterval) -> String {
         let totalSeconds = max(0, Int(interval.rounded(.down)))
         let minutes = totalSeconds / 60
@@ -738,6 +1124,16 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return String(format: format, locale: localizer.locale, arguments: arguments)
     }
 
+    private func configureRecordTag(
+        _ tagView: RecordTagView,
+        text: String,
+        fillColor: NSColor,
+        borderColor: NSColor
+    ) {
+        tagView.configure(text: text, fillColor: fillColor, borderColor: borderColor)
+        tagView.isHidden = false
+    }
+
     private func makeControlTitleLabel() -> NSTextField {
         let label = NSTextField(labelWithString: "")
         label.alignment = .right
@@ -752,7 +1148,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let label = NSTextField(labelWithString: "")
         label.alignment = .left
         label.textColor = NSColor.white.withAlphaComponent(0.78)
-        label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .heavy)
+        label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .heavy)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }
@@ -849,6 +1245,66 @@ private final class ArcadeStageView: NSView {
             }
             x += step
         }
+    }
+}
+
+
+private final class RecordTagView: NSView {
+    private let insets = NSEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
+    private let font = NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy)
+    private var text: String = ""
+    private var fillColor = NSColor(calibratedRed: 0.25, green: 0.24, blue: 0.32, alpha: 0.95)
+    private var borderColor = NSColor(calibratedRed: 0.5, green: 0.5, blue: 0.62, alpha: 0.95)
+
+    override var isFlipped: Bool {
+        return true
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let textSize = (text as NSString).size(withAttributes: [.font: font])
+        return NSSize(
+            width: ceil(textSize.width + insets.left + insets.right),
+            height: ceil(textSize.height + insets.top + insets.bottom)
+        )
+    }
+
+    func configure(text: String, fillColor: NSColor, borderColor: NSColor) {
+        self.text = text
+        self.fillColor = fillColor
+        self.borderColor = borderColor
+        invalidateIntrinsicContentSize()
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        guard !text.isEmpty else { return }
+
+        let pillRect = bounds.insetBy(dx: 0.5, dy: 0.5)
+        let path = NSBezierPath(roundedRect: pillRect, xRadius: 4, yRadius: 4)
+        fillColor.setFill()
+        path.fill()
+        borderColor.setStroke()
+        path.lineWidth = 1
+        path.stroke()
+
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white.withAlphaComponent(0.96),
+            .paragraphStyle: paragraph
+        ]
+
+        let textSize = (text as NSString).size(withAttributes: attributes)
+        let textRect = NSRect(
+            x: insets.left,
+            y: floor((bounds.height - textSize.height) / 2),
+            width: max(1, bounds.width - insets.left - insets.right),
+            height: textSize.height
+        )
+        (text as NSString).draw(in: textRect, withAttributes: attributes)
     }
 }
 

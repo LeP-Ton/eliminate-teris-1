@@ -35,3 +35,11 @@
 "result.waiting_start" = "Готово. Нажмите «Старт», чтобы начать.";
 "result.score_attack_finished" = "Время вышло! Итоговые очки: %d";
 "result.speed_run_finished" = "Цель достигнута за %@";
+"panel.records" = "Рекорды испытаний";
+"panel.records.with_mode" = "Рекорды испытаний (%@)";
+"records.empty" = "Пока нет рекордов.";
+"records.new_suffix" = " new";
+"records.date_format" = "dd.MM.yyyy";
+"records.metric.score" = "%d очк.";
+"records.score_attack.line" = "%d. %d очк. · %@%@";
+"records.speed_run.line" = "%d. %@ · %d/%d очк.%@";

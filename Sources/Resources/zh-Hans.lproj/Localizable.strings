@@ -35,3 +35,11 @@
 "result.waiting_start" = "准备就绪，点击开始后计时。";
 "result.score_attack_finished" = "时间到！最终得分：%d";
 "result.speed_run_finished" = "达成目标，用时 %@";
+"panel.records" = "挑战记录";
+"panel.records.with_mode" = "挑战记录（%@）";
+"records.empty" = "暂无纪录";
+"records.new_suffix" = " new";
+"records.date_format" = "yyyy年MM月dd日";
+"records.metric.score" = "%d分";
+"records.score_attack.line" = "%d. %d分 · %@%@";
+"records.speed_run.line" = "%d. %@ · %d/%d分%@";

@@ -35,3 +35,11 @@
 "result.waiting_start" = "준비 완료. 시작을 누르면 타이머가 시작됩니다.";
 "result.score_attack_finished" = "시간 종료! 최종 점수: %d";
 "result.speed_run_finished" = "%@ 만에 목표 달성";
+"panel.records" = "챌린지 기록";
+"panel.records.with_mode" = "챌린지 기록 (%@)";
+"records.empty" = "아직 기록이 없습니다.";
+"records.new_suffix" = " new";
+"records.date_format" = "yyyy년 MM월 dd일";
+"records.metric.score" = "%d점";
+"records.score_attack.line" = "%d. %d점 · %@%@";
+"records.speed_run.line" = "%d. %@ · %d/%d점%@";

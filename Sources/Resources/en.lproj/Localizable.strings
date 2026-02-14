@@ -35,3 +35,11 @@
 "result.waiting_start" = "Ready. Click Start to begin.";
 "result.score_attack_finished" = "Time's up! Final score: %d";
 "result.speed_run_finished" = "Target reached in %@";
+"panel.records" = "Challenge Records";
+"panel.records.with_mode" = "Challenge Records (%@)";
+"records.empty" = "No records yet.";
+"records.new_suffix" = " new";
+"records.date_format" = "yyyy-MM-dd";
+"records.metric.score" = "%d pts";
+"records.score_attack.line" = "%d. %d pts · %@%@";
+"records.speed_run.line" = "%d. %@ · %d/%d pts%@";

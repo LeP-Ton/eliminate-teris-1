@@ -35,3 +35,11 @@
 "result.waiting_start" = "準備完了。開始を押すとスタートします。";
 "result.score_attack_finished" = "時間切れ！最終スコア: %d";
 "result.speed_run_finished" = "%@ で目標達成";
+"panel.records" = "チャレンジ記録";
+"panel.records.with_mode" = "チャレンジ記録（%@）";
+"records.empty" = "記録はまだありません。";
+"records.new_suffix" = " new";
+"records.date_format" = "yyyy年MM月dd日";
+"records.metric.score" = "%d点";
+"records.score_attack.line" = "%d. %d点 ・ %@%@";
+"records.speed_run.line" = "%d. %@ ・ %d/%d点%@";
