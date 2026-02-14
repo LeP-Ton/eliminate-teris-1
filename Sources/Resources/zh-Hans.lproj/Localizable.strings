@@ -59,3 +59,15 @@
 "rules.current.free" = "当前模式：自由（无时间限制 / 无目标分数）";
 "rules.current.score_attack" = "当前模式：竞分（当前档位：%@）";
 "rules.current.speed_run" = "当前模式：竞速（当前目标：%@）";
+
+"rules.mode_title.free" = "自由模式：";
+"rules.mode_title.score_attack" = "竞分模式：";
+"rules.mode_title.speed_run" = "竞速模式：";
+"rules.label.mode_rule" = "模式规则";
+"rules.label.settlement" = "结算方式";
+"rules.short.mode.free" = "无时间和目标分数限制，可持续练习操作";
+"rules.short.mode.score_attack" = "在%@内尽可能获得更高分";
+"rules.short.mode.speed_run" = "以最短时间达到%@目标";
+"rules.short.settlement.free" = "不判定胜负，不参与排名结算";
+"rules.short.settlement.score_attack" = "倒计时归零后结算，以最终得分排名";
+"rules.short.settlement.speed_run" = "达到目标分数后立即结算，以用时排名";

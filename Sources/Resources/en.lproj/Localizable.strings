@@ -59,3 +59,15 @@
 "rules.current.free" = "Current Mode: Free (No timer / No target score)";
 "rules.current.score_attack" = "Current Mode: Score Attack (Current tier: %@)";
 "rules.current.speed_run" = "Current Mode: Speed Run (Current target: %@)";
+
+"rules.mode_title.free" = "Free Mode:";
+"rules.mode_title.score_attack" = "Score Attack:";
+"rules.mode_title.speed_run" = "Speed Run:";
+"rules.label.mode_rule" = "Mode Rule";
+"rules.label.settlement" = "Settlement";
+"rules.short.mode.free" = "No timer or target score, suitable for practice";
+"rules.short.mode.score_attack" = "Earn as many points as possible within %@";
+"rules.short.mode.speed_run" = "Reach %@ in the shortest time";
+"rules.short.settlement.free" = "No win/lose settlement and no ranking";
+"rules.short.settlement.score_attack" = "Settles when countdown ends, ranked by final score";
+"rules.short.settlement.speed_run" = "Settles immediately on target reach, ranked by elapsed time";

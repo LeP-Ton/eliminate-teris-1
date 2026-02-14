@@ -651,41 +651,34 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private func updateRulesDescription(for selection: ModeSelection) {
+        let modeTitle: String
         let modeRule: String
-        let goalRule: String
-        let currentRule: String
+        let settlementRule: String
 
         switch selection {
         case .free:
-            modeRule = localized("rules.mode.free")
-            goalRule = localized("rules.goal.free")
-            currentRule = localized("rules.current.free")
+            modeTitle = localized("rules.mode_title.free")
+            modeRule = localized("rules.short.mode.free")
+            settlementRule = localized("rules.short.settlement.free")
 
         case .scoreAttack:
             let minutes = scoreAttackMinutes[min(max(0, selectedScoreAttackIndex), scoreAttackMinutes.count - 1)]
-            modeRule = localizedFormat("rules.mode.score_attack", scoreAttackMinutes[0], scoreAttackMinutes[1], scoreAttackMinutes[2])
-            goalRule = localized("rules.goal.score_attack")
-            currentRule = localizedFormat("rules.current.score_attack", localizedFormat("option.minute_format", minutes))
+            modeTitle = localized("rules.mode_title.score_attack")
+            modeRule = localizedFormat("rules.short.mode.score_attack", localizedFormat("option.minute_format", minutes))
+            settlementRule = localized("rules.short.settlement.score_attack")
 
         case .speedRun:
             let targetScore = speedRunTargets[min(max(0, selectedSpeedRunIndex), speedRunTargets.count - 1)]
-            modeRule = localizedFormat("rules.mode.speed_run", speedRunTargets[0], speedRunTargets[1], speedRunTargets[2])
-            goalRule = localized("rules.goal.speed_run")
-            currentRule = localizedFormat("rules.current.speed_run", localizedFormat("option.target_format", targetScore))
+            modeTitle = localized("rules.mode_title.speed_run")
+            modeRule = localizedFormat("rules.short.mode.speed_run", localizedFormat("option.target_format", targetScore))
+            settlementRule = localized("rules.short.settlement.speed_run")
         }
 
+        // 玩法说明改为精简结构：模式名 + 两条规则（模式规则/结算方式）。
         let description = """
-        \(localized("rules.category.core"))
-        • \(localized("rules.core.line1"))
-        • \(localized("rules.core.line2"))
-
-        \(localized("rules.category.mode"))
-        • \(modeRule)
-
-        \(localized("rules.category.goal"))
-        • \(goalRule)
-
-        \(currentRule)
+        \(modeTitle)
+        - \(localized("rules.label.mode_rule"))：\(modeRule)
+        - \(localized("rules.label.settlement"))：\(settlementRule)
         """
         rulesBodyLabel.stringValue = description
     }

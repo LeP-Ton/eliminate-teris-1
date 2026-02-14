@@ -59,3 +59,15 @@
 "rules.current.free" = "현재 모드: 자유 (시간 제한 없음 / 목표 점수 없음)";
 "rules.current.score_attack" = "현재 모드: 점수전 (현재 설정: %@)";
 "rules.current.speed_run" = "현재 모드: 스피드런 (현재 목표: %@)";
+
+"rules.mode_title.free" = "자유 모드:";
+"rules.mode_title.score_attack" = "점수전 모드:";
+"rules.mode_title.speed_run" = "스피드런 모드:";
+"rules.label.mode_rule" = "모드 규칙";
+"rules.label.settlement" = "결산 방식";
+"rules.short.mode.free" = "시간 제한과 목표 점수 없이 계속 연습할 수 있습니다";
+"rules.short.mode.score_attack" = "%@ 안에 최대한 높은 점수를 노립니다";
+"rules.short.mode.speed_run" = "%@ 목표를 최단 시간에 달성합니다";
+"rules.short.settlement.free" = "승패 판정이 없고 랭킹 집계도 하지 않습니다";
+"rules.short.settlement.score_attack" = "시간 종료 시 결산하며 최종 점수로 순위를 매깁니다";
+"rules.short.settlement.speed_run" = "목표 달성 즉시 결산하며 소요 시간으로 순위를 매깁니다";

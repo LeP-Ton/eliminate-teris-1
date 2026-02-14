@@ -59,3 +59,15 @@
 "rules.current.free" = "Текущий режим: Свободный (без таймера / без цели по очкам)";
 "rules.current.score_attack" = "Текущий режим: На очки (текущий уровень: %@)";
 "rules.current.speed_run" = "Текущий режим: На скорость (текущая цель: %@)";
+
+"rules.mode_title.free" = "Свободный режим:";
+"rules.mode_title.score_attack" = "Режим на очки:";
+"rules.mode_title.speed_run" = "Режим на скорость:";
+"rules.label.mode_rule" = "Правило режима";
+"rules.label.settlement" = "Условие завершения";
+"rules.short.mode.free" = "Без таймера и целевого счёта, можно спокойно тренироваться";
+"rules.short.mode.score_attack" = "Наберите максимум очков за %@";
+"rules.short.mode.speed_run" = "Достигните %@ за минимальное время";
+"rules.short.settlement.free" = "Без победы/поражения и без рейтинга";
+"rules.short.settlement.score_attack" = "Завершение по таймеру, рейтинг по итоговому счёту";
+"rules.short.settlement.speed_run" = "Завершение сразу после цели, рейтинг по времени";

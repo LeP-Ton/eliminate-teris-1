@@ -59,3 +59,15 @@
 "rules.current.free" = "現在モード：フリー（時間制限なし / 目標スコアなし）";
 "rules.current.score_attack" = "現在モード：スコアアタック（現在の設定：%@）";
 "rules.current.speed_run" = "現在モード：スピードラン（現在の目標：%@）";
+
+"rules.mode_title.free" = "フリーモード：";
+"rules.mode_title.score_attack" = "スコアアタック：";
+"rules.mode_title.speed_run" = "スピードラン：";
+"rules.label.mode_rule" = "モードルール";
+"rules.label.settlement" = "決着方式";
+"rules.short.mode.free" = "時間制限と目標スコアなしで継続練習できます";
+"rules.short.mode.score_attack" = "%@ 内でできるだけ高得点を狙います";
+"rules.short.mode.speed_run" = "%@ 目標を最短時間で達成します";
+"rules.short.settlement.free" = "勝敗判定なし、ランキング対象外です";
+"rules.short.settlement.score_attack" = "時間切れで終了し、最終スコアで順位付けします";
+"rules.short.settlement.speed_run" = "目標到達で即終了し、経過時間で順位付けします";
