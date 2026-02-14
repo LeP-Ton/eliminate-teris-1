@@ -118,6 +118,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/ModeRecordStore.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/Piece.swift"
         },
         {
@@ -142,6 +146,7 @@
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/GameTouchBarView.swift.o",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/GameViewController.swift.o",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/Localization.swift.o",
+        "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/ModeRecordStore.swift.o",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/Piece.swift.o",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/main.swift.o",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/resource_bundle_accessor.swift.o"
@@ -167,6 +172,7 @@
         "-entry-point-function-name",
         "-Xfrontend",
         "EliminateTeris1_main",
+        "-color-diagnostics",
         "-sdk",
         "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.1.sdk",
         "-F",
@@ -199,6 +205,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/ModeRecordStore.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/Piece.swift.o"
         },
         {
@@ -220,6 +230,7 @@
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameTouchBarView.swift",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/GameViewController.swift",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/Localization.swift",
+        "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/ModeRecordStore.swift",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/Piece.swift",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/Sources/main.swift",
         "/Users/lepton/Documents/vscode-workspace/eliminate-tetris-1/.build/x86_64-apple-macosx/debug/EliminateTeris1.build/DerivedSources/resource_bundle_accessor.swift"
