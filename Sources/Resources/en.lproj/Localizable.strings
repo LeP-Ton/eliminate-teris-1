@@ -36,6 +36,7 @@
 "result.score_attack_finished" = "Time's up! Final score: %d";
 "result.speed_run_finished" = "Target reached in %@";
 "panel.records" = "Challenge Records";
+"panel.rules" = "Mode Briefing";
 "panel.records.with_mode" = "Challenge Records (%@)";
 "records.empty" = "No records yet.";
 "records.new_suffix" = " new";
@@ -43,3 +44,18 @@
 "records.metric.score" = "%d pts";
 "records.score_attack.line" = "%d. %d pts · %@%@";
 "records.speed_run.line" = "%d. %@ · %d/%d pts%@";
+
+"rules.category.core" = "Core Rules";
+"rules.category.mode" = "Mode Rules";
+"rules.category.goal" = "Settlement Rules";
+"rules.core.line1" = "Drag tiles on the Touch Bar to swap positions; match 3+ to clear.";
+"rules.core.line2" = "Multi-touch swapping is supported; chain clears help build a score gap.";
+"rules.mode.free" = "Free: No timer and no target score; ideal for control practice.";
+"rules.mode.score_attack" = "Score Attack: Earn as many points as possible within %d/%d/%d minutes.";
+"rules.mode.speed_run" = "Speed Run: Reach %d/%d/%d points as quickly as possible.";
+"rules.goal.free" = "Free: No win/lose settlement, used for practice only.";
+"rules.goal.score_attack" = "Score Attack: Settles when countdown ends, ranked by final score.";
+"rules.goal.speed_run" = "Speed Run: Settles immediately after target score is reached, ranked by elapsed time.";
+"rules.current.free" = "Current Mode: Free (No timer / No target score)";
+"rules.current.score_attack" = "Current Mode: Score Attack (Current tier: %@)";
+"rules.current.speed_run" = "Current Mode: Speed Run (Current target: %@)";

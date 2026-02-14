@@ -36,6 +36,7 @@
 "result.score_attack_finished" = "Время вышло! Итоговые очки: %d";
 "result.speed_run_finished" = "Цель достигнута за %@";
 "panel.records" = "Рекорды испытаний";
+"panel.rules" = "Правила режима";
 "panel.records.with_mode" = "Рекорды испытаний (%@)";
 "records.empty" = "Пока нет рекордов.";
 "records.new_suffix" = " new";
@@ -43,3 +44,18 @@
 "records.metric.score" = "%d очк.";
 "records.score_attack.line" = "%d. %d очк. · %@%@";
 "records.speed_run.line" = "%d. %@ · %d/%d очк.%@";
+
+"rules.category.core" = "Базовые правила";
+"rules.category.mode" = "Правила режимов";
+"rules.category.goal" = "Условия завершения";
+"rules.core.line1" = "Перетаскивайте плитки на Touch Bar; 3 и более подряд очищаются.";
+"rules.core.line2" = "Поддерживается мультитач-обмен; серии очисток помогают увеличить отрыв по очкам.";
+"rules.mode.free" = "Свободный: без лимита времени и целевого счёта, подходит для тренировки.";
+"rules.mode.score_attack" = "На очки: наберите максимум очков за %d/%d/%d минут.";
+"rules.mode.speed_run" = "На скорость: достигните %d/%d/%d очков как можно быстрее.";
+"rules.goal.free" = "Свободный: без победы/поражения, только для практики.";
+"rules.goal.score_attack" = "На очки: завершение по таймеру, рейтинг по итоговому счёту.";
+"rules.goal.speed_run" = "На скорость: завершение сразу после цели, рейтинг по времени.";
+"rules.current.free" = "Текущий режим: Свободный (без таймера / без цели по очкам)";
+"rules.current.score_attack" = "Текущий режим: На очки (текущий уровень: %@)";
+"rules.current.speed_run" = "Текущий режим: На скорость (текущая цель: %@)";

@@ -208,10 +208,16 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return label
     }()
 
-    private lazy var instructionsLabel: NSTextField = {
+    private lazy var rulesTitleLabel: NSTextField = {
+        let label = makeSectionTitleLabel()
+        label.textColor = NSColor(calibratedRed: 1.0, green: 0.53, blue: 0.5, alpha: 0.96)
+        return label
+    }()
+
+    private lazy var rulesBodyLabel: NSTextField = {
         let label = NSTextField(wrappingLabelWithString: "")
         label.alignment = .left
-        label.textColor = NSColor.white.withAlphaComponent(0.66)
+        label.textColor = NSColor(calibratedRed: 1.0, green: 0.82, blue: 0.82, alpha: 0.9)
         label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         label.maximumNumberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -328,6 +334,20 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return stack
     }()
 
+    private lazy var rulesCardView: PixelFrameCardView = {
+        // 罗德岛风格的偏深红强调色。
+        return PixelFrameCardView(accentColor: NSColor(calibratedRed: 0.93, green: 0.28, blue: 0.3, alpha: 1.0))
+    }()
+
+    private lazy var rulesCardStack: NSStackView = {
+        let stack = NSStackView(views: [rulesTitleLabel, rulesBodyLabel])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
+    }()
+
     private lazy var dividerView: PixelDividerView = {
         let view = PixelDividerView(frame: .zero)
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -335,7 +355,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var contentStack: NSStackView = {
-        let stack = NSStackView(views: [headerStack, dividerView, pixelBannerView, cardsStack, instructionsLabel])
+        let stack = NSStackView(views: [headerStack, dividerView, pixelBannerView, cardsStack, rulesCardView])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 14
@@ -361,6 +381,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         settingsCardView.addSubview(settingsCardStack)
         statusCardView.addSubview(statusCardStack)
         recordsCardView.addSubview(recordsCardStack)
+        rulesCardView.addSubview(rulesCardStack)
 
         NSLayoutConstraint.activate([
             contentStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 22),
@@ -407,7 +428,12 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             recordsHeaderStack.widthAnchor.constraint(lessThanOrEqualTo: recordsCardStack.widthAnchor),
             recordsScrollView.widthAnchor.constraint(equalTo: recordsCardStack.widthAnchor),
             recordsScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 72),
-            instructionsLabel.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            rulesCardView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            rulesCardStack.topAnchor.constraint(equalTo: rulesCardView.topAnchor, constant: 14),
+            rulesCardStack.leadingAnchor.constraint(equalTo: rulesCardView.leadingAnchor, constant: 14),
+            rulesCardStack.trailingAnchor.constraint(equalTo: rulesCardView.trailingAnchor, constant: -14),
+            rulesCardStack.bottomAnchor.constraint(equalTo: rulesCardView.bottomAnchor, constant: -14),
+            rulesBodyLabel.widthAnchor.constraint(equalTo: rulesCardStack.widthAnchor),
 
             languagePopup.widthAnchor.constraint(equalToConstant: 240),
             languagePopup.heightAnchor.constraint(equalToConstant: 38),
@@ -530,6 +556,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let selection = currentModeSelection
         populateOptionPopup(for: selection)
         updateStartControlVisibility(for: selection)
+        updateRulesDescription(for: selection)
 
         if resetGame {
             resetRuntimeIndicators()
@@ -548,10 +575,10 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         settingsTitleLabel.stringValue = localized("panel.settings")
         statusTitleLabel.stringValue = localized("panel.status")
         recordsTitleLabel.stringValue = localized("panel.records")
+        rulesTitleLabel.stringValue = localized("panel.rules")
         languageTitleLabel.stringValue = localized("language.label")
         modeTitleLabel.stringValue = localized("mode.label")
         startTitleLabel.stringValue = ""
-        instructionsLabel.stringValue = localized("instructions.text")
 
         if let icon = NSImage(systemSymbolName: "square.grid.3x3.fill", accessibilityDescription: titleLabel.stringValue) {
             headerIconView.image = icon
@@ -568,6 +595,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
         populateOptionPopup(for: currentModeSelection)
         updateStartControlVisibility(for: currentModeSelection)
+        updateRulesDescription(for: currentModeSelection)
 
         let snapshot = controller.snapshot()
         updateStartControl(for: snapshot)
@@ -620,6 +648,46 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func updateStartControlVisibility(for selection: ModeSelection) {
         let actionRow = controlsGrid.row(at: ControlRow.action.rawValue)
         actionRow.isHidden = selection == .free
+    }
+
+    private func updateRulesDescription(for selection: ModeSelection) {
+        let modeRule: String
+        let goalRule: String
+        let currentRule: String
+
+        switch selection {
+        case .free:
+            modeRule = localized("rules.mode.free")
+            goalRule = localized("rules.goal.free")
+            currentRule = localized("rules.current.free")
+
+        case .scoreAttack:
+            let minutes = scoreAttackMinutes[min(max(0, selectedScoreAttackIndex), scoreAttackMinutes.count - 1)]
+            modeRule = localizedFormat("rules.mode.score_attack", scoreAttackMinutes[0], scoreAttackMinutes[1], scoreAttackMinutes[2])
+            goalRule = localized("rules.goal.score_attack")
+            currentRule = localizedFormat("rules.current.score_attack", localizedFormat("option.minute_format", minutes))
+
+        case .speedRun:
+            let targetScore = speedRunTargets[min(max(0, selectedSpeedRunIndex), speedRunTargets.count - 1)]
+            modeRule = localizedFormat("rules.mode.speed_run", speedRunTargets[0], speedRunTargets[1], speedRunTargets[2])
+            goalRule = localized("rules.goal.speed_run")
+            currentRule = localizedFormat("rules.current.speed_run", localizedFormat("option.target_format", targetScore))
+        }
+
+        let description = """
+        \(localized("rules.category.core"))
+        • \(localized("rules.core.line1"))
+        • \(localized("rules.core.line2"))
+
+        \(localized("rules.category.mode"))
+        • \(modeRule)
+
+        \(localized("rules.category.goal"))
+        • \(goalRule)
+
+        \(currentRule)
+        """
+        rulesBodyLabel.stringValue = description
     }
 
     private func updateCompetitiveInfo() {

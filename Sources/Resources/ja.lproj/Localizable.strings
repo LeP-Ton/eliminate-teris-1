@@ -36,6 +36,7 @@
 "result.score_attack_finished" = "時間切れ！最終スコア: %d";
 "result.speed_run_finished" = "%@ で目標達成";
 "panel.records" = "チャレンジ記録";
+"panel.rules" = "ルール説明";
 "panel.records.with_mode" = "チャレンジ記録（%@）";
 "records.empty" = "記録はまだありません。";
 "records.new_suffix" = " new";
@@ -43,3 +44,18 @@
 "records.metric.score" = "%d点";
 "records.score_attack.line" = "%d. %d点 ・ %@%@";
 "records.speed_run.line" = "%d. %@ ・ %d/%d点%@";
+
+"rules.category.core" = "基本ルール";
+"rules.category.mode" = "モード別ルール";
+"rules.category.goal" = "決着ルール";
+"rules.core.line1" = "Touch Bar 上でタイルをドラッグして入れ替え、3 個以上そろえると消去されます。";
+"rules.core.line2" = "マルチタッチでの入れ替えに対応し、連続消去でスコア差を広げやすくなります。";
+"rules.mode.free" = "フリー：時間制限と目標スコアがなく、操作練習向けです。";
+"rules.mode.score_attack" = "スコアアタック：%d/%d/%d 分の制限時間内で高得点を狙います。";
+"rules.mode.speed_run" = "スピードラン：%d/%d/%d 点に最短時間で到達することを目指します。";
+"rules.goal.free" = "フリー：勝敗判定はなく、練習専用です。";
+"rules.goal.score_attack" = "スコアアタック：時間切れで終了し、最終スコアで順位付けします。";
+"rules.goal.speed_run" = "スピードラン：目標到達で即終了し、経過時間で順位付けします。";
+"rules.current.free" = "現在モード：フリー（時間制限なし / 目標スコアなし）";
+"rules.current.score_attack" = "現在モード：スコアアタック（現在の設定：%@）";
+"rules.current.speed_run" = "現在モード：スピードラン（現在の目標：%@）";

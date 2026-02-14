@@ -36,6 +36,7 @@
 "result.score_attack_finished" = "시간 종료! 최종 점수: %d";
 "result.speed_run_finished" = "%@ 만에 목표 달성";
 "panel.records" = "챌린지 기록";
+"panel.rules" = "플레이 규칙";
 "panel.records.with_mode" = "챌린지 기록 (%@)";
 "records.empty" = "아직 기록이 없습니다.";
 "records.new_suffix" = " new";
@@ -43,3 +44,18 @@
 "records.metric.score" = "%d점";
 "records.score_attack.line" = "%d. %d점 · %@%@";
 "records.speed_run.line" = "%d. %@ · %d/%d점%@";
+
+"rules.category.core" = "기본 규칙";
+"rules.category.mode" = "모드 규칙";
+"rules.category.goal" = "종료 규칙";
+"rules.core.line1" = "Touch Bar에서 타일을 드래그해 위치를 바꾸고, 3개 이상 맞추면 제거됩니다.";
+"rules.core.line2" = "멀티터치 교환을 지원하며, 연속 제거 시 점수 격차를 벌리기 쉽습니다.";
+"rules.mode.free" = "자유: 시간 제한과 목표 점수 없이 자유롭게 연습합니다.";
+"rules.mode.score_attack" = "점수전: %d/%d/%d분 제한 시간 안에 최대 점수를 노립니다.";
+"rules.mode.speed_run" = "스피드런: %d/%d/%d점을 가장 빠르게 달성하는 모드입니다.";
+"rules.goal.free" = "자유: 승패 판정 없이 연습용으로만 사용합니다.";
+"rules.goal.score_attack" = "점수전: 시간이 끝나면 종료되며 최종 점수로 순위를 매깁니다.";
+"rules.goal.speed_run" = "스피드런: 목표 점수 달성 즉시 종료되며 경과 시간으로 순위를 매깁니다.";
+"rules.current.free" = "현재 모드: 자유 (시간 제한 없음 / 목표 점수 없음)";
+"rules.current.score_attack" = "현재 모드: 점수전 (현재 설정: %@)";
+"rules.current.speed_run" = "현재 모드: 스피드런 (현재 목표: %@)";

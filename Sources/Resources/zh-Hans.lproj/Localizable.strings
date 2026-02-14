@@ -36,6 +36,7 @@
 "result.score_attack_finished" = "时间到！最终得分：%d";
 "result.speed_run_finished" = "达成目标，用时 %@";
 "panel.records" = "挑战记录";
+"panel.rules" = "玩法说明";
 "panel.records.with_mode" = "挑战记录（%@）";
 "records.empty" = "暂无纪录";
 "records.new_suffix" = " new";
@@ -43,3 +44,18 @@
 "records.metric.score" = "%d分";
 "records.score_attack.line" = "%d. %d分 · %@%@";
 "records.speed_run.line" = "%d. %@ · %d/%d分%@";
+
+"rules.category.core" = "基础规则";
+"rules.category.mode" = "模式规则";
+"rules.category.goal" = "结算规则";
+"rules.core.line1" = "在触控栏拖动方块交换位置，连成 3 个及以上即可消除。";
+"rules.core.line2" = "支持多点触控交换，连续消除会更容易拉开分差。";
+"rules.mode.free" = "自由：无时间与目标分数限制，可持续练习操作。";
+"rules.mode.score_attack" = "竞分：在 %d/%d/%d 分钟倒计时内尽可能拿到更高分。";
+"rules.mode.speed_run" = "竞速：以最短时间达到 %d/%d/%d 分目标。";
+"rules.goal.free" = "自由：不判定胜负，仅用于练习与手感调整。";
+"rules.goal.score_attack" = "竞分：倒计时归零后结算，以最终得分排名。";
+"rules.goal.speed_run" = "竞速：达到目标分后立即结算，以用时排名。";
+"rules.current.free" = "当前模式：自由（无时间限制 / 无目标分数）";
+"rules.current.score_attack" = "当前模式：竞分（当前档位：%@）";
+"rules.current.speed_run" = "当前模式：竞速（当前目标：%@）";
