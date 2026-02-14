@@ -23,8 +23,8 @@ final class ModeRecordStore {
 
     private let storageKey = "mode_records_v1"
     private let seedVersionKey = "mode_records_seed_version"
-    private let seedVersion = 3
-    private let maxRecordsPerScope = 10
+    private let seedVersion = 5
+    private let maxRecordsPerScope = 9
     private let scoreAttackDurations = [1, 2, 3]
     private let speedRunTargets = [300, 600, 900]
     private let defaults: UserDefaults
@@ -33,6 +33,9 @@ final class ModeRecordStore {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         load()
+        if normalizeBucketsToMaxCount() {
+            save()
+        }
         seedTestRecordsIfNeeded()
     }
 
@@ -127,6 +130,15 @@ final class ModeRecordStore {
     private func ensureSeedRecords(for mode: ModeRecordKey, detailValue: Int, seeds: [ModeRecord]) {
         let scopeID = Self.scopeID(mode: mode, detailValue: detailValue)
         var bucket = recordsByScope[scopeID] ?? []
+
+        // 仅包含 seed 的旧分桶直接替换，确保 seed 策略升级后可生效。
+        if bucket.isEmpty || bucket.allSatisfy({ Self.isSeedRecordID($0.id) }) {
+            bucket = seeds
+            sortAndTrim(&bucket, for: mode)
+            recordsByScope[scopeID] = bucket
+            return
+        }
+
         guard bucket.count < maxRecordsPerScope else { return }
 
         let existingIDs = Set(bucket.map(\.id))
@@ -141,8 +153,9 @@ final class ModeRecordStore {
     private func makeScoreAttackSeedRecords(durationMinutes: Int) -> [ModeRecord] {
         let baseTime = Date().addingTimeInterval(-7 * 24 * 60 * 60).timeIntervalSince1970 + Double(durationMinutes * 100)
         let baseScore = 420 - durationMinutes * 12
+        let seedCount = seedRecordCount(for: .scoreAttack, detailValue: durationMinutes)
 
-        return (0..<maxRecordsPerScope).map { rank in
+        return (0..<seedCount).map { rank in
             ModeRecord(
                 id: "seed_score_attack_\(durationMinutes)_\(rank)",
                 score: max(80, baseScore - rank * 9),
@@ -162,8 +175,9 @@ final class ModeRecordStore {
         ]
         let baseElapsed = baseElapsedByTarget[targetScore] ?? max(45, targetScore / 6)
         let baseTime = Date().addingTimeInterval(-6 * 24 * 60 * 60).timeIntervalSince1970 + Double(targetScore)
+        let seedCount = seedRecordCount(for: .speedRun, detailValue: targetScore)
 
-        return (0..<maxRecordsPerScope).map { rank in
+        return (0..<seedCount).map { rank in
             ModeRecord(
                 id: "seed_speed_run_\(targetScore)_\(rank)",
                 score: targetScore,
@@ -173,6 +187,66 @@ final class ModeRecordStore {
                 createdAt: baseTime + Double(rank)
             )
         }
+    }
+
+    private func seedRecordCount(for mode: ModeRecordKey, detailValue: Int) -> Int {
+        switch mode {
+        case .scoreAttack:
+            switch detailValue {
+            case 1:
+                return maxRecordsPerScope
+            case 2:
+                return 1
+            case 3:
+                return 0
+            default:
+                return maxRecordsPerScope
+            }
+
+        case .speedRun:
+            switch detailValue {
+            case 300:
+                return maxRecordsPerScope
+            case 600:
+                return 1
+            case 900:
+                return 0
+            default:
+                return maxRecordsPerScope
+            }
+        }
+    }
+
+    private static func isSeedRecordID(_ id: String) -> Bool {
+        return id.hasPrefix("seed_score_attack_") || id.hasPrefix("seed_speed_run_")
+    }
+
+    private func normalizeBucketsToMaxCount() -> Bool {
+        var changed = false
+
+        for (scopeID, bucket) in recordsByScope {
+            guard let mode = modeKey(forScopeID: scopeID) else { continue }
+
+            var normalized = bucket
+            sortAndTrim(&normalized, for: mode)
+            if normalized.map(\.id) != bucket.map(\.id) {
+                changed = true
+            }
+
+            recordsByScope[scopeID] = normalized
+        }
+
+        return changed
+    }
+
+    private func modeKey(forScopeID scopeID: String) -> ModeRecordKey? {
+        if scopeID.hasPrefix("\(ModeRecordKey.scoreAttack.rawValue)_") || scopeID == ModeRecordKey.scoreAttack.rawValue {
+            return .scoreAttack
+        }
+        if scopeID.hasPrefix("\(ModeRecordKey.speedRun.rawValue)_") || scopeID == ModeRecordKey.speedRun.rawValue {
+            return .speedRun
+        }
+        return nil
     }
 
     private func compareScoreAttackRecords(_ lhs: ModeRecord, _ rhs: ModeRecord) -> Bool {

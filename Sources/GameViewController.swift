@@ -24,8 +24,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private struct RecordPanelContext {
         let modeKey: ModeRecordKey
         let detailValue: Int
-        let modeTagText: String
-        let detailTagText: String
 
         var scopeID: String {
             return ModeRecordStore.scopeID(mode: modeKey, detailValue: detailValue)
@@ -270,25 +268,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeSectionTitleLabel()
     }()
 
-    private lazy var recordsModeTagView: RecordTagView = {
-        let view = RecordTagView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.isHidden = true
-        return view
-    }()
-
-    private lazy var recordsDetailTagView: RecordTagView = {
-        let view = RecordTagView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.isHidden = true
-        return view
-    }()
-
     private lazy var recordsHeaderStack: NSStackView = {
-        let stack = NSStackView(views: [recordsTitleLabel, recordsModeTagView, recordsDetailTagView])
+        let stack = NSStackView(views: [recordsTitleLabel])
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 6
+        stack.spacing = 0
         stack.detachesHiddenViews = true
         stack.translatesAutoresizingMaskIntoConstraints = false
         return stack
@@ -899,26 +883,12 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         guard let context = recordPanelContext(for: snapshot.mode) else {
             recordsCardView.isHidden = true
             recordsTitleLabel.stringValue = localized("panel.records")
-            recordsModeTagView.isHidden = true
-            recordsDetailTagView.isHidden = true
             setRecordsText("")
             return
         }
 
         recordsCardView.isHidden = false
         recordsTitleLabel.stringValue = localized("panel.records")
-        configureRecordTag(
-            recordsModeTagView,
-            text: context.modeTagText,
-            fillColor: NSColor(calibratedRed: 0.96, green: 0.56, blue: 0.18, alpha: 0.26),
-            borderColor: NSColor(calibratedRed: 1.0, green: 0.74, blue: 0.32, alpha: 0.82)
-        )
-        configureRecordTag(
-            recordsDetailTagView,
-            text: context.detailTagText,
-            fillColor: NSColor(calibratedRed: 0.96, green: 0.56, blue: 0.18, alpha: 0.26),
-            borderColor: NSColor(calibratedRed: 1.0, green: 0.74, blue: 0.32, alpha: 0.82)
-        )
 
         let records = recordStore.records(for: context.modeKey, detailValue: context.detailValue)
         guard !records.isEmpty else {
@@ -985,7 +955,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let attachment = NSTextAttachment()
         let image = rankTagImage(rank: rank)
         attachment.image = image
-        attachment.bounds = NSRect(x: 0, y: -1, width: image.size.width, height: image.size.height)
+        // 根据视觉反馈，将序号 Tag 整体向下平移 2px，避免与同行文本中线错位。
+        attachment.bounds = NSRect(x: 0, y: -2, width: image.size.width, height: image.size.height)
         return NSAttributedString(attachment: attachment)
     }
 
@@ -1059,18 +1030,14 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             let minutes = max(1, Int((duration / 60).rounded()))
             return RecordPanelContext(
                 modeKey: .scoreAttack,
-                detailValue: minutes,
-                modeTagText: localized("mode.score_attack"),
-                detailTagText: localizedFormat("option.minute_format", minutes)
+                detailValue: minutes
             )
 
         case .speedRun(let targetScore):
             let normalizedTarget = max(1, targetScore)
             return RecordPanelContext(
                 modeKey: .speedRun,
-                detailValue: normalizedTarget,
-                modeTagText: localized("mode.speed_run"),
-                detailTagText: localizedFormat("option.target_format", normalizedTarget)
+                detailValue: normalizedTarget
             )
         }
     }
@@ -1122,16 +1089,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
         let format = localized(key)
         return String(format: format, locale: localizer.locale, arguments: arguments)
-    }
-
-    private func configureRecordTag(
-        _ tagView: RecordTagView,
-        text: String,
-        fillColor: NSColor,
-        borderColor: NSColor
-    ) {
-        tagView.configure(text: text, fillColor: fillColor, borderColor: borderColor)
-        tagView.isHidden = false
     }
 
     private func makeControlTitleLabel() -> NSTextField {
@@ -1245,66 +1202,6 @@ private final class ArcadeStageView: NSView {
             }
             x += step
         }
-    }
-}
-
-
-private final class RecordTagView: NSView {
-    private let insets = NSEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
-    private let font = NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy)
-    private var text: String = ""
-    private var fillColor = NSColor(calibratedRed: 0.25, green: 0.24, blue: 0.32, alpha: 0.95)
-    private var borderColor = NSColor(calibratedRed: 0.5, green: 0.5, blue: 0.62, alpha: 0.95)
-
-    override var isFlipped: Bool {
-        return true
-    }
-
-    override var intrinsicContentSize: NSSize {
-        let textSize = (text as NSString).size(withAttributes: [.font: font])
-        return NSSize(
-            width: ceil(textSize.width + insets.left + insets.right),
-            height: ceil(textSize.height + insets.top + insets.bottom)
-        )
-    }
-
-    func configure(text: String, fillColor: NSColor, borderColor: NSColor) {
-        self.text = text
-        self.fillColor = fillColor
-        self.borderColor = borderColor
-        invalidateIntrinsicContentSize()
-        needsDisplay = true
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
-        guard !text.isEmpty else { return }
-
-        let pillRect = bounds.insetBy(dx: 0.5, dy: 0.5)
-        let path = NSBezierPath(roundedRect: pillRect, xRadius: 4, yRadius: 4)
-        fillColor.setFill()
-        path.fill()
-        borderColor.setStroke()
-        path.lineWidth = 1
-        path.stroke()
-
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.white.withAlphaComponent(0.96),
-            .paragraphStyle: paragraph
-        ]
-
-        let textSize = (text as NSString).size(withAttributes: attributes)
-        let textRect = NSRect(
-            x: insets.left,
-            y: floor((bounds.height - textSize.height) / 2),
-            width: max(1, bounds.width - insets.left - insets.right),
-            height: textSize.height
-        )
-        (text as NSString).draw(in: textRect, withAttributes: attributes)
     }
 }
 
