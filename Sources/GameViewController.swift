@@ -908,7 +908,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         paragraphStyle.lineBreakMode = .byTruncatingTail
         paragraphStyle.minimumLineHeight = 24
         paragraphStyle.maximumLineHeight = 24
-        paragraphStyle.lineSpacing = 7
+        // 记录项行间距缩减 50%，从 7 调整为 3.5。
+        paragraphStyle.lineSpacing = 3.5
 
         let metricAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold),
@@ -955,8 +956,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let attachment = NSTextAttachment()
         let image = rankTagImage(rank: rank)
         attachment.image = image
-        // 根据视觉反馈，将序号 Tag 整体向下平移 2px，避免与同行文本中线错位。
-        attachment.bounds = NSRect(x: 0, y: -2, width: image.size.width, height: image.size.height)
+        // 根据视觉反馈，将序号 Tag 整体向下平移 3px，避免与同行文本中线错位。
+        attachment.bounds = NSRect(x: 0, y: -3, width: image.size.width, height: image.size.height)
         return NSAttributedString(attachment: attachment)
     }
 
