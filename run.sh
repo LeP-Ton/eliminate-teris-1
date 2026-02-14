@@ -4,18 +4,17 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="Eliminate Teris 1"
 
-find_app_binary() {
-  find "$ROOT_DIR/.build" -maxdepth 3 -type f -name "$APP_NAME" -perm -111 2>/dev/null | head -n 1
-}
-
-APP_PATH="$(find_app_binary)"
-if [[ -z "$APP_PATH" ]]; then
-  echo "[run.sh] 未找到已构建程序，正在执行 swift build..."
-  (cd "$ROOT_DIR" && swift build --disable-sandbox)
-  APP_PATH="$(find_app_binary)"
+if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 fi
 
-if [[ -z "$APP_PATH" ]]; then
+echo "[run.sh] 正在重新编译..."
+(cd "$ROOT_DIR" && swift build --disable-sandbox)
+
+BIN_PATH="$(cd "$ROOT_DIR" && swift build --show-bin-path)"
+APP_PATH="$BIN_PATH/$APP_NAME"
+
+if [[ ! -x "$APP_PATH" ]]; then
   echo "[run.sh] 启动失败：未找到可执行文件 '$APP_NAME'。"
   exit 1
 fi
