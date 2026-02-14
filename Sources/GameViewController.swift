@@ -31,6 +31,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private let localizer = Localizer.shared
+    private let settingsThemeColor = NSColor(calibratedRed: 0.7, green: 0.86, blue: 1.0, alpha: 0.96)
+    private let statusThemeColor = NSColor(calibratedRed: 0.74, green: 0.98, blue: 0.78, alpha: 0.96)
+    private let recordsThemeColor = NSColor(calibratedRed: 1.0, green: 0.8, blue: 0.58, alpha: 0.96)
+    private let rulesThemeColor = NSColor(calibratedRed: 1.0, green: 0.53, blue: 0.5, alpha: 0.96)
+    private let rulesBodyThemeColor = NSColor(calibratedRed: 1.0, green: 0.82, blue: 0.82, alpha: 0.9)
 
     private let columns = 12
     private let scoreAttackMinutes = [1, 2, 3]
@@ -49,6 +54,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private var lastScoreGainDate: Date?
     private var hasSavedFinishedRecord = false
     private var latestRecordIDByMode: [String: String] = [:]
+    private var lastRecordsLayoutWidth: CGFloat = 0
 
     private lazy var headerIconView: NSImageView = {
         let imageView = NSImageView()
@@ -102,11 +108,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var settingsTitleLabel: NSTextField = {
-        return makeSectionTitleLabel()
+        return makeSectionTitleLabel(color: settingsThemeColor)
     }()
 
     private lazy var statusTitleLabel: NSTextField = {
-        return makeSectionTitleLabel()
+        return makeSectionTitleLabel(color: statusThemeColor)
     }()
 
     private lazy var statusBadgeLabel: NSTextField = {
@@ -124,7 +130,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var languageTitleLabel: NSTextField = {
-        return makeControlTitleLabel()
+        return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
     private lazy var languagePopup: ArcadePopupButton = {
@@ -136,7 +142,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var modeTitleLabel: NSTextField = {
-        return makeControlTitleLabel()
+        return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
     private lazy var modePopup: ArcadePopupButton = {
@@ -148,7 +154,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var optionTitleLabel: NSTextField = {
-        return makeControlTitleLabel()
+        return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
     private lazy var optionPopup: ArcadePopupButton = {
@@ -160,7 +166,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var startTitleLabel: NSTextField = {
-        return makeControlTitleLabel()
+        return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
     private lazy var startButton: ArcadeActionButton = {
@@ -201,7 +207,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var resultLabel: NSTextField = {
         let label = NSTextField(wrappingLabelWithString: "")
         label.alignment = .left
-        label.textColor = NSColor.white.withAlphaComponent(0.86)
+        label.textColor = statusThemeColor.withAlphaComponent(0.86)
         label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         label.maximumNumberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -209,15 +215,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var rulesTitleLabel: NSTextField = {
-        let label = makeSectionTitleLabel()
-        label.textColor = NSColor(calibratedRed: 1.0, green: 0.53, blue: 0.5, alpha: 0.96)
-        return label
+        return makeSectionTitleLabel(color: rulesThemeColor)
     }()
 
     private lazy var rulesBodyLabel: NSTextField = {
         let label = NSTextField(wrappingLabelWithString: "")
         label.alignment = .left
-        label.textColor = NSColor(calibratedRed: 1.0, green: 0.82, blue: 0.82, alpha: 0.9)
+        label.textColor = rulesBodyThemeColor
         label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         label.maximumNumberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -271,7 +275,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var recordsTitleLabel: NSTextField = {
-        return makeSectionTitleLabel()
+        return makeSectionTitleLabel(color: recordsThemeColor)
     }()
 
     private lazy var recordsHeaderStack: NSStackView = {
@@ -293,7 +297,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         textView.importsGraphics = false
         textView.textContainerInset = NSSize(width: 2, height: 2)
         textView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        textView.textColor = NSColor.white.withAlphaComponent(0.88)
+        textView.textColor = recordsThemeColor.withAlphaComponent(0.88)
         textView.string = ""
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
@@ -485,6 +489,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     override func viewDidLayout() {
         super.viewDidLayout()
+        let currentWidth = max(recordsScrollView.contentSize.width, 0)
+        if abs(currentWidth - lastRecordsLayoutWidth) > 0.5 {
+            lastRecordsLayoutWidth = currentWidth
+            updateRecordPanel(with: controller.snapshot())
+        }
         refreshRecordsTextLayout()
     }
 
@@ -652,6 +661,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     private func updateRulesDescription(for selection: ModeSelection) {
         let modeTitle: String
+        let coreRulePrimary = localized("rules.core.line1")
+        let coreRuleSecondary = localized("rules.core.line2")
         let modeRule: String
         let settlementRule: String
 
@@ -674,11 +685,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             settlementRule = localized("rules.short.settlement.speed_run")
         }
 
-        // 玩法说明改为精简结构：模式名 + 两条规则（模式规则/结算方式）。
+        // 玩法说明保持简短结构，同时恢复“基础规则”并统一使用圆点分隔。
         let description = """
         \(modeTitle)
-        - \(localized("rules.label.mode_rule"))：\(modeRule)
-        - \(localized("rules.label.settlement"))：\(settlementRule)
+        • \(localized("rules.category.core"))：\(coreRulePrimary)
+        • \(coreRuleSecondary)
+        • \(localized("rules.label.mode_rule"))：\(modeRule)
+        • \(localized("rules.label.settlement"))：\(settlementRule)
         """
         rulesBodyLabel.stringValue = description
     }
@@ -962,7 +975,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private func setRecordRows(_ records: [ModeRecord], modeKey: ModeRecordKey, newestRecordID: String?) {
-        let availableWidth = max(recordsScrollView.contentSize.width - 2, 180)
+        let availableWidth = recordRowTabStopWidth()
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.tabStops = [NSTextTab(textAlignment: .right, location: availableWidth, options: [:])]
         paragraphStyle.defaultTabInterval = availableWidth
@@ -974,17 +987,17 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
         let metricAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.94),
+            .foregroundColor: recordsThemeColor.withAlphaComponent(0.94),
             .paragraphStyle: paragraphStyle
         ]
         let dateAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.48),
+            .foregroundColor: recordsThemeColor.withAlphaComponent(0.5),
             .paragraphStyle: paragraphStyle
         ]
         let newAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy),
-            .foregroundColor: NSColor.systemOrange.withAlphaComponent(0.95),
+            .foregroundColor: recordsThemeColor.withAlphaComponent(0.88),
             .paragraphStyle: paragraphStyle
         ]
 
@@ -1027,7 +1040,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let font = NSFont.monospacedSystemFont(ofSize: 9, weight: .heavy)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.white.withAlphaComponent(0.96)
+            .foregroundColor: recordsThemeColor.withAlphaComponent(0.96)
         ]
         let textSize = (text as NSString).size(withAttributes: attributes)
         let horizontalInset: CGFloat = 6
@@ -1052,7 +1065,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         paragraph.alignment = .center
         let drawAttributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.white.withAlphaComponent(0.96),
+            .foregroundColor: recordsThemeColor.withAlphaComponent(0.96),
             .paragraphStyle: paragraph
         ]
         let textRect = NSRect(
@@ -1107,10 +1120,16 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func setRecordsText(_ text: String) {
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.9)
+            .foregroundColor: recordsThemeColor.withAlphaComponent(0.9)
         ]
         let attributed = NSAttributedString(string: text, attributes: attributes)
         setRecordsText(attributed)
+    }
+
+    private func recordRowTabStopWidth() -> CGFloat {
+        let insetWidth = recordsTextView.textContainerInset.width * 2
+        let width = recordsScrollView.contentSize.width - insetWidth - 2
+        return max(width, 180)
     }
 
     private func setRecordsText(_ attributed: NSAttributedString) {
@@ -1153,20 +1172,20 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return String(format: format, locale: localizer.locale, arguments: arguments)
     }
 
-    private func makeControlTitleLabel() -> NSTextField {
+    private func makeControlTitleLabel(color: NSColor) -> NSTextField {
         let label = NSTextField(labelWithString: "")
         label.alignment = .right
-        label.textColor = NSColor.white.withAlphaComponent(0.7)
+        label.textColor = color
         label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }
 
-    private func makeSectionTitleLabel() -> NSTextField {
+    private func makeSectionTitleLabel(color: NSColor) -> NSTextField {
         let label = NSTextField(labelWithString: "")
         label.alignment = .left
-        label.textColor = NSColor.white.withAlphaComponent(0.78)
+        label.textColor = color
         label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .heavy)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -1474,7 +1493,7 @@ private final class ArcadePopupButton: NSPopUpButton {
         wantsLayer = true
         isBordered = false
         focusRingType = .none
-        contentTintColor = .white
+        contentTintColor = NSColor(calibratedRed: 0.8, green: 0.91, blue: 1.0, alpha: 0.96)
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         font = NSFont.monospacedSystemFont(ofSize: 14, weight: .semibold)
@@ -1491,7 +1510,9 @@ private final class ArcadePopupButton: NSPopUpButton {
 
     private func updateTitleStyle() {
         let title = selectedItem?.title ?? ""
-        let color = isEnabled ? NSColor.white : NSColor.white.withAlphaComponent(0.4)
+        let color = isEnabled
+            ? NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.96)
+            : NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.42)
         attributedTitle = NSAttributedString(
             string: "    \(title)    ",
             attributes: [
@@ -1566,11 +1587,11 @@ private final class ArcadePopupButton: NSPopUpButton {
     private func updateChevronTint() {
         let tint: NSColor
         if !isEnabled {
-            tint = NSColor.white.withAlphaComponent(0.35)
+            tint = NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.36)
         } else if isHighlighted {
-            tint = NSColor.white.withAlphaComponent(0.92)
+            tint = NSColor(calibratedRed: 0.92, green: 0.97, blue: 1.0, alpha: 0.92)
         } else {
-            tint = NSColor.white.withAlphaComponent(0.72)
+            tint = NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.74)
         }
 
         chevronImageView?.contentTintColor = tint
@@ -1648,7 +1669,7 @@ private final class ArcadeActionButton: NSButton {
         focusRingType = .none
         imagePosition = .noImage
         alignment = .center
-        contentTintColor = .white
+        contentTintColor = NSColor(calibratedRed: 0.84, green: 1.0, blue: 0.86, alpha: 0.96)
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         setButtonType(.momentaryPushIn)
@@ -1696,7 +1717,9 @@ private final class ArcadeActionButton: NSButton {
     }
 
     private func updateTitleStyle() {
-        let color = isEnabled ? NSColor.white : NSColor.white.withAlphaComponent(0.45)
+        let color = isEnabled
+            ? NSColor(calibratedRed: 0.84, green: 1.0, blue: 0.86, alpha: 0.96)
+            : NSColor(calibratedRed: 0.84, green: 1.0, blue: 0.86, alpha: 0.45)
         textLabel.stringValue = displayTitle
         textLabel.textColor = color
         textLabel.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .semibold)
