@@ -29,6 +29,7 @@ final class GameBoardController {
     private var stoppedElapsedTime: TimeInterval = 0
     private var isRunningRound = true
     private var isFinished = false
+    private var lastSwapPair: (Int, Int)?
 
     private var lockedIndices: Set<Int> = []
     private var selectedIndex: Int?
@@ -178,6 +179,7 @@ final class GameBoardController {
         guard abs(leftIndex - rightIndex) == 1 else { return }
         guard !lockedIndices.contains(leftIndex), !lockedIndices.contains(rightIndex) else { return }
 
+        lastSwapPair = (leftIndex, rightIndex)
         lockedIndices.insert(leftIndex)
         lockedIndices.insert(rightIndex)
         _ = state.swapAndResolve(leftIndex, rightIndex)
@@ -187,6 +189,12 @@ final class GameBoardController {
 
         _ = updateFinishedState(now: Date())
         notifyChange()
+    }
+
+    func consumeLastSwapPair() -> (Int, Int)? {
+        let pair = lastSwapPair
+        lastSwapPair = nil
+        return pair
     }
 
     func addObserver(owner: AnyObject, callback: @escaping () -> Void) -> UUID {
@@ -210,6 +218,7 @@ final class GameBoardController {
         state = GameState(columns: columnsCount)
         lockedIndices.removeAll()
         selectedIndex = nil
+        lastSwapPair = nil
         roundStartDate = startDate
     }
 
@@ -304,17 +313,28 @@ final class GameTouchBarView: NSView {
         let toScale: CGFloat
     }
 
+    private struct TransitionPhase {
+        let transitions: [PieceTransition]
+        let duration: TimeInterval
+    }
+
     private let controller: GameBoardController
     private let columnRange: Range<Int>
     private let columnCount: Int
     private let leadingCompensationX: CGFloat
     private let transitionDuration: TimeInterval = 0.28
+    private let swapPhaseDuration: TimeInterval = 0.16
+    private let eliminatePhaseDuration: TimeInterval = 0.2
+    private let refillPhaseDuration: TimeInterval = 0.24
     private let animationFrameInterval: TimeInterval = 1.0 / 60.0
 
     private var observerToken: UUID?
     private var activeTouches: [ObjectIdentifier: TouchState] = [:]
     private var renderedTiles: [BoardTile]
     private var pieceTransitions: [PieceTransition] = []
+    private var transitionPhases: [TransitionPhase] = []
+    private var transitionPhaseIndex = 0
+    private var activePhaseDuration: TimeInterval = 0.28
     private var transitionStartTime: TimeInterval = 0
     private var transitionProgress: CGFloat = 1
     private var transitionTimer: Timer?
@@ -484,17 +504,20 @@ final class GameTouchBarView: NSView {
 
     private func handleControllerChange() {
         let latestTiles = controller.tiles()
+        let swapPair = controller.consumeLastSwapPair()
         if latestTiles == renderedTiles {
             needsDisplay = true
             return
         }
 
-        beginPieceTransition(from: renderedTiles, to: latestTiles)
+        beginPieceTransition(from: renderedTiles, to: latestTiles, swapPair: swapPair)
         renderedTiles = latestTiles
     }
 
-    private func beginPieceTransition(from oldTiles: [BoardTile], to newTiles: [BoardTile]) {
+    private func beginPieceTransition(from oldTiles: [BoardTile], to newTiles: [BoardTile], swapPair: (Int, Int)?) {
         transitionTimer?.invalidate()
+        transitionPhases = []
+        transitionPhaseIndex = 0
 
         // 通过 tile id 做前后帧配对：既能识别交换位移，也能识别消除/补位。
         let oldIndices = Dictionary(uniqueKeysWithValues: oldTiles.enumerated().map { ($1.id, $0) })
@@ -506,80 +529,195 @@ final class GameTouchBarView: NSView {
         let removedIDs = oldIDs.subtracting(newIDs)
         let insertedIDs = newIDs.subtracting(oldIDs)
 
-        var transitions: [PieceTransition] = []
-        transitions.reserveCapacity(sharedIDs.count + removedIDs.count + insertedIDs.count)
+        var phases: [TransitionPhase] = []
 
-        for id in sharedIDs {
-            guard let oldIndex = oldIndices[id], let newIndex = newIndices[id] else { continue }
-            guard let tile = newTiles.first(where: { $0.id == id }) else { continue }
-            transitions.append(
-                PieceTransition(
-                    id: id,
-                    kind: tile.kind,
-                    transitionKind: .move,
-                    fromIndex: oldIndex,
-                    toIndex: newIndex,
-                    fromAlpha: 1,
-                    toAlpha: 1,
-                    fromScale: 1,
-                    toScale: 1
+        // 第 1 阶段：交换位移动画（仅在有明确交换对时启用）。
+        if let swapPair {
+            let swappedIndexByID = buildSwappedIndexMap(oldTiles: oldTiles, swapPair: swapPair)
+            var swapPhaseTransitions: [PieceTransition] = []
+            swapPhaseTransitions.reserveCapacity(oldTiles.count)
+            for tile in oldTiles {
+                guard let fromIndex = oldIndices[tile.id], let toIndex = swappedIndexByID[tile.id] else { continue }
+                swapPhaseTransitions.append(
+                    PieceTransition(
+                        id: tile.id,
+                        kind: tile.kind,
+                        transitionKind: .move,
+                        fromIndex: fromIndex,
+                        toIndex: toIndex,
+                        fromAlpha: 1,
+                        toAlpha: 1,
+                        fromScale: 1,
+                        toScale: 1
+                    )
                 )
-            )
-        }
+            }
+            if !swapPhaseTransitions.isEmpty {
+                phases.append(TransitionPhase(transitions: swapPhaseTransitions, duration: swapPhaseDuration))
+            }
 
-        for id in removedIDs {
-            guard let oldIndex = oldIndices[id] else { continue }
-            guard let tile = oldTiles.first(where: { $0.id == id }) else { continue }
-            transitions.append(
-                PieceTransition(
-                    id: id,
-                    kind: tile.kind,
-                    transitionKind: .remove,
-                    fromIndex: oldIndex,
-                    toIndex: oldIndex,
-                    fromAlpha: 1,
-                    toAlpha: 0,
-                    fromScale: 1.22,
-                    toScale: 0.12
+            // 第 2 阶段：消除动画，仅对被消除方块做明显反馈，其余方块静止等待。
+            if !removedIDs.isEmpty {
+                var eliminatePhaseTransitions: [PieceTransition] = []
+                eliminatePhaseTransitions.reserveCapacity(oldTiles.count)
+                for tile in oldTiles {
+                    guard let swappedIndex = swappedIndexByID[tile.id] else { continue }
+                    if removedIDs.contains(tile.id) {
+                        eliminatePhaseTransitions.append(
+                            PieceTransition(
+                                id: tile.id,
+                                kind: tile.kind,
+                                transitionKind: .remove,
+                                fromIndex: swappedIndex,
+                                toIndex: swappedIndex,
+                                fromAlpha: 1,
+                                toAlpha: 0,
+                                fromScale: 1.22,
+                                toScale: 0.12
+                            )
+                        )
+                    } else {
+                        eliminatePhaseTransitions.append(
+                            PieceTransition(
+                                id: tile.id,
+                                kind: tile.kind,
+                                transitionKind: .move,
+                                fromIndex: swappedIndex,
+                                toIndex: swappedIndex,
+                                fromAlpha: 1,
+                                toAlpha: 1,
+                                fromScale: 1,
+                                toScale: 1
+                            )
+                        )
+                    }
+                }
+                phases.append(TransitionPhase(transitions: eliminatePhaseTransitions, duration: eliminatePhaseDuration))
+            }
+
+            // 第 3 阶段：左侧补位与存活方块位移。
+            var refillPhaseTransitions: [PieceTransition] = []
+            refillPhaseTransitions.reserveCapacity(sharedIDs.count + insertedIDs.count)
+            let insertedByIndex = insertedIDs.sorted {
+                (newIndices[$0] ?? 0) < (newIndices[$1] ?? 0)
+            }
+            let insertedCount = insertedByIndex.count
+
+            for id in sharedIDs {
+                guard let endIndex = newIndices[id], let tile = newTiles.first(where: { $0.id == id }) else { continue }
+                let fromIndex = swappedIndexByID[id] ?? oldIndices[id] ?? endIndex
+                refillPhaseTransitions.append(
+                    PieceTransition(
+                        id: id,
+                        kind: tile.kind,
+                        transitionKind: .move,
+                        fromIndex: fromIndex,
+                        toIndex: endIndex,
+                        fromAlpha: 1,
+                        toAlpha: 1,
+                        fromScale: 1,
+                        toScale: 1
+                    )
                 )
-            )
-        }
+            }
 
-        let insertedByIndex = insertedIDs.sorted {
-            (newIndices[$0] ?? 0) < (newIndices[$1] ?? 0)
-        }
-        let insertedCount = insertedByIndex.count
-        for id in insertedByIndex {
-            guard let newIndex = newIndices[id] else { continue }
-            guard let tile = newTiles.first(where: { $0.id == id }) else { continue }
-            // 新补位方块从左侧滑入，体现“左补位”动态效果。
-            transitions.append(
-                PieceTransition(
-                    id: id,
-                    kind: tile.kind,
-                    transitionKind: .insert,
-                    fromIndex: newIndex - insertedCount,
-                    toIndex: newIndex,
-                    fromAlpha: 0.1,
-                    toAlpha: 1,
-                    fromScale: 0.72,
-                    toScale: 1
+            for id in insertedByIndex {
+                guard let newIndex = newIndices[id], let tile = newTiles.first(where: { $0.id == id }) else { continue }
+                refillPhaseTransitions.append(
+                    PieceTransition(
+                        id: id,
+                        kind: tile.kind,
+                        transitionKind: .insert,
+                        fromIndex: newIndex - insertedCount,
+                        toIndex: newIndex,
+                        fromAlpha: 0.1,
+                        toAlpha: 1,
+                        fromScale: 0.72,
+                        toScale: 1
+                    )
                 )
-            )
+            }
+
+            if !refillPhaseTransitions.isEmpty {
+                phases.append(TransitionPhase(transitions: refillPhaseTransitions, duration: refillPhaseDuration))
+            }
+        } else {
+            // 无明确交换对时，回退到单阶段过渡，避免非交换场景动画中断。
+            var transitions: [PieceTransition] = []
+            transitions.reserveCapacity(sharedIDs.count + removedIDs.count + insertedIDs.count)
+
+            for id in sharedIDs {
+                guard let oldIndex = oldIndices[id], let newIndex = newIndices[id] else { continue }
+                guard let tile = newTiles.first(where: { $0.id == id }) else { continue }
+                transitions.append(
+                    PieceTransition(
+                        id: id,
+                        kind: tile.kind,
+                        transitionKind: .move,
+                        fromIndex: oldIndex,
+                        toIndex: newIndex,
+                        fromAlpha: 1,
+                        toAlpha: 1,
+                        fromScale: 1,
+                        toScale: 1
+                    )
+                )
+            }
+
+            for id in removedIDs {
+                guard let oldIndex = oldIndices[id] else { continue }
+                guard let tile = oldTiles.first(where: { $0.id == id }) else { continue }
+                transitions.append(
+                    PieceTransition(
+                        id: id,
+                        kind: tile.kind,
+                        transitionKind: .remove,
+                        fromIndex: oldIndex,
+                        toIndex: oldIndex,
+                        fromAlpha: 1,
+                        toAlpha: 0,
+                        fromScale: 1.22,
+                        toScale: 0.12
+                    )
+                )
+            }
+
+            let insertedByIndex = insertedIDs.sorted {
+                (newIndices[$0] ?? 0) < (newIndices[$1] ?? 0)
+            }
+            let insertedCount = insertedByIndex.count
+            for id in insertedByIndex {
+                guard let newIndex = newIndices[id], let tile = newTiles.first(where: { $0.id == id }) else { continue }
+                transitions.append(
+                    PieceTransition(
+                        id: id,
+                        kind: tile.kind,
+                        transitionKind: .insert,
+                        fromIndex: newIndex - insertedCount,
+                        toIndex: newIndex,
+                        fromAlpha: 0.1,
+                        toAlpha: 1,
+                        fromScale: 0.72,
+                        toScale: 1
+                    )
+                )
+            }
+
+            if !transitions.isEmpty {
+                phases.append(TransitionPhase(transitions: transitions, duration: transitionDuration))
+            }
         }
 
-        if transitions.isEmpty {
+        if phases.isEmpty {
             pieceTransitions = []
             transitionProgress = 1
             needsDisplay = true
             return
         }
 
-        pieceTransitions = transitions
-        transitionStartTime = Date().timeIntervalSinceReferenceDate
-        transitionProgress = 0
-        needsDisplay = true
-
+        transitionPhases = phases
+        transitionPhaseIndex = 0
+        applyCurrentPhase()
         transitionTimer = Timer.scheduledTimer(
             timeInterval: animationFrameInterval,
             target: self,
@@ -589,16 +727,46 @@ final class GameTouchBarView: NSView {
         )
     }
 
+    private func buildSwappedIndexMap(oldTiles: [BoardTile], swapPair: (Int, Int)) -> [UUID: Int] {
+        guard swapPair.0 >= 0, swapPair.1 >= 0, swapPair.0 < oldTiles.count, swapPair.1 < oldTiles.count else {
+            return Dictionary(uniqueKeysWithValues: oldTiles.enumerated().map { ($1.id, $0) })
+        }
+
+        var indexMap = Dictionary(uniqueKeysWithValues: oldTiles.enumerated().map { ($1.id, $0) })
+        let leftTileID = oldTiles[swapPair.0].id
+        let rightTileID = oldTiles[swapPair.1].id
+        indexMap[leftTileID] = swapPair.1
+        indexMap[rightTileID] = swapPair.0
+        return indexMap
+    }
+
+    private func applyCurrentPhase() {
+        guard transitionPhaseIndex < transitionPhases.count else { return }
+        let phase = transitionPhases[transitionPhaseIndex]
+        pieceTransitions = phase.transitions
+        activePhaseDuration = max(0.01, phase.duration)
+        transitionStartTime = Date().timeIntervalSinceReferenceDate
+        transitionProgress = 0
+        needsDisplay = true
+    }
+
     @objc private func handleTransitionTick() {
         let elapsed = Date().timeIntervalSinceReferenceDate - transitionStartTime
-        let progress = min(1, max(0, elapsed / transitionDuration))
+        let progress = min(1, max(0, elapsed / activePhaseDuration))
         transitionProgress = CGFloat(progress)
         needsDisplay = true
 
         guard progress >= 1 else { return }
+        if transitionPhaseIndex + 1 < transitionPhases.count {
+            transitionPhaseIndex += 1
+            applyCurrentPhase()
+            return
+        }
         transitionTimer?.invalidate()
         transitionTimer = nil
         pieceTransitions = []
+        transitionPhases = []
+        transitionPhaseIndex = 0
     }
 
     private func drawTransitionPiece(_ transition: PieceTransition) {
