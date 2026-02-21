@@ -124,7 +124,11 @@ final class GameBoardController {
     }
 
     func tile(at index: Int) -> PieceKind {
-        return state.tiles[index]
+        return state.tiles[index].kind
+    }
+
+    func tiles() -> [BoardTile] {
+        return state.tiles
     }
 
     func isLocked(_ index: Int) -> Bool {
@@ -282,13 +286,31 @@ final class GameTouchBarView: NSView {
         var currentIndex: Int
     }
 
+    private struct PieceTransition {
+        let id: UUID
+        let kind: PieceKind
+        let fromIndex: Int
+        let toIndex: Int
+        let fromAlpha: CGFloat
+        let toAlpha: CGFloat
+        let fromScale: CGFloat
+        let toScale: CGFloat
+    }
+
     private let controller: GameBoardController
     private let columnRange: Range<Int>
     private let columnCount: Int
     private let leadingCompensationX: CGFloat
+    private let transitionDuration: TimeInterval = 0.22
+    private let animationFrameInterval: TimeInterval = 1.0 / 60.0
 
     private var observerToken: UUID?
     private var activeTouches: [ObjectIdentifier: TouchState] = [:]
+    private var renderedTiles: [BoardTile]
+    private var pieceTransitions: [PieceTransition] = []
+    private var transitionStartTime: TimeInterval = 0
+    private var transitionProgress: CGFloat = 1
+    private var transitionTimer: Timer?
 
     init(columnRange: Range<Int>, controller: GameBoardController, leadingCompensationX: CGFloat = 0) {
         precondition(!columnRange.isEmpty, "columnRange must contain at least one column")
@@ -297,6 +319,7 @@ final class GameTouchBarView: NSView {
         self.columnCount = columnRange.count
         self.controller = controller
         self.leadingCompensationX = max(0, leadingCompensationX)
+        self.renderedTiles = controller.tiles()
 
         super.init(frame: .zero)
 
@@ -308,7 +331,7 @@ final class GameTouchBarView: NSView {
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         observerToken = controller.addObserver(owner: self) { [weak self] in
-            self?.needsDisplay = true
+            self?.handleControllerChange()
         }
     }
 
@@ -317,6 +340,7 @@ final class GameTouchBarView: NSView {
     }
 
     deinit {
+        transitionTimer?.invalidate()
         if let observerToken {
             controller.removeObserver(observerToken)
         }
@@ -343,7 +367,42 @@ final class GameTouchBarView: NSView {
             let isLocked = controller.isLocked(globalIndex)
 
             drawCellBackground(in: rect, globalIndex: globalIndex, highlighted: isLocked || isSelected)
-            drawPiece(controller.tile(at: globalIndex), in: rect, highlighted: isLocked || isSelected)
+        }
+
+        if pieceTransitions.isEmpty {
+            for localIndex in 0..<columnCount {
+                let globalIndex = columnRange.lowerBound + localIndex
+                let rect = cellRect(forLocalIndex: localIndex)
+                let isSelected = controller.isSelected(globalIndex)
+                let isLocked = controller.isLocked(globalIndex)
+                drawPiece(
+                    controller.tile(at: globalIndex),
+                    in: rect,
+                    highlighted: isLocked || isSelected,
+                    alpha: 1,
+                    scale: 1
+                )
+            }
+            return
+        }
+
+        let easedProgress = easeOutCubic(transitionProgress)
+        for transition in pieceTransitions where shouldRenderTransition(transition) {
+            let fromPosition = CGFloat(transition.fromIndex)
+            let toPosition = CGFloat(transition.toIndex)
+            let interpolatedPosition = fromPosition + (toPosition - fromPosition) * easedProgress
+            let rect = cellRect(forBoardPosition: interpolatedPosition)
+            let alpha = transition.fromAlpha + (transition.toAlpha - transition.fromAlpha) * easedProgress
+            let scale = transition.fromScale + (transition.toScale - transition.fromScale) * easedProgress
+            let highlightIndex = transition.toAlpha >= transition.fromAlpha ? transition.toIndex : transition.fromIndex
+            let isHighlighted = isBoardIndex(highlightIndex) && (controller.isLocked(highlightIndex) || controller.isSelected(highlightIndex))
+            drawPiece(
+                transition.kind,
+                in: rect,
+                highlighted: isHighlighted,
+                alpha: alpha,
+                scale: scale
+            )
         }
     }
 
@@ -426,6 +485,122 @@ final class GameTouchBarView: NSView {
         controller.handleTap(at: index)
     }
 
+    private func handleControllerChange() {
+        let latestTiles = controller.tiles()
+        if latestTiles == renderedTiles {
+            needsDisplay = true
+            return
+        }
+
+        beginPieceTransition(from: renderedTiles, to: latestTiles)
+        renderedTiles = latestTiles
+    }
+
+    private func beginPieceTransition(from oldTiles: [BoardTile], to newTiles: [BoardTile]) {
+        transitionTimer?.invalidate()
+
+        // 通过 tile id 做前后帧配对：既能识别交换位移，也能识别消除/补位。
+        let oldIndices = Dictionary(uniqueKeysWithValues: oldTiles.enumerated().map { ($1.id, $0) })
+        let newIndices = Dictionary(uniqueKeysWithValues: newTiles.enumerated().map { ($1.id, $0) })
+
+        let oldIDs = Set(oldIndices.keys)
+        let newIDs = Set(newIndices.keys)
+        let sharedIDs = oldIDs.intersection(newIDs)
+        let removedIDs = oldIDs.subtracting(newIDs)
+        let insertedIDs = newIDs.subtracting(oldIDs)
+
+        var transitions: [PieceTransition] = []
+        transitions.reserveCapacity(sharedIDs.count + removedIDs.count + insertedIDs.count)
+
+        for id in sharedIDs {
+            guard let oldIndex = oldIndices[id], let newIndex = newIndices[id] else { continue }
+            guard let tile = newTiles.first(where: { $0.id == id }) else { continue }
+            transitions.append(
+                PieceTransition(
+                    id: id,
+                    kind: tile.kind,
+                    fromIndex: oldIndex,
+                    toIndex: newIndex,
+                    fromAlpha: 1,
+                    toAlpha: 1,
+                    fromScale: 1,
+                    toScale: 1
+                )
+            )
+        }
+
+        for id in removedIDs {
+            guard let oldIndex = oldIndices[id] else { continue }
+            guard let tile = oldTiles.first(where: { $0.id == id }) else { continue }
+            transitions.append(
+                PieceTransition(
+                    id: id,
+                    kind: tile.kind,
+                    fromIndex: oldIndex,
+                    toIndex: oldIndex,
+                    fromAlpha: 1,
+                    toAlpha: 0,
+                    fromScale: 1,
+                    toScale: 0.72
+                )
+            )
+        }
+
+        let insertedByIndex = insertedIDs.sorted {
+            (newIndices[$0] ?? 0) < (newIndices[$1] ?? 0)
+        }
+        let insertedCount = insertedByIndex.count
+        for id in insertedByIndex {
+            guard let newIndex = newIndices[id] else { continue }
+            guard let tile = newTiles.first(where: { $0.id == id }) else { continue }
+            // 新补位方块从左侧滑入，体现“左补位”动态效果。
+            transitions.append(
+                PieceTransition(
+                    id: id,
+                    kind: tile.kind,
+                    fromIndex: newIndex - insertedCount,
+                    toIndex: newIndex,
+                    fromAlpha: 0,
+                    toAlpha: 1,
+                    fromScale: 0.82,
+                    toScale: 1
+                )
+            )
+        }
+
+        if transitions.isEmpty {
+            pieceTransitions = []
+            transitionProgress = 1
+            needsDisplay = true
+            return
+        }
+
+        pieceTransitions = transitions
+        transitionStartTime = Date().timeIntervalSinceReferenceDate
+        transitionProgress = 0
+        needsDisplay = true
+
+        transitionTimer = Timer.scheduledTimer(
+            timeInterval: animationFrameInterval,
+            target: self,
+            selector: #selector(handleTransitionTick),
+            userInfo: nil,
+            repeats: true
+        )
+    }
+
+    @objc private func handleTransitionTick() {
+        let elapsed = Date().timeIntervalSinceReferenceDate - transitionStartTime
+        let progress = min(1, max(0, elapsed / transitionDuration))
+        transitionProgress = CGFloat(progress)
+        needsDisplay = true
+
+        guard progress >= 1 else { return }
+        transitionTimer?.invalidate()
+        transitionTimer = nil
+        pieceTransitions = []
+    }
+
     private func drawCellBackground(in rect: CGRect, globalIndex: Int, highlighted: Bool) {
         var inset = rect.insetBy(dx: Layout.tileOuterInsetX, dy: Layout.tileOuterInsetY)
         // 仅让全局第 0 列贴齐最左边缘，避免拆分视图后中间列误判为“首列”。
@@ -439,8 +614,12 @@ final class GameTouchBarView: NSView {
         path.fill()
     }
 
-    private func drawPiece(_ kind: PieceKind, in rect: CGRect, highlighted: Bool) {
-        let inner = rect.insetBy(dx: Layout.tileInnerInsetX, dy: Layout.tileInnerInsetY)
+    private func drawPiece(_ kind: PieceKind, in rect: CGRect, highlighted: Bool, alpha: CGFloat, scale: CGFloat) {
+        let clampedAlpha = min(1, max(0, alpha))
+        guard clampedAlpha > 0.01 else { return }
+
+        let scaledRect = applyScale(scale, to: rect)
+        let inner = scaledRect.insetBy(dx: Layout.tileInnerInsetX, dy: Layout.tileInnerInsetY)
         guard inner.width > 0, inner.height > 0 else { return }
 
         let blocks = kind.blocks
@@ -459,8 +638,9 @@ final class GameTouchBarView: NSView {
         let originY = inner.minY + (inner.height - totalHeight) * 0.5
 
         let baseColor = kind.color
-        let fillColor = highlighted ? baseColor.highlight(withLevel: 0.15) ?? baseColor : baseColor
-        let strokeColor = baseColor.shadow(withLevel: 0.2) ?? baseColor
+        let mainColor = highlighted ? baseColor.highlight(withLevel: 0.15) ?? baseColor : baseColor
+        let fillColor = mainColor.withAlphaComponent(clampedAlpha)
+        let strokeColor = (baseColor.shadow(withLevel: 0.2) ?? baseColor).withAlphaComponent(clampedAlpha)
 
         for block in blocks {
             let rect = CGRect(
@@ -480,13 +660,40 @@ final class GameTouchBarView: NSView {
     }
 
     private func cellRect(forLocalIndex localIndex: Int) -> CGRect {
+        return cellRect(forBoardPosition: CGFloat(columnRange.lowerBound + localIndex))
+    }
+
+    private func cellRect(forBoardPosition boardIndex: CGFloat) -> CGRect {
         let width = boardWidth / CGFloat(columnCount)
+        let localPosition = boardIndex - CGFloat(columnRange.lowerBound)
         return CGRect(
-            x: boardOriginX + CGFloat(localIndex) * width,
+            x: boardOriginX + localPosition * width,
             y: 0,
             width: width,
             height: bounds.height
         )
+    }
+
+    private func shouldRenderTransition(_ transition: PieceTransition) -> Bool {
+        return columnRange.contains(transition.fromIndex) || columnRange.contains(transition.toIndex)
+    }
+
+    private func applyScale(_ scale: CGFloat, to rect: CGRect) -> CGRect {
+        let clampedScale = min(1.15, max(0.4, scale))
+        let width = rect.width * clampedScale
+        let height = rect.height * clampedScale
+        return CGRect(
+            x: rect.midX - width * 0.5,
+            y: rect.midY - height * 0.5,
+            width: width,
+            height: height
+        )
+    }
+
+    private func easeOutCubic(_ value: CGFloat) -> CGFloat {
+        let t = min(1, max(0, value))
+        let inverted = 1 - t
+        return 1 - inverted * inverted * inverted
     }
 
     private func indexForPoint(_ point: CGPoint) -> Int {

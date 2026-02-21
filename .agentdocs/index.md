@@ -1,6 +1,8 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260221174959-touchbar-hide-esc-placeholder.md` - 恢复 ESC 隐藏占位，避免系统 ESC 键重新显示。
+`workflow/20260221174215-touchbar-eliminate-move-animation.md` - 为 Touch Bar 增加交换/消除/左补位动画，并基于 tile id 做位移插值渲染。
 `workflow/20260221162356-touchbar-private-api-modal-fallback-window-fallback.md` - 私有 API 触发改为双签名回退，并将 `window.touchBar` 限制为私有调用失败时的兜底路径。
 `workflow/20260221161737-touchbar-private-api-system-modal.md` - 引入私有 API 系统级 Touch Bar 展示，改为单槽位 16 列并尝试消除 ESC 预留留白。
 `workflow/20260221160132-touchbar-split-seam-compensation.md` - 重新启用 ESC 分槽位并加入主棋盘左移补偿，兼顾左贴边与首二列间距。
@@ -32,6 +34,8 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要确认“为什么 ESC 又出现、如何重新隐藏 ESC”时，优先读取 `20260221174959` 文档。
+- 需要确认“交换、消除、左补位动画是否已接入 Touch Bar”时，优先读取 `20260221174215` 文档。
 - 需要确认“私有 API 触发失败时如何回退、是否还会与 window.touchBar 冲突”时，优先读取 `20260221162356` 文档。
 - 需要确认“私有 API 路线（system modal）是否已接入”时，优先读取 `20260221161737` 文档。
 - 需要确认“左贴边 + 首二列间距收敛”的最新方案（分槽位 + seam 补偿）时，优先读取 `20260221160132` 文档。
@@ -64,6 +68,8 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
+- Touch Bar 当前通过 `escapeKeyReplacementItemIdentifier = escape-placeholder`（0 宽视图）隐藏系统 ESC，避免私有 API 链路中再次显示 ESC 键。
+- Touch Bar 已接入过渡动画：共享 tile 使用位置插值，消除使用缩放淡出，新补位从左侧滑入；动画时长约 `0.22s`，曲线为 `easeOutCubic`。
 - 私有 API 当前采用双签名回退：优先调用 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，不可用时回退到 `presentSystemModalTouchBar:placement:systemTrayItemIdentifier:`（placement=自动）；仅在两者都不可用时才启用 `window.touchBar`。
 - 已接入私有 API 调用链：`presentSystemModalTouchBar` / `dismissSystemModalTouchBar`，当前策略为单槽位 16 列 + system modal 展示，以规避公开 API 下 ESC 预留留白。
 - Touch Bar 最新策略为分槽位渲染：ESC 槽位承载第 0 列、主槽位承载 1...15，并对主槽位施加 `leadingCompensationX=8` 左移补偿，减少跨槽位缝隙。

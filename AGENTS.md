@@ -33,3 +33,5 @@
 - 最新回调到分槽位方案：首列仍在 ESC 槽位、其余 1...15 在主棋盘槽位，但给主棋盘增加 `leadingCompensationX=8` 左移补偿以抵消跨槽位分隔，首列宽度继续按主棋盘单列宽度自适应同步。
 - 已接入私有 API `NSTouchBar.presentSystemModalTouchBar` / `dismissSystemModalTouchBar`，当前策略改为“单槽位 16 列 + 系统级 modal 展示”，用于规避 ESC 预留留白与跨槽位缝隙并存问题。
 - 私有 API 展示链路已升级为“双签名回退”：优先 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，其次回退三参 placement 自动模式；`window.touchBar` 仅在私有调用不可用时启用，避免与系统级 modal 渲染冲突。
+- 已为 Touch Bar 棋盘加入基础动画：交换/位移动画使用 tile id 插值，消除使用缩放淡出，左侧补位新方块从左向右滑入，统一采用约 0.22s 的 easing 过渡。
+- 当前已恢复 ESC 隐藏占位：`escapeKeyReplacementItemIdentifier` 绑定 0 宽 `escape-placeholder`，确保不显示系统 ESC 键且保持主棋盘渲染链路不变。

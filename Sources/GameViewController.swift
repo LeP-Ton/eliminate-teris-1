@@ -405,6 +405,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let bar = NSTouchBar()
         bar.delegate = self
         bar.defaultItemIdentifiers = [.game]
+        // 用 0 宽占位替换 ESC，保持左侧不显示系统 ESC 键。
+        bar.escapeKeyReplacementItemIdentifier = .escapePlaceholder
         bar.customizationAllowedItemIdentifiers = []
         bar.customizationRequiredItemIdentifiers = [.game]
         return bar
@@ -554,6 +556,19 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
+        if identifier == .escapePlaceholder {
+            let item = NSCustomTouchBarItem(identifier: .escapePlaceholder)
+            let placeholder = NSView(frame: .zero)
+            placeholder.translatesAutoresizingMaskIntoConstraints = false
+            item.view = placeholder
+
+            NSLayoutConstraint.activate([
+                placeholder.widthAnchor.constraint(equalToConstant: 0),
+                placeholder.heightAnchor.constraint(equalToConstant: gameTouchBarView.intrinsicContentSize.height)
+            ])
+            return item
+        }
+
         guard identifier == .game else { return nil }
         let item = NSCustomTouchBarItem(identifier: .game)
         gameTouchBarView.translatesAutoresizingMaskIntoConstraints = false
@@ -2063,4 +2078,5 @@ private final class PixelBannerView: NSView {
 
 extension NSTouchBarItem.Identifier {
     static let game = NSTouchBarItem.Identifier("com.eliminateteris1.game")
+    static let escapePlaceholder = NSTouchBarItem.Identifier("com.eliminateteris1.escape-placeholder")
 }

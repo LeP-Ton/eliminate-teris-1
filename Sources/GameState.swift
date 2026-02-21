@@ -1,13 +1,23 @@
 import Foundation
 
+struct BoardTile: Equatable {
+    let id: UUID
+    let kind: PieceKind
+
+    init(id: UUID = UUID(), kind: PieceKind) {
+        self.id = id
+        self.kind = kind
+    }
+}
+
 final class GameState {
     let columns: Int
-    private(set) var tiles: [PieceKind]
+    private(set) var tiles: [BoardTile]
     private(set) var score: Int = 0
 
     init(columns: Int) {
         self.columns = columns
-        self.tiles = (0..<columns).map { _ in PieceKind.random() }
+        self.tiles = (0..<columns).map { _ in BoardTile(kind: PieceKind.random()) }
         normalizeStart()
     }
 
@@ -44,7 +54,7 @@ final class GameState {
     private func normalizeStart() {
         while !findMatches().isEmpty {
             for index in findMatches() {
-                tiles[index] = PieceKind.random()
+                tiles[index] = BoardTile(kind: PieceKind.random())
             }
         }
     }
@@ -67,9 +77,9 @@ final class GameState {
         var matches: Set<Int> = []
         var index = 0
         while index < tiles.count {
-            let current = tiles[index]
+            let current = tiles[index].kind
             var next = index + 1
-            while next < tiles.count, tiles[next] == current {
+            while next < tiles.count, tiles[next].kind == current {
                 next += 1
             }
 
@@ -87,14 +97,14 @@ final class GameState {
 
     private func refillAfterClearing(_ matches: Set<Int>) {
         guard !matches.isEmpty else { return }
-        var remaining: [PieceKind] = []
+        var remaining: [BoardTile] = []
         remaining.reserveCapacity(columns - matches.count)
         for (index, tile) in tiles.enumerated() where !matches.contains(index) {
             remaining.append(tile)
         }
 
         let missing = columns - remaining.count
-        let leftFill = (0..<missing).map { _ in PieceKind.random() }
+        let leftFill = (0..<missing).map { _ in BoardTile(kind: PieceKind.random()) }
         tiles = leftFill + remaining
     }
 }
