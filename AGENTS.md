@@ -21,3 +21,15 @@
 - 玩法说明标题图标已切换为兼容性更高的 `doc.text`，并增加系统符号缺失时的回退图标，避免个别系统版本不显示。
 - 模式切换时会锁定窗口 frame，避免自由/竞分/竞速切换引发窗口尺寸跳变；并在切换后强制按最终布局重算挑战记录两端对齐文本。
 - Touch Bar 方块列数已从 12 扩展到 16，控制区可同时显示 16 个可交互方块。
+- Touch Bar 最左格背景已贴齐左边缘（首列取消额外左 inset），修复“首个方块左侧留白”问题。
+- Touch Bar 首列方块图案曾尝试左移与左对齐（用于排查留白来源），当前已回退为按钮内居中。
+- Touch Bar 左侧留白根因为 ESC 专属槽位与主棋盘区域分离；现将第 0 列挂到 `escapeKeyReplacementItemIdentifier`，主棋盘显示第 1...15 列，首列保持居中且不再依赖棋盘整体左移补偿。
+- ESC 槽位拆分方案在当前环境会导致“首按钮不显示”，已回退为单一 `GameTouchBarView(columnRange: 0..<16)`；ESC 继续使用 0 宽占位隐藏，优先保证首按钮可见。
+- Touch Bar 当前采用“首列单独视觉补偿”方案：首列背景绘制区域向左扩展 6px，图案绘制使用首列可见区域居中，避免“左贴边”和“图案偏移”互相冲突。
+- Touch Bar 最新方案：恢复 ESC 槽位拆分，第 0 列放到 `escapeKeyReplacementItemIdentifier`、第 1...15 列放主棋盘，确保最左按钮占用系统 ESC 位置且可见。
+- ESC 槽位首列宽度已改为“跟随主棋盘单列宽度自适应”，通过监听主棋盘 frame 动态更新首列宽度，修复首列偏窄问题。
+- ESC 槽位与主棋盘的系统分隔会放大首二列间距；曾尝试通过收敛第 1 列左内边距（`globalIndex == 1`）补偿。
+- Touch Bar 曾回退为单一主棋盘槽位（`0..<16`）+ 0 宽 ESC 占位以排查首二列间距。
+- 最新回调到分槽位方案：首列仍在 ESC 槽位、其余 1...15 在主棋盘槽位，但给主棋盘增加 `leadingCompensationX=8` 左移补偿以抵消跨槽位分隔，首列宽度继续按主棋盘单列宽度自适应同步。
+- 已接入私有 API `NSTouchBar.presentSystemModalTouchBar` / `dismissSystemModalTouchBar`，当前策略改为“单槽位 16 列 + 系统级 modal 展示”，用于规避 ESC 预留留白与跨槽位缝隙并存问题。
+- 私有 API 展示链路已升级为“双签名回退”：优先 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，其次回退三参 placement 自动模式；`window.touchBar` 仅在私有调用不可用时启用，避免与系统级 modal 渲染冲突。

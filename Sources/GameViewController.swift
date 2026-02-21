@@ -1,4 +1,5 @@
 import Cocoa
+import ObjectiveC.runtime
 
 final class GameViewController: NSViewController, NSTouchBarDelegate {
     private enum ModeSelection: Int {
@@ -46,6 +47,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var gameTouchBarView = GameTouchBarView(columnRange: 0..<columns, controller: controller)
 
     private var observerToken: UUID?
+    private var isPresentingSystemModalTouchBar = false
     private var hudTimer: Timer?
     private var selectedScoreAttackIndex = 0
     private var selectedSpeedRunIndex = 0
@@ -403,7 +405,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let bar = NSTouchBar()
         bar.delegate = self
         bar.defaultItemIdentifiers = [.game]
-        bar.escapeKeyReplacementItemIdentifier = .escapePlaceholder
         bar.customizationAllowedItemIdentifiers = []
         bar.customizationRequiredItemIdentifiers = [.game]
         return bar
@@ -516,6 +517,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         if let observerToken {
             controller.removeObserver(observerToken)
         }
+        dismissSystemModalTouchBarIfNeeded()
         hudTimer?.invalidate()
     }
 
@@ -525,10 +527,20 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        view.window?.touchBar = gameTouchBar
+        // 优先使用系统级 modal touch bar；仅在不可用时回退 window.touchBar。
+        if presentSystemModalTouchBarIfPossible() {
+            view.window?.touchBar = nil
+        } else {
+            view.window?.touchBar = gameTouchBar
+        }
         view.window?.makeFirstResponder(self)
         view.window?.minSize = NSSize(width: 720, height: 450)
         updateWindowTitle()
+    }
+
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        dismissSystemModalTouchBarIfNeeded()
     }
 
     override func viewDidLayout() {
@@ -542,19 +554,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
-        if identifier == .escapePlaceholder {
-            let item = NSCustomTouchBarItem(identifier: .escapePlaceholder)
-            let placeholder = NSView(frame: .zero)
-            placeholder.translatesAutoresizingMaskIntoConstraints = false
-            item.view = placeholder
-
-            NSLayoutConstraint.activate([
-                placeholder.widthAnchor.constraint(equalToConstant: 0),
-                placeholder.heightAnchor.constraint(equalToConstant: 30)
-            ])
-            return item
-        }
-
         guard identifier == .game else { return nil }
         let item = NSCustomTouchBarItem(identifier: .game)
         gameTouchBarView.translatesAutoresizingMaskIntoConstraints = false
@@ -564,6 +563,44 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             gameTouchBarView.heightAnchor.constraint(equalToConstant: gameTouchBarView.intrinsicContentSize.height)
         ])
         return item
+    }
+
+    private func presentSystemModalTouchBarIfPossible() -> Bool {
+        guard isPresentingSystemModalTouchBar == false else { return true }
+
+        // 优先匹配 Pock 同款签名，减少不同系统版本下 placement 语义差异带来的布局偏移。
+        let modernSelector = NSSelectorFromString("presentSystemModalTouchBar:systemTrayItemIdentifier:")
+        if let modernMethod = class_getClassMethod(NSTouchBar.self, modernSelector) {
+            typealias PresentModernModalTouchBar = @convention(c) (AnyObject, Selector, AnyObject?, AnyObject?) -> Void
+            let implementation = method_getImplementation(modernMethod)
+            let function = unsafeBitCast(implementation, to: PresentModernModalTouchBar.self)
+            function(NSTouchBar.self, modernSelector, gameTouchBar, nil)
+            isPresentingSystemModalTouchBar = true
+            return true
+        }
+
+        // 回退三参签名，placement 使用 0（自动）避免硬编码到特定槽位策略。
+        let fallbackSelector = NSSelectorFromString("presentSystemModalTouchBar:placement:systemTrayItemIdentifier:")
+        guard let fallbackMethod = class_getClassMethod(NSTouchBar.self, fallbackSelector) else { return false }
+
+        typealias PresentFallbackModalTouchBar = @convention(c) (AnyObject, Selector, AnyObject?, Int64, AnyObject?) -> Void
+        let fallbackImplementation = method_getImplementation(fallbackMethod)
+        let fallbackFunction = unsafeBitCast(fallbackImplementation, to: PresentFallbackModalTouchBar.self)
+        fallbackFunction(NSTouchBar.self, fallbackSelector, gameTouchBar, 0, nil)
+        isPresentingSystemModalTouchBar = true
+        return true
+    }
+
+    private func dismissSystemModalTouchBarIfNeeded() {
+        guard isPresentingSystemModalTouchBar else { return }
+        let selector = NSSelectorFromString("dismissSystemModalTouchBar:")
+        guard let method = class_getClassMethod(NSTouchBar.self, selector) else { return }
+
+        typealias DismissModalTouchBar = @convention(c) (AnyObject, Selector, AnyObject?) -> Void
+        let implementation = method_getImplementation(method)
+        let function = unsafeBitCast(implementation, to: DismissModalTouchBar.self)
+        function(NSTouchBar.self, selector, gameTouchBar)
+        isPresentingSystemModalTouchBar = false
     }
 
     @objc private func languageSelectionChanged(_ sender: NSPopUpButton) {
@@ -2026,5 +2063,4 @@ private final class PixelBannerView: NSView {
 
 extension NSTouchBarItem.Identifier {
     static let game = NSTouchBarItem.Identifier("com.eliminateteris1.game")
-    static let escapePlaceholder = NSTouchBarItem.Identifier("com.eliminateteris1.escape-placeholder")
 }

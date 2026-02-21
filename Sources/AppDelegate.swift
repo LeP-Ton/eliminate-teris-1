@@ -14,7 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.center()
         window.title = Localizer.shared.string("window.title")
         window.contentViewController = viewController
-        window.touchBar = viewController.makeTouchBar()
         window.makeFirstResponder(viewController)
         window.makeKeyAndOrderFront(nil)
         self.window = window

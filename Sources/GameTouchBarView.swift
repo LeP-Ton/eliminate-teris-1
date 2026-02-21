@@ -285,16 +285,18 @@ final class GameTouchBarView: NSView {
     private let controller: GameBoardController
     private let columnRange: Range<Int>
     private let columnCount: Int
+    private let leadingCompensationX: CGFloat
 
     private var observerToken: UUID?
     private var activeTouches: [ObjectIdentifier: TouchState] = [:]
 
-    init(columnRange: Range<Int>, controller: GameBoardController) {
+    init(columnRange: Range<Int>, controller: GameBoardController, leadingCompensationX: CGFloat = 0) {
         precondition(!columnRange.isEmpty, "columnRange must contain at least one column")
 
         self.columnRange = columnRange
         self.columnCount = columnRange.count
         self.controller = controller
+        self.leadingCompensationX = max(0, leadingCompensationX)
 
         super.init(frame: .zero)
 
@@ -340,7 +342,7 @@ final class GameTouchBarView: NSView {
             let isSelected = controller.isSelected(globalIndex)
             let isLocked = controller.isLocked(globalIndex)
 
-            drawCellBackground(in: rect, highlighted: isLocked || isSelected)
+            drawCellBackground(in: rect, globalIndex: globalIndex, highlighted: isLocked || isSelected)
             drawPiece(controller.tile(at: globalIndex), in: rect, highlighted: isLocked || isSelected)
         }
     }
@@ -424,8 +426,13 @@ final class GameTouchBarView: NSView {
         controller.handleTap(at: index)
     }
 
-    private func drawCellBackground(in rect: CGRect, highlighted: Bool) {
-        let inset = rect.insetBy(dx: Layout.tileOuterInsetX, dy: Layout.tileOuterInsetY)
+    private func drawCellBackground(in rect: CGRect, globalIndex: Int, highlighted: Bool) {
+        var inset = rect.insetBy(dx: Layout.tileOuterInsetX, dy: Layout.tileOuterInsetY)
+        // 仅让全局第 0 列贴齐最左边缘，避免拆分视图后中间列误判为“首列”。
+        if globalIndex == 0 {
+            inset.origin.x -= Layout.tileOuterInsetX
+            inset.size.width += Layout.tileOuterInsetX * 2
+        }
         let path = NSBezierPath(roundedRect: inset, xRadius: 7, yRadius: 7)
         let fill = highlighted ? NSColor.white.withAlphaComponent(0.18) : NSColor.white.withAlphaComponent(0.08)
         fill.setFill()
@@ -498,11 +505,11 @@ final class GameTouchBarView: NSView {
     }
 
     private var boardWidth: CGFloat {
-        return max(0, bounds.width)
+        return max(0, bounds.width + leadingCompensationX)
     }
 
     private var boardOriginX: CGFloat {
-        return 0
+        return -leadingCompensationX
     }
 
     private func isValidIndex(_ index: Int) -> Bool {
