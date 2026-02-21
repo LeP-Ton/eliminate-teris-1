@@ -607,6 +607,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     private func applyModeSelection(resetGame: Bool) {
         let selection = currentModeSelection
+        let windowFrameBeforeUpdate = view.window?.frame
         populateOptionPopup(for: selection)
         updateStartControlVisibility(for: selection)
         updateCardsLayout(for: selection)
@@ -619,6 +620,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         }
 
         updateCompetitiveInfo()
+        preserveWindowFrame(windowFrameBeforeUpdate)
+        refreshRecordPanelAfterLayoutIfNeeded()
     }
 
     private func configureLocalizedText() {
@@ -711,6 +714,26 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         settingsExpandedWidthConstraint?.isActive = shouldExpandSettings
         settingsVersusRightColumnConstraint?.isActive = !shouldExpandSettings
         rightColumnMinWidthConstraint?.isActive = !shouldExpandSettings
+    }
+
+    private func preserveWindowFrame(_ previousFrame: NSRect?) {
+        guard let previousFrame,
+              let window = view.window else {
+            return
+        }
+
+        let shouldRestoreFrame =
+            abs(window.frame.width - previousFrame.width) > 0.5 ||
+            abs(window.frame.height - previousFrame.height) > 0.5
+
+        guard shouldRestoreFrame else { return }
+        window.setFrame(previousFrame, display: false, animate: false)
+    }
+
+    private func refreshRecordPanelAfterLayoutIfNeeded() {
+        guard currentModeSelection != .free else { return }
+        view.layoutSubtreeIfNeeded()
+        updateRecordPanel(with: controller.snapshot())
     }
 
     private func updateRulesDescription(for selection: ModeSelection) {
