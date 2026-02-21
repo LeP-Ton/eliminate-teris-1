@@ -1,6 +1,9 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260221192738-touchbar-animation-rollback-to-answer25.md` - 按“答-25”回退 Touch Bar 动画时序，取消两阶段串联并恢复单阶段过渡。
+`workflow/20260221185955-touchbar-animation-sequence-move-then-eliminate.md` - Touch Bar 动画改为两阶段顺序：先移动后消除与补位。
+`workflow/20260221184845-touchbar-eliminate-animation-visibility-boost.md` - 增强消除动画可见性，增加消除光晕特效并放大缩放/时长参数。
 `workflow/20260221174959-touchbar-hide-esc-placeholder.md` - 恢复 ESC 隐藏占位，避免系统 ESC 键重新显示。
 `workflow/20260221174215-touchbar-eliminate-move-animation.md` - 为 Touch Bar 增加交换/消除/左补位动画，并基于 tile id 做位移插值渲染。
 `workflow/20260221162356-touchbar-private-api-modal-fallback-window-fallback.md` - 私有 API 触发改为双签名回退，并将 `window.touchBar` 限制为私有调用失败时的兜底路径。
@@ -34,6 +37,9 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要确认“已回退到答-25的动画时序”时，优先读取 `20260221192738` 文档。
+- 需要确认“动画顺序为何曾改为先移动后消除（历史方案）”时，优先读取 `20260221185955` 文档。
+- 需要确认“消除动画不明显如何增强”时，优先读取 `20260221184845` 文档。
 - 需要确认“为什么 ESC 又出现、如何重新隐藏 ESC”时，优先读取 `20260221174959` 文档。
 - 需要确认“交换、消除、左补位动画是否已接入 Touch Bar”时，优先读取 `20260221174215` 文档。
 - 需要确认“私有 API 触发失败时如何回退、是否还会与 window.touchBar 冲突”时，优先读取 `20260221162356` 文档。
@@ -68,6 +74,8 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
+- Touch Bar 动画时序已回退到答-25：单阶段过渡（`0.28s`），保留消除光晕/外环与放大缩放淡出，取消两阶段 pending 串联逻辑。
+- 消除动画可见性已增强：消除帧使用 `easeIn` + 光晕外环，缩放区间 `1.22 -> 0.12`，动画总时长 `0.28s`，并对移动/插入采用分离 easing。
 - Touch Bar 当前通过 `escapeKeyReplacementItemIdentifier = escape-placeholder`（0 宽视图）隐藏系统 ESC，避免私有 API 链路中再次显示 ESC 键。
 - Touch Bar 已接入过渡动画：共享 tile 使用位置插值，消除使用缩放淡出，新补位从左侧滑入；动画时长约 `0.22s`，曲线为 `easeOutCubic`。
 - 私有 API 当前采用双签名回退：优先调用 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，不可用时回退到 `presentSystemModalTouchBar:placement:systemTrayItemIdentifier:`（placement=自动）；仅在两者都不可用时才启用 `window.touchBar`。

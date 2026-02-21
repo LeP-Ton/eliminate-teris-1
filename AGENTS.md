@@ -35,3 +35,5 @@
 - 私有 API 展示链路已升级为“双签名回退”：优先 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，其次回退三参 placement 自动模式；`window.touchBar` 仅在私有调用不可用时启用，避免与系统级 modal 渲染冲突。
 - 已为 Touch Bar 棋盘加入基础动画：交换/位移动画使用 tile id 插值，消除使用缩放淡出，左侧补位新方块从左向右滑入，统一采用约 0.22s 的 easing 过渡。
 - 当前已恢复 ESC 隐藏占位：`escapeKeyReplacementItemIdentifier` 绑定 0 宽 `escape-placeholder`，确保不显示系统 ESC 键且保持主棋盘渲染链路不变。
+- 已增强消除动画可见性：新增消除光晕/外环特效，消除缩放范围扩大（`1.22 -> 0.12`），并把过渡时长提升到 `0.28s`，使消除反馈更明显。
+- 已按“答-25”回退动画时序：取消两阶段串联，恢复为单阶段过渡（`0.28s`），保留增强后的消除光晕/外环与缩放淡出效果。
