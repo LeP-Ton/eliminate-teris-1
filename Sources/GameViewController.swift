@@ -55,6 +55,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private var hasSavedFinishedRecord = false
     private var latestRecordIDByMode: [String: String] = [:]
     private var lastRecordsLayoutWidth: CGFloat = 0
+    private var settingsExpandedWidthConstraint: NSLayoutConstraint?
+    private var settingsVersusRightColumnConstraint: NSLayoutConstraint?
+    private var rightColumnMinWidthConstraint: NSLayoutConstraint?
 
     private lazy var headerIconView: NSImageView = {
         let imageView = NSImageView()
@@ -270,6 +273,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         stack.alignment = .top
         stack.distribution = .fill
         stack.spacing = 14
+        stack.detachesHiddenViews = true
         stack.translatesAutoresizingMaskIntoConstraints = false
         return stack
     }()
@@ -387,6 +391,18 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         recordsCardView.addSubview(recordsCardStack)
         rulesCardView.addSubview(rulesCardStack)
 
+        let settingsVersusRightColumnConstraint = settingsCardView.widthAnchor.constraint(
+            greaterThanOrEqualTo: rightColumnStack.widthAnchor,
+            multiplier: 1.24
+        )
+        let rightColumnMinWidthConstraint = rightColumnStack.widthAnchor.constraint(greaterThanOrEqualToConstant: 250)
+        let settingsExpandedWidthConstraint = settingsCardView.widthAnchor.constraint(equalTo: cardsStack.widthAnchor)
+        settingsExpandedWidthConstraint.isActive = false
+
+        self.settingsVersusRightColumnConstraint = settingsVersusRightColumnConstraint
+        self.rightColumnMinWidthConstraint = rightColumnMinWidthConstraint
+        self.settingsExpandedWidthConstraint = settingsExpandedWidthConstraint
+
         NSLayoutConstraint.activate([
             contentStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 22),
             contentStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
@@ -404,8 +420,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
             cardsStack.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             settingsCardView.widthAnchor.constraint(greaterThanOrEqualToConstant: 390),
-            settingsCardView.widthAnchor.constraint(greaterThanOrEqualTo: rightColumnStack.widthAnchor, multiplier: 1.24),
-            rightColumnStack.widthAnchor.constraint(greaterThanOrEqualToConstant: 250),
+            settingsVersusRightColumnConstraint,
+            rightColumnMinWidthConstraint,
             rightColumnStack.heightAnchor.constraint(lessThanOrEqualTo: settingsCardView.heightAnchor),
             statusCardView.widthAnchor.constraint(equalTo: rightColumnStack.widthAnchor),
             recordsCardView.widthAnchor.constraint(equalTo: rightColumnStack.widthAnchor),
@@ -565,6 +581,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let selection = currentModeSelection
         populateOptionPopup(for: selection)
         updateStartControlVisibility(for: selection)
+        updateCardsLayout(for: selection)
         updateRulesDescription(for: selection)
 
         if resetGame {
@@ -604,6 +621,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
         populateOptionPopup(for: currentModeSelection)
         updateStartControlVisibility(for: currentModeSelection)
+        updateCardsLayout(for: currentModeSelection)
         updateRulesDescription(for: currentModeSelection)
 
         let snapshot = controller.snapshot()
@@ -657,6 +675,14 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func updateStartControlVisibility(for selection: ModeSelection) {
         let actionRow = controlsGrid.row(at: ControlRow.action.rawValue)
         actionRow.isHidden = selection == .free
+    }
+
+    private func updateCardsLayout(for selection: ModeSelection) {
+        let shouldExpandSettings = selection == .free
+        rightColumnStack.isHidden = shouldExpandSettings
+        settingsExpandedWidthConstraint?.isActive = shouldExpandSettings
+        settingsVersusRightColumnConstraint?.isActive = !shouldExpandSettings
+        rightColumnMinWidthConstraint?.isActive = !shouldExpandSettings
     }
 
     private func updateRulesDescription(for selection: ModeSelection) {
