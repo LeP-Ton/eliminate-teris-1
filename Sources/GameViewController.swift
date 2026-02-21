@@ -114,8 +114,24 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeSectionTitleLabel(color: settingsThemeColor)
     }()
 
+    private lazy var settingsTitleIconView: NSImageView = {
+        return makeSectionIconView(symbolName: "slider.horizontal.3", color: settingsThemeColor)
+    }()
+
+    private lazy var settingsHeaderStack: NSStackView = {
+        return makeSectionHeaderStack(iconView: settingsTitleIconView, titleLabel: settingsTitleLabel)
+    }()
+
     private lazy var statusTitleLabel: NSTextField = {
         return makeSectionTitleLabel(color: statusThemeColor)
+    }()
+
+    private lazy var statusTitleIconView: NSImageView = {
+        return makeSectionIconView(symbolName: "timer", color: statusThemeColor)
+    }()
+
+    private lazy var statusHeaderStack: NSStackView = {
+        return makeSectionHeaderStack(iconView: statusTitleIconView, titleLabel: statusTitleLabel)
     }()
 
     private lazy var statusBadgeLabel: NSTextField = {
@@ -221,6 +237,14 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeSectionTitleLabel(color: rulesThemeColor)
     }()
 
+    private lazy var rulesTitleIconView: NSImageView = {
+        return makeSectionIconView(symbolName: "doc.text", color: rulesThemeColor)
+    }()
+
+    private lazy var rulesHeaderStack: NSStackView = {
+        return makeSectionHeaderStack(iconView: rulesTitleIconView, titleLabel: rulesTitleLabel)
+    }()
+
     private lazy var rulesBodyLabel: NSTextField = {
         let label = NSTextField(wrappingLabelWithString: "")
         label.alignment = .left
@@ -240,7 +264,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var settingsCardStack: NSStackView = {
-        let stack = NSStackView(views: [settingsTitleLabel, controlsGrid])
+        let stack = NSStackView(views: [settingsHeaderStack, controlsGrid])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 12
@@ -249,7 +273,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var statusCardStack: NSStackView = {
-        let stack = NSStackView(views: [statusTitleLabel, statusBadgeLabel, competitiveInfoLabel, resultLabel])
+        let stack = NSStackView(views: [statusHeaderStack, statusBadgeLabel, competitiveInfoLabel, resultLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
@@ -282,11 +306,15 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeSectionTitleLabel(color: recordsThemeColor)
     }()
 
+    private lazy var recordsTitleIconView: NSImageView = {
+        return makeSectionIconView(symbolName: "list.number", color: recordsThemeColor)
+    }()
+
     private lazy var recordsHeaderStack: NSStackView = {
-        let stack = NSStackView(views: [recordsTitleLabel])
+        let stack = NSStackView(views: [recordsTitleIconView, recordsTitleLabel])
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 0
+        stack.spacing = 6
         stack.detachesHiddenViews = true
         stack.translatesAutoresizingMaskIntoConstraints = false
         return stack
@@ -348,7 +376,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var rulesCardStack: NSStackView = {
-        let stack = NSStackView(views: [rulesTitleLabel, rulesBodyLabel])
+        let stack = NSStackView(views: [rulesHeaderStack, rulesBodyLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 10
@@ -1211,6 +1239,36 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .heavy)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
+    }
+
+    private func makeSectionIconView(symbolName: String, color: NSColor) -> NSImageView {
+        let iconView = NSImageView()
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.imageScaling = .scaleProportionallyDown
+        iconView.contentTintColor = color.withAlphaComponent(0.95)
+
+        if let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+            let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+            iconView.image = symbol.withSymbolConfiguration(config)
+        } else if let fallback = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: nil) {
+            let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+            iconView.image = fallback.withSymbolConfiguration(config)
+        }
+
+        NSLayoutConstraint.activate([
+            iconView.widthAnchor.constraint(equalToConstant: 14),
+            iconView.heightAnchor.constraint(equalToConstant: 14)
+        ])
+        return iconView
+    }
+
+    private func makeSectionHeaderStack(iconView: NSImageView, titleLabel: NSTextField) -> NSStackView {
+        let stack = NSStackView(views: [iconView, titleLabel])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 6
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
     }
 }
 
