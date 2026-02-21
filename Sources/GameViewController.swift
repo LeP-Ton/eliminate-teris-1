@@ -37,7 +37,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private let rulesThemeColor = NSColor(calibratedRed: 1.0, green: 0.53, blue: 0.5, alpha: 0.96)
     private let rulesBodyThemeColor = NSColor(calibratedRed: 1.0, green: 0.82, blue: 0.82, alpha: 0.9)
 
-    private let columns = 12
+    private let columns = 16
     private let scoreAttackMinutes = [1, 2, 3]
     private let speedRunTargets = [300, 600, 900]
     private let recordStore = ModeRecordStore.shared
