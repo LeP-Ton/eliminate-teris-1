@@ -42,6 +42,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private let scoreAttackMinutes = [1, 2, 3]
     private let speedRunTargets = [300, 600, 900]
     private let recordStore = ModeRecordStore.shared
+    private let audioSystem = GameAudioSystem.shared
 
     private lazy var controller = GameBoardController(columns: columns)
     private lazy var gameTouchBarView = GameTouchBarView(columnRange: 0..<columns, controller: controller)
@@ -521,6 +522,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         }
         dismissSystemModalTouchBarIfNeeded()
         hudTimer?.invalidate()
+        audioSystem.stopBackgroundMusic()
     }
 
     override func makeTouchBar() -> NSTouchBar? {
@@ -659,6 +661,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     private func applyModeSelection(resetGame: Bool) {
         let selection = currentModeSelection
+        let selectedMode = gameMode(for: selection)
         let windowFrameBeforeUpdate = view.window?.frame
         populateOptionPopup(for: selection)
         updateStartControlVisibility(for: selection)
@@ -668,8 +671,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         if resetGame {
             resetRuntimeIndicators()
             hasSavedFinishedRecord = false
-            controller.configure(mode: gameMode(for: selection))
+            controller.configure(mode: selectedMode)
         }
+        audioSystem.updateBackgroundMusic(for: selectedMode)
 
         updateCompetitiveInfo()
         preserveWindowFrame(windowFrameBeforeUpdate)

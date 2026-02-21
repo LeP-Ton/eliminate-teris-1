@@ -319,6 +319,7 @@ final class GameTouchBarView: NSView {
     }
 
     private let controller: GameBoardController
+    private let audioSystem = GameAudioSystem.shared
     private let columnRange: Range<Int>
     private let columnCount: Int
     private let leadingCompensationX: CGFloat
@@ -335,6 +336,7 @@ final class GameTouchBarView: NSView {
     private var transitionPhases: [TransitionPhase] = []
     private var transitionPhaseIndex = 0
     private var activePhaseDuration: TimeInterval = 0.28
+    private var shouldPlayTransitionEffects = false
     private var transitionStartTime: TimeInterval = 0
     private var transitionProgress: CGFloat = 1
     private var transitionTimer: Timer?
@@ -518,6 +520,7 @@ final class GameTouchBarView: NSView {
         transitionTimer?.invalidate()
         transitionPhases = []
         transitionPhaseIndex = 0
+        shouldPlayTransitionEffects = swapPair != nil
 
         // 通过 tile id 做前后帧配对：既能识别交换位移，也能识别消除/补位。
         let oldIndices = Dictionary(uniqueKeysWithValues: oldTiles.enumerated().map { ($1.id, $0) })
@@ -711,6 +714,7 @@ final class GameTouchBarView: NSView {
         if phases.isEmpty {
             pieceTransitions = []
             transitionProgress = 1
+            shouldPlayTransitionEffects = false
             needsDisplay = true
             return
         }
@@ -747,6 +751,7 @@ final class GameTouchBarView: NSView {
         activePhaseDuration = max(0.01, phase.duration)
         transitionStartTime = Date().timeIntervalSinceReferenceDate
         transitionProgress = 0
+        playPhaseSoundEffectIfNeeded(transitions: phase.transitions)
         needsDisplay = true
     }
 
@@ -767,6 +772,30 @@ final class GameTouchBarView: NSView {
         pieceTransitions = []
         transitionPhases = []
         transitionPhaseIndex = 0
+        shouldPlayTransitionEffects = false
+    }
+
+    private func playPhaseSoundEffectIfNeeded(transitions: [PieceTransition]) {
+        guard shouldPlayTransitionEffects else { return }
+        guard !transitions.isEmpty else { return }
+
+        // 三阶段按优先级触发：消除 > 补位 > 移动，确保同一阶段只播一种提示音。
+        if transitions.contains(where: { $0.transitionKind == .remove }) {
+            audioSystem.playEffect(.eliminate)
+            return
+        }
+
+        if transitions.contains(where: { $0.transitionKind == .insert }) {
+            audioSystem.playEffect(.refill)
+            return
+        }
+
+        let hasMove = transitions.contains {
+            $0.transitionKind == .move && $0.fromIndex != $0.toIndex
+        }
+        if hasMove {
+            audioSystem.playEffect(.move)
+        }
     }
 
     private func drawTransitionPiece(_ transition: PieceTransition) {
