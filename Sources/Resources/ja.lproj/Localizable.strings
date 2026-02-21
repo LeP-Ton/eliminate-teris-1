@@ -64,6 +64,7 @@
 "rules.mode_title.score_attack" = "スコアアタック：";
 "rules.mode_title.speed_run" = "スピードラン：";
 "rules.label.mode_rule" = "モードルール";
+"rules.label.operation" = "操作方法";
 "rules.label.settlement" = "決着方式";
 "rules.short.mode.free" = "時間制限と目標スコアなしで継続練習できます";
 "rules.short.mode.score_attack" = "%@ 内でできるだけ高得点を狙います";

@@ -64,6 +64,7 @@
 "rules.mode_title.score_attack" = "점수전 모드:";
 "rules.mode_title.speed_run" = "스피드런 모드:";
 "rules.label.mode_rule" = "모드 규칙";
+"rules.label.operation" = "조작 방식";
 "rules.label.settlement" = "결산 방식";
 "rules.short.mode.free" = "시간 제한과 목표 점수 없이 계속 연습할 수 있습니다";
 "rules.short.mode.score_attack" = "%@ 안에 최대한 높은 점수를 노립니다";

@@ -64,6 +64,7 @@
 "rules.mode_title.score_attack" = "竞分模式：";
 "rules.mode_title.speed_run" = "竞速模式：";
 "rules.label.mode_rule" = "模式规则";
+"rules.label.operation" = "操作方式";
 "rules.label.settlement" = "结算方式";
 "rules.short.mode.free" = "无时间和目标分数限制，可持续练习操作";
 "rules.short.mode.score_attack" = "在%@内尽可能获得更高分";

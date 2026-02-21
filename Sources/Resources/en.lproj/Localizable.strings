@@ -64,6 +64,7 @@
 "rules.mode_title.score_attack" = "Score Attack:";
 "rules.mode_title.speed_run" = "Speed Run:";
 "rules.label.mode_rule" = "Mode Rule";
+"rules.label.operation" = "Operation";
 "rules.label.settlement" = "Settlement";
 "rules.short.mode.free" = "No timer or target score, suitable for practice";
 "rules.short.mode.score_attack" = "Earn as many points as possible within %@";

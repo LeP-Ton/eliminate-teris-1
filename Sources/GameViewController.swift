@@ -660,39 +660,35 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private func updateRulesDescription(for selection: ModeSelection) {
-        let modeTitle: String
         let coreRulePrimary = localized("rules.core.line1")
         let coreRuleSecondary = localized("rules.core.line2")
+        let operationLabel = localized("rules.label.operation")
         let modeRule: String
         let settlementRule: String
 
         switch selection {
         case .free:
-            modeTitle = localized("rules.mode_title.free")
             modeRule = localized("rules.short.mode.free")
             settlementRule = localized("rules.short.settlement.free")
 
         case .scoreAttack:
             let minutes = scoreAttackMinutes[min(max(0, selectedScoreAttackIndex), scoreAttackMinutes.count - 1)]
-            modeTitle = localized("rules.mode_title.score_attack")
             modeRule = localizedFormat("rules.short.mode.score_attack", localizedFormat("option.minute_format", minutes))
             settlementRule = localized("rules.short.settlement.score_attack")
 
         case .speedRun:
             let targetScore = speedRunTargets[min(max(0, selectedSpeedRunIndex), speedRunTargets.count - 1)]
-            modeTitle = localized("rules.mode_title.speed_run")
             modeRule = localizedFormat("rules.short.mode.speed_run", localizedFormat("option.target_format", targetScore))
             settlementRule = localized("rules.short.settlement.speed_run")
         }
 
-        // 玩法说明保持简短结构，同时恢复“基础规则”并统一使用圆点分隔。
-        let description = """
-        \(modeTitle)
-        • \(localized("rules.category.core"))：\(coreRulePrimary)
-        • \(coreRuleSecondary)
-        • \(localized("rules.label.mode_rule"))：\(modeRule)
-        • \(localized("rules.label.settlement"))：\(settlementRule)
-        """
+        // 玩法说明统一去掉模式小标题，只保留规则项。
+        var descriptionRows: [String] = []
+        descriptionRows.append("• \(localized("rules.category.core"))：\(coreRulePrimary)")
+        descriptionRows.append("• \(operationLabel)：\(coreRuleSecondary)")
+        descriptionRows.append("• \(localized("rules.label.mode_rule"))：\(modeRule)")
+        descriptionRows.append("• \(localized("rules.label.settlement"))：\(settlementRule)")
+        let description = descriptionRows.joined(separator: "\n")
         rulesBodyLabel.stringValue = description
     }
 

@@ -64,6 +64,7 @@
 "rules.mode_title.score_attack" = "Режим на очки:";
 "rules.mode_title.speed_run" = "Режим на скорость:";
 "rules.label.mode_rule" = "Правило режима";
+"rules.label.operation" = "Способ управления";
 "rules.label.settlement" = "Условие завершения";
 "rules.short.mode.free" = "Без таймера и целевого счёта, можно спокойно тренироваться";
 "rules.short.mode.score_attack" = "Наберите максимум очков за %@";
