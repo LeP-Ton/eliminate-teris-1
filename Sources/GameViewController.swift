@@ -531,11 +531,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        // 优先使用系统级 modal touch bar；仅在不可用时回退 window.touchBar。
-        if presentSystemModalTouchBarIfPossible() {
+        // 默认优先走私有 modal 路径，保持最左侧贴边显示；异常时可通过环境变量关闭。
+        if shouldUseSystemModalTouchBar(), presentSystemModalTouchBarIfPossible() {
             view.window?.touchBar = nil
+            gameTouchBarView.prepareForDisplay()
         } else {
             view.window?.touchBar = gameTouchBar
+            gameTouchBarView.prepareForDisplay()
         }
         view.window?.makeFirstResponder(self)
         view.window?.minSize = NSSize(width: 720, height: 450)
@@ -618,6 +620,14 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let function = unsafeBitCast(implementation, to: DismissModalTouchBar.self)
         function(NSTouchBar.self, selector, gameTouchBar)
         isPresentingSystemModalTouchBar = false
+    }
+
+    private func shouldUseSystemModalTouchBar() -> Bool {
+        let value = ProcessInfo.processInfo.environment["ELIMINATE_TOUCHBAR_MODAL"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value == "0" {
+            return false
+        }
+        return true
     }
 
     @objc private func languageSelectionChanged(_ sender: NSPopUpButton) {

@@ -353,11 +353,13 @@ final class GameTouchBarView: NSView {
         super.init(frame: .zero)
 
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         layer?.backgroundColor = NSColor.black.withAlphaComponent(0.9).cgColor
         allowedTouchTypes = [.direct, .indirect]
         wantsRestingTouches = true
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        needsDisplay = true
 
         observerToken = controller.addObserver(owner: self) { [weak self] in
             self?.handleControllerChange()
@@ -502,6 +504,16 @@ final class GameTouchBarView: NSView {
         let index = indexForPoint(point)
         guard isValidIndex(index) else { return }
         controller.handleTap(at: index)
+    }
+
+    func prepareForDisplay() {
+        renderedTiles = controller.tiles()
+        pieceTransitions = []
+        transitionPhases = []
+        transitionPhaseIndex = 0
+        transitionProgress = 1
+        shouldPlayTransitionEffects = false
+        needsDisplay = true
     }
 
     private func handleControllerChange() {
