@@ -1,5 +1,4 @@
 import Cocoa
-import ObjectiveC.runtime
 
 final class GameViewController: NSViewController, NSTouchBarDelegate {
     private enum ModeSelection: Int {
@@ -43,12 +42,15 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private let speedRunTargets = [300, 600, 900]
     private let recordStore = ModeRecordStore.shared
     private let audioSystem = GameAudioSystem.shared
+    private let touchBarSecondaryRefreshDelay: TimeInterval = 0.12
 
     private lazy var controller = GameBoardController(columns: columns)
     private lazy var gameTouchBarView = GameTouchBarView(columnRange: 0..<columns, controller: controller)
 
     private var observerToken: UUID?
-    private var isPresentingSystemModalTouchBar = false
+    private var touchBarPresentationGeneration = 0
+    private var touchBarInitialRefreshWorkItem: DispatchWorkItem?
+    private var touchBarSecondaryRefreshWorkItem: DispatchWorkItem?
     private var hudTimer: Timer?
     private var selectedScoreAttackIndex = 0
     private var selectedSpeedRunIndex = 0
@@ -520,7 +522,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         if let observerToken {
             controller.removeObserver(observerToken)
         }
-        dismissSystemModalTouchBarIfNeeded()
+        cancelTouchBarRefreshWorkItems()
         hudTimer?.invalidate()
         audioSystem.stopBackgroundMusic()
     }
@@ -531,22 +533,18 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        // 默认优先走私有 modal 路径，保持最左侧贴边显示；异常时可通过环境变量关闭。
-        if shouldUseSystemModalTouchBar(), presentSystemModalTouchBarIfPossible() {
-            view.window?.touchBar = nil
-            gameTouchBarView.prepareForDisplay()
-        } else {
-            view.window?.touchBar = gameTouchBar
-            gameTouchBarView.prepareForDisplay()
-        }
+        // 当前正式方案固定使用公开 window.touchBar，优先保证打包版稳定显示。
+        logTouchBarDiagnostics("viewDidAppear，windowExists=\(view.window != nil)")
+        refreshTouchBarPresentationForCurrentWindow()
         view.window?.makeFirstResponder(self)
         view.window?.minSize = NSSize(width: 720, height: 450)
         updateWindowTitle()
     }
 
     override func viewDidDisappear() {
+        logTouchBarDiagnostics("viewDidDisappear，开始失效公开 Touch Bar 刷新链路")
+        invalidateTouchBarRefreshLifecycle()
         super.viewDidDisappear()
-        dismissSystemModalTouchBarIfNeeded()
     }
 
     override func viewDidLayout() {
@@ -584,50 +582,73 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return item
     }
 
-    private func presentSystemModalTouchBarIfPossible() -> Bool {
-        guard isPresentingSystemModalTouchBar == false else { return true }
+    private func refreshTouchBarPresentationForCurrentWindow() {
+        guard isViewLoaded, view.window != nil else { return }
 
-        // 优先匹配 Pock 同款签名，减少不同系统版本下 placement 语义差异带来的布局偏移。
-        let modernSelector = NSSelectorFromString("presentSystemModalTouchBar:systemTrayItemIdentifier:")
-        if let modernMethod = class_getClassMethod(NSTouchBar.self, modernSelector) {
-            typealias PresentModernModalTouchBar = @convention(c) (AnyObject, Selector, AnyObject?, AnyObject?) -> Void
-            let implementation = method_getImplementation(modernMethod)
-            let function = unsafeBitCast(implementation, to: PresentModernModalTouchBar.self)
-            function(NSTouchBar.self, modernSelector, gameTouchBar, nil)
-            isPresentingSystemModalTouchBar = true
-            return true
-        }
-
-        // 回退三参签名，placement 使用 0（自动）避免硬编码到特定槽位策略。
-        let fallbackSelector = NSSelectorFromString("presentSystemModalTouchBar:placement:systemTrayItemIdentifier:")
-        guard let fallbackMethod = class_getClassMethod(NSTouchBar.self, fallbackSelector) else { return false }
-
-        typealias PresentFallbackModalTouchBar = @convention(c) (AnyObject, Selector, AnyObject?, Int64, AnyObject?) -> Void
-        let fallbackImplementation = method_getImplementation(fallbackMethod)
-        let fallbackFunction = unsafeBitCast(fallbackImplementation, to: PresentFallbackModalTouchBar.self)
-        fallbackFunction(NSTouchBar.self, fallbackSelector, gameTouchBar, 0, nil)
-        isPresentingSystemModalTouchBar = true
-        return true
+        touchBarPresentationGeneration += 1
+        let generation = touchBarPresentationGeneration
+        cancelTouchBarRefreshWorkItems()
+        view.window?.touchBar = gameTouchBar
+        logTouchBarDiagnostics("已挂载公开 window.touchBar，私有 modal 已停用，generation=\(generation)")
+        scheduleTouchBarDisplayRefreshes(for: generation)
     }
 
-    private func dismissSystemModalTouchBarIfNeeded() {
-        guard isPresentingSystemModalTouchBar else { return }
-        let selector = NSSelectorFromString("dismissSystemModalTouchBar:")
-        guard let method = class_getClassMethod(NSTouchBar.self, selector) else { return }
+    private func refreshTouchBarDisplayLifecycleIfNeeded() {
+        guard isViewLoaded, view.window != nil else { return }
 
-        typealias DismissModalTouchBar = @convention(c) (AnyObject, Selector, AnyObject?) -> Void
-        let implementation = method_getImplementation(method)
-        let function = unsafeBitCast(implementation, to: DismissModalTouchBar.self)
-        function(NSTouchBar.self, selector, gameTouchBar)
-        isPresentingSystemModalTouchBar = false
+        touchBarPresentationGeneration += 1
+        let generation = touchBarPresentationGeneration
+        cancelTouchBarRefreshWorkItems()
+        view.window?.touchBar = gameTouchBar
+        logTouchBarDiagnostics("刷新公开 window.touchBar 生命周期，generation=\(generation)")
+        scheduleTouchBarDisplayRefreshes(for: generation)
     }
 
-    private func shouldUseSystemModalTouchBar() -> Bool {
-        let value = ProcessInfo.processInfo.environment["ELIMINATE_TOUCHBAR_MODAL"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if value == "0" {
-            return false
+    private func scheduleTouchBarDisplayRefreshes(for generation: Int) {
+        // 公开 Touch Bar 仍保留异步首刷与一次延迟刷新，确保首帧在有效 bounds 下稳定落地。
+        let initialRefresh = DispatchWorkItem { [weak self] in
+            guard let self, self.touchBarPresentationGeneration == generation else { return }
+            let displayGeneration = self.gameTouchBarView.prepareForDisplay()
+            self.logTouchBarDiagnostics(
+                "公开 Touch Bar 首次异步刷新，presentationGeneration=\(generation)，displayGeneration=\(displayGeneration)，bounds=\(TouchBarDiagnostics.describe(rect: self.gameTouchBarView.bounds))"
+            )
         }
-        return true
+        touchBarInitialRefreshWorkItem = initialRefresh
+        DispatchQueue.main.async(execute: initialRefresh)
+
+        let secondaryRefresh = DispatchWorkItem { [weak self] in
+            guard let self, self.touchBarPresentationGeneration == generation else { return }
+            let displayGeneration = self.gameTouchBarView.prepareForDisplay()
+            self.logTouchBarDiagnostics(
+                "公开 Touch Bar 二次延迟刷新，presentationGeneration=\(generation)，displayGeneration=\(displayGeneration)，bounds=\(TouchBarDiagnostics.describe(rect: self.gameTouchBarView.bounds))"
+            )
+        }
+        touchBarSecondaryRefreshWorkItem = secondaryRefresh
+        logTouchBarDiagnostics("已安排公开 Touch Bar 二次刷新，delay=\(touchBarSecondaryRefreshDelay)s，generation=\(generation)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + touchBarSecondaryRefreshDelay, execute: secondaryRefresh)
+    }
+
+    private func invalidateTouchBarRefreshLifecycle() {
+        touchBarPresentationGeneration += 1
+        logTouchBarDiagnostics("失效公开 Touch Bar 刷新生命周期，newGeneration=\(touchBarPresentationGeneration)")
+        cancelTouchBarRefreshWorkItems()
+        view.window?.touchBar = nil
+    }
+
+    private func cancelTouchBarRefreshWorkItems() {
+        if touchBarInitialRefreshWorkItem != nil || touchBarSecondaryRefreshWorkItem != nil {
+            logTouchBarDiagnostics("取消待执行的公开 Touch Bar 刷新任务")
+        }
+        touchBarInitialRefreshWorkItem?.cancel()
+        touchBarSecondaryRefreshWorkItem?.cancel()
+        touchBarInitialRefreshWorkItem = nil
+        touchBarSecondaryRefreshWorkItem = nil
+    }
+
+    private func logTouchBarDiagnostics(_ message: @autoclosure () -> String) {
+        TouchBarDiagnostics.log(
+            "GameViewController pg=\(touchBarPresentationGeneration) \(message())"
+        )
     }
 
     @objc private func languageSelectionChanged(_ sender: NSPopUpButton) {
@@ -688,6 +709,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         updateCompetitiveInfo()
         preserveWindowFrame(windowFrameBeforeUpdate)
         refreshRecordPanelAfterLayoutIfNeeded()
+        refreshTouchBarDisplayLifecycleIfNeeded()
     }
 
     private func configureLocalizedText() {

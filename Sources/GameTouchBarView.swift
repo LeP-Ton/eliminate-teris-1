@@ -340,6 +340,15 @@ final class GameTouchBarView: NSView {
     private var transitionStartTime: TimeInterval = 0
     private var transitionProgress: CGFloat = 1
     private var transitionTimer: Timer?
+    // 记录上一次已知尺寸，用于识别“首次拿到有效 bounds”与后续尺寸变化。
+    private var lastKnownBoundsSize: CGSize = .zero
+    // 当 prepareForDisplay 发生在零尺寸阶段时，先挂起刷新，等真正拿到尺寸后再补绘。
+    private var pendingDisplayRefresh = false
+    // 仅在实际完成格子/方块绘制后才置为 true，避免把“纯黑底首帧”误判成成功渲染。
+    private(set) var hasDrawnVisibleContent = false
+    private(set) var displayGeneration = 0
+    private var lastLoggedRenderState = ""
+    private var lastLoggedVisibleGeneration = -1
 
     init(columnRange: Range<Int>, controller: GameBoardController, leadingCompensationX: CGFloat = 0) {
         precondition(!columnRange.isEmpty, "columnRange must contain at least one column")
@@ -359,7 +368,8 @@ final class GameTouchBarView: NSView {
         wantsRestingTouches = true
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        needsDisplay = true
+        requestDisplayRefresh()
+        logDiagnostics("初始化完成，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
 
         observerToken = controller.addObserver(owner: self) { [weak self] in
             self?.handleControllerChange()
@@ -385,11 +395,37 @@ final class GameTouchBarView: NSView {
         return true
     }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        logDiagnostics("已挂到 window，windowExists=\(window != nil)，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
+        handleBoundsChangeIfNeeded()
+    }
+
+    override func layout() {
+        super.layout()
+        handleBoundsChangeIfNeeded()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        handleBoundsChangeIfNeeded()
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
 
         NSColor.black.withAlphaComponent(0.9).setFill()
         bounds.fill()
+
+        guard canRenderVisibleCells else {
+            hasDrawnVisibleContent = false
+            let renderState = "blocked-\(TouchBarDiagnostics.describe(size: bounds.size))"
+            if lastLoggedRenderState != renderState {
+                lastLoggedRenderState = renderState
+                logDiagnostics("跳过有效内容绘制，原因=尺寸不足，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
+            }
+            return
+        }
 
         for localIndex in 0..<columnCount {
             let globalIndex = columnRange.lowerBound + localIndex
@@ -414,6 +450,8 @@ final class GameTouchBarView: NSView {
                     scale: 1
                 )
             }
+            hasDrawnVisibleContent = true
+            logVisibleContentIfNeeded(reason: "静态棋盘")
             return
         }
 
@@ -425,6 +463,8 @@ final class GameTouchBarView: NSView {
         for transition in visibleTransitions where transition.transitionKind == .remove {
             drawTransitionPiece(transition)
         }
+        hasDrawnVisibleContent = true
+        logVisibleContentIfNeeded(reason: "动画棋盘，transitions=\(visibleTransitions.count)")
     }
 
     override func touchesBegan(with event: NSEvent) {
@@ -506,21 +546,30 @@ final class GameTouchBarView: NSView {
         controller.handleTap(at: index)
     }
 
-    func prepareForDisplay() {
+    @discardableResult
+    func prepareForDisplay() -> Int {
+        transitionTimer?.invalidate()
+        transitionTimer = nil
         renderedTiles = controller.tiles()
         pieceTransitions = []
         transitionPhases = []
         transitionPhaseIndex = 0
         transitionProgress = 1
         shouldPlayTransitionEffects = false
-        needsDisplay = true
+        hasDrawnVisibleContent = false
+        displayGeneration += 1
+        lastLoggedVisibleGeneration = -1
+        lastLoggedRenderState = ""
+        requestDisplayRefresh()
+        logDiagnostics("prepareForDisplay，displayGeneration=\(displayGeneration)，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
+        return displayGeneration
     }
 
     private func handleControllerChange() {
         let latestTiles = controller.tiles()
         let swapPair = controller.consumeLastSwapPair()
         if latestTiles == renderedTiles {
-            needsDisplay = true
+            requestDisplayRefresh()
             return
         }
 
@@ -727,7 +776,7 @@ final class GameTouchBarView: NSView {
             pieceTransitions = []
             transitionProgress = 1
             shouldPlayTransitionEffects = false
-            needsDisplay = true
+            requestDisplayRefresh()
             return
         }
 
@@ -764,14 +813,14 @@ final class GameTouchBarView: NSView {
         transitionStartTime = Date().timeIntervalSinceReferenceDate
         transitionProgress = 0
         playPhaseSoundEffectIfNeeded(transitions: phase.transitions)
-        needsDisplay = true
+        requestDisplayRefresh()
     }
 
     @objc private func handleTransitionTick() {
         let elapsed = Date().timeIntervalSinceReferenceDate - transitionStartTime
         let progress = min(1, max(0, elapsed / activePhaseDuration))
         transitionProgress = CGFloat(progress)
-        needsDisplay = true
+        requestDisplayRefresh()
 
         guard progress >= 1 else { return }
         if transitionPhaseIndex + 1 < transitionPhases.count {
@@ -998,5 +1047,67 @@ final class GameTouchBarView: NSView {
 
     private func isBoardIndex(_ index: Int) -> Bool {
         return index >= 0 && index < controller.columns
+    }
+
+    private var canRenderVisibleCells: Bool {
+        guard columnCount > 0 else { return false }
+        guard bounds.width > 1, bounds.height > 1 else { return false }
+
+        let sampleRect = cellRect(forLocalIndex: 0)
+        let visibleWidth = sampleRect.width - Layout.tileOuterInsetX * 2
+        let visibleHeight = sampleRect.height - Layout.tileOuterInsetY * 2
+        return visibleWidth > 2 && visibleHeight > 2
+    }
+
+    private func requestDisplayRefresh() {
+        // Touch Bar 视图常见问题是“先收到刷新请求，后拿到尺寸”，这里统一把刷新请求延后兑现。
+        if bounds.width > 0.5, bounds.height > 0.5 {
+            if pendingDisplayRefresh {
+                logDiagnostics("兑现挂起刷新，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
+            }
+            pendingDisplayRefresh = false
+            needsDisplay = true
+            return
+        }
+
+        if pendingDisplayRefresh == false {
+            logDiagnostics("刷新请求挂起，等待有效尺寸，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
+        }
+        pendingDisplayRefresh = true
+    }
+
+    private func handleBoundsChangeIfNeeded() {
+        let currentSize = bounds.size
+        let previousSize = lastKnownBoundsSize
+        let widthChanged = abs(currentSize.width - previousSize.width) > 0.5
+        let heightChanged = abs(currentSize.height - previousSize.height) > 0.5
+        let sizeChanged = widthChanged || heightChanged
+        let previouslyRenderable = previousSize.width > 0.5 && previousSize.height > 0.5
+        let nowRenderable = currentSize.width > 0.5 && currentSize.height > 0.5
+
+        lastKnownBoundsSize = currentSize
+
+        // 只要这次尺寸有效，且之前有挂起刷新或尺寸真的变化了，就强制补一帧重绘。
+        guard nowRenderable else { return }
+        guard pendingDisplayRefresh || sizeChanged || !previouslyRenderable else { return }
+
+        pendingDisplayRefresh = false
+        logDiagnostics(
+            "检测到尺寸可渲染，previous=\(TouchBarDiagnostics.describe(size: previousSize)) current=\(TouchBarDiagnostics.describe(size: currentSize)) sizeChanged=\(sizeChanged)"
+        )
+        needsDisplay = true
+    }
+
+    private func logVisibleContentIfNeeded(reason: String) {
+        guard lastLoggedVisibleGeneration != displayGeneration else { return }
+        lastLoggedVisibleGeneration = displayGeneration
+        lastLoggedRenderState = "visible-\(displayGeneration)"
+        logDiagnostics("\(reason)，已完成有效绘制，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
+    }
+
+    private func logDiagnostics(_ message: @autoclosure () -> String) {
+        TouchBarDiagnostics.log(
+            "GameTouchBarView[\(columnRange.lowerBound)..<\(columnRange.upperBound)] dg=\(displayGeneration) \(message())"
+        )
     }
 }
