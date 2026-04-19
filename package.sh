@@ -10,6 +10,15 @@ APP_DIR="$DIST_DIR/$APP_NAME.app"
 STAGING_DIR="$DIST_DIR/dmg-staging"
 DMG_PATH="$DIST_DIR/$APP_NAME.dmg"
 ZIP_PATH="$DIST_DIR/$APP_NAME.zip"
+PACKAGE_ARCHS_STRING="${PACKAGE_ARCHS:-x86_64 arm64}"
+PACKAGE_MIN_MACOS="${PACKAGE_MIN_MACOS:-12.0}"
+TEMP_BUILD_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/eliminate-package.XXXXXX")"
+read -r -a PACKAGE_ARCHS <<< "$PACKAGE_ARCHS_STRING"
+
+cleanup() {
+  rm -rf "$TEMP_BUILD_ROOT"
+}
+trap cleanup EXIT
 
 if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer" ]]; then
   export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
@@ -19,29 +28,63 @@ if [[ -z "${HOME:-}" || ! -w "${HOME:-/}" ]]; then
   export HOME="/tmp"
 fi
 
-echo "[package.sh] 开始构建 $BUILD_CONFIG 产物..."
-(cd "$ROOT_DIR" && swift build -c "$BUILD_CONFIG" --disable-sandbox)
+build_for_arch() {
+  local arch="$1"
+  local triple="${arch}-apple-macosx${PACKAGE_MIN_MACOS}"
+  local scratch_path="$TEMP_BUILD_ROOT/$arch"
+  local executable_path
+  local bin_dir
 
-BIN_DIR="$(cd "$ROOT_DIR" && swift build -c "$BUILD_CONFIG" --show-bin-path)"
-EXECUTABLE_PATH="$BIN_DIR/$APP_NAME"
+  # 构建日志输出到标准错误，避免污染后续用于捕获路径的标准输出。
+  echo "[package.sh] 开始构建 $arch 架构..." >&2
+  (cd "$ROOT_DIR" && swift build -c "$BUILD_CONFIG" --triple "$triple" --scratch-path "$scratch_path" --disable-sandbox) >&2
 
-if [[ ! -x "$EXECUTABLE_PATH" ]]; then
-  echo "[package.sh] 打包失败：未找到可执行文件 $EXECUTABLE_PATH"
+  bin_dir="$(cd "$ROOT_DIR" && swift build -c "$BUILD_CONFIG" --triple "$triple" --scratch-path "$scratch_path" --show-bin-path)"
+  executable_path="$bin_dir/$APP_NAME"
+
+  if [[ ! -x "$executable_path" ]]; then
+    echo "[package.sh] 打包失败：未找到 $arch 可执行文件 $executable_path"
+    exit 1
+  fi
+
+  echo "$bin_dir"
+}
+
+find_resource_bundle() {
+  local bin_dir="$1"
+  if [[ -d "$bin_dir/${TARGET_NAME}_${TARGET_NAME}.bundle" ]]; then
+    echo "$bin_dir/${TARGET_NAME}_${TARGET_NAME}.bundle"
+    return
+  fi
+  if [[ -d "$bin_dir/$TARGET_NAME.bundle" ]]; then
+    echo "$bin_dir/$TARGET_NAME.bundle"
+  fi
+}
+
+if [[ ${#PACKAGE_ARCHS[@]} -eq 0 ]]; then
+  echo "[package.sh] 打包失败：未配置任何目标架构。"
   exit 1
 fi
 
+declare -a BIN_DIRS=()
+declare -a EXECUTABLE_PATHS=()
 RESOURCE_BUNDLE_PATH=""
-if [[ -d "$BIN_DIR/${TARGET_NAME}_${TARGET_NAME}.bundle" ]]; then
-  RESOURCE_BUNDLE_PATH="$BIN_DIR/${TARGET_NAME}_${TARGET_NAME}.bundle"
-elif [[ -d "$BIN_DIR/$TARGET_NAME.bundle" ]]; then
-  RESOURCE_BUNDLE_PATH="$BIN_DIR/$TARGET_NAME.bundle"
-fi
 
-echo "[package.sh] 生成 .app 包..."
-rm -rf "$APP_DIR"
+for arch in "${PACKAGE_ARCHS[@]}"; do
+  BIN_DIR="$(build_for_arch "$arch")"
+  BIN_DIRS+=("$BIN_DIR")
+  EXECUTABLE_PATHS+=("$BIN_DIR/$APP_NAME")
+
+  if [[ -z "$RESOURCE_BUNDLE_PATH" ]]; then
+    RESOURCE_BUNDLE_PATH="$(find_resource_bundle "$BIN_DIR")"
+  fi
+done
+
+echo "[package.sh] 生成通用 .app 包..."
+rm -rf "$APP_DIR" "$STAGING_DIR" "$DMG_PATH" "$ZIP_PATH"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
-cp "$EXECUTABLE_PATH" "$APP_DIR/Contents/MacOS/$APP_NAME"
+lipo -create "${EXECUTABLE_PATHS[@]}" -output "$APP_DIR/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_DIR/Contents/MacOS/$APP_NAME"
 
 if [[ -n "$RESOURCE_BUNDLE_PATH" ]]; then
@@ -86,8 +129,10 @@ PLIST
 echo "[package.sh] 执行 ad-hoc 签名..."
 codesign --force --deep --sign - "$APP_DIR" >/dev/null
 
+echo "[package.sh] 当前可执行文件架构："
+file "$APP_DIR/Contents/MacOS/$APP_NAME"
+
 echo "[package.sh] 生成可分发 DMG..."
-rm -rf "$STAGING_DIR" "$DMG_PATH" "$ZIP_PATH"
 mkdir -p "$STAGING_DIR"
 cp -R "$APP_DIR" "$STAGING_DIR/"
 ln -s /Applications "$STAGING_DIR/Applications"

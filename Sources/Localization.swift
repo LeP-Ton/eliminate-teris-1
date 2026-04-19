@@ -1,5 +1,32 @@
 import Foundation
 
+private enum LocalizerResourceLocator {
+    static let bundleName = "EliminateTeris1_EliminateTeris1"
+
+    static func resourceBundle() -> Bundle? {
+        let bundleFileName = "\(bundleName).bundle"
+        let executableDirectory = Bundle.main.executableURL?.deletingLastPathComponent()
+        let executableParentDirectory = executableDirectory?.deletingLastPathComponent()
+
+        // 同时兼容 SwiftPM 直接运行（bundle 与可执行文件同级）和手工打包 .app（bundle 位于 Contents/Resources）。
+        let candidates: [URL?] = [
+            Bundle.main.resourceURL?.appendingPathComponent(bundleFileName),
+            Bundle.main.bundleURL.appendingPathComponent(bundleFileName),
+            executableDirectory?.appendingPathComponent(bundleFileName),
+            executableParentDirectory?.appendingPathComponent("Resources").appendingPathComponent(bundleFileName)
+        ]
+
+        for candidate in candidates {
+            guard let candidate else { continue }
+            if let bundle = Bundle(url: candidate) {
+                return bundle
+            }
+        }
+
+        return nil
+    }
+}
+
 enum AppLanguage: String, CaseIterable {
     case english = "en"
     case chineseSimplified = "zh-Hans"
@@ -81,6 +108,10 @@ final class Localizer {
     }
 
     private func bundle(for language: AppLanguage) -> Bundle? {
+        guard let resourceBundle = LocalizerResourceLocator.resourceBundle() else {
+            return nil
+        }
+
         let rawCode = language.rawValue
         let candidates = [
             rawCode,
@@ -90,7 +121,7 @@ final class Localizer {
         ]
 
         for candidate in candidates {
-            guard let path = Bundle.module.path(forResource: candidate, ofType: "lproj") else {
+            guard let path = resourceBundle.path(forResource: candidate, ofType: "lproj") else {
                 continue
             }
             if let bundle = Bundle(path: path) {

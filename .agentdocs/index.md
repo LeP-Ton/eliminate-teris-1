@@ -1,6 +1,8 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260418235435-fix-packaged-app-resource-bundle-crash.md` - 修复打包后启动即崩：绕开 `Bundle.module` 对手工 `.app` 的路径假设，兼容 `Contents/Resources` 资源布局。
+`workflow/20260418231251-universal-macos-package.md` - 打包脚本改为默认生成 `x86_64 + arm64` 通用 `.app`，解决发给 M1 机器后架构不匹配导致的崩溃风险。
 `workflow/20260301160231-touchbar-modal-and-black-screen-balance.md` - 同时兼顾左侧贴边与打包黑屏：默认私有 modal，增加显式回退开关与强制重绘预热。
 `workflow/20260301153306-release-touchbar-modal-fallback.md` - 修复打包版 Touch Bar 黑屏：release 默认回退公开 Touch Bar 路径，并保留环境变量开关启用私有 modal。
 `workflow/20260301151213-macos-package-script.md` - 新增 macOS 打包脚本，产出 `.app` 并优先生成 DMG（失败回退 ZIP）。
@@ -42,6 +44,8 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要排查“通用包已生成但 `.app` 启动仍意外退出”时，优先读取 `20260418235435` 文档。
+- 需要排查“压缩 `.app` 发给 M1 后应用意外退出/架构不匹配”时，优先读取 `20260418231251` 文档。
 - 需要同时处理“左侧空白间距 + 打包黑屏”时，优先读取 `20260301160231` 文档。
 - 需要排查“打包后 Touch Bar 黑屏”时，优先读取 `20260301153306` 文档。
 - 需要确认“如何打包成可安装 macOS 应用（.app/.dmg/.zip）”时，优先读取 `20260301151213` 文档。
@@ -84,6 +88,8 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
+- 最新打包启动崩溃根因是资源 Bundle 路径：SwiftPM 生成的 `Bundle.module` 更适合直接从 `.build` 运行，手工组装 `.app` 时应显式兼容 `Bundle.main.resourceURL/Contents/Resources`。
+- 当前打包脚本默认输出通用二进制：分别构建 `x86_64` 与 `arm64`，再用 `lipo` 合成，最终 `file dist/Eliminate Teris 1.app/Contents/MacOS/Eliminate Teris 1` 应显示 `Mach-O universal binary with 2 architectures`。
 - Touch Bar 当前默认仍启用私有 modal（用于维持左侧贴边），但增加了 `ELIMINATE_TOUCHBAR_MODAL=0` 显式回退开关；挂载后会执行 `prepareForDisplay` 且开启 `onSetNeedsDisplay` 重绘策略，缓解打包版黑屏。
 - 打包版 Touch Bar 策略已更新：默认启用私有 modal 以保持左侧贴边，若需规避兼容性问题可显式设置 `ELIMINATE_TOUCHBAR_MODAL=0` 回退公开 `window.touchBar` 路径。
 - 当前通过 `package.sh` 一键打包：`swift build -c release` 后组装 `.app`（含资源 Bundle + Info.plist + ad-hoc 签名），并尝试生成 DMG；若 DMG 不可用则自动回退为 ZIP。
