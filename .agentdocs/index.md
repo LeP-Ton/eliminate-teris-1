@@ -1,6 +1,7 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260419215556-touchbar-private-modal-fullwidth-retry.md` - 恢复私有 modal 为唯一正式方案，目标全宽占满 Touch Bar，并加入三段刷新 + 健康检查 + 自动重挂载修复黑屏。
 `workflow/20260419210231-public-touchbar-only-retire-modal.md` - 正式回退为公开 `window.touchBar` 唯一路径，停用私有 modal 与相关状态机，优先保证打包版稳定显示。
 `workflow/20260419203037-touchbar-modal-warmup-promotion.md` - Touch Bar 启动改为先公开预热、再晋升私有 modal，降低 modal 首挂载阶段的概率黑屏。
 `workflow/20260419200923-touchbar-diagnostics-logging.md` - 新增可开关的 Touch Bar 诊断日志，覆盖 modal 挂载、异步刷新、健康检查、fallback 与视图首帧绘制。
@@ -48,6 +49,7 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要确认“当前正式方案是否已经恢复为私有 modal 单路线，并以全宽显示为目标”时，优先读取 `20260419215556` 文档。
 - 需要确认“当前正式方案是否已经彻底放弃私有 modal，只保留公开 Touch Bar”时，优先读取 `20260419210231` 文档。
 - 需要处理“私有 modal 自身会偶发黑屏，但又不想彻底放弃左贴边效果”时，优先读取 `20260419203037` 文档。
 - 需要在真机上追踪“为什么这次启动仍然黑屏、是否触发了 fallback、首帧有没有真正画出来”时，优先读取 `20260419200923` 文档。
@@ -96,14 +98,14 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
-- 当前正式 Touch Bar 方案已经统一为公开 `window.touchBar`：私有 modal、`ELIMINATE_TOUCHBAR_MODAL` 与预热晋升链路都已停用并视为历史废案；启动时仅保留公开 Touch Bar 的异步首刷与一次延迟刷新。
-- Touch Bar 当前启动策略为：先挂载公开 `window.touchBar`，再异步执行一次 `prepareForDisplay()` 并追加 120ms 的二次刷新，避免首帧发生在零尺寸阶段。
-- Touch Bar 诊断日志开关为 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1`：日志通过 `NSLog` 输出，统一前缀为 `[TouchBarDiag]`，主要用于观察公开 `window.touchBar` 的挂载、刷新调度、尺寸变化与有效首帧绘制。
-- 打包版 Touch Bar 黑屏当前按“公开路径渲染时序”处理：`GameTouchBarView` 会把零尺寸阶段的刷新记为 pending，待 bounds 有效后补绘；`GameViewController` 会异步执行两次 `prepareForDisplay()`，不再触发私有 modal 健康检查与自动晋升。
+- 当前正式 Touch Bar 方案已经恢复为私有 `system modal` 单路线：游戏内容不再通过公开 `window.touchBar` 显示，目标是尽量隐藏右侧常驻系统功能栏并全宽占满 Touch Bar。
+- Touch Bar 当前挂载策略为：每次私有 modal 展示后执行三段刷新（下一轮 run loop、120ms、260ms），并在 180ms 做健康检查；若未拿到有效尺寸或可见内容，则自动 `dismiss -> re-present`。
+- 私有 modal 自动重挂载最多重试 3 轮；超过次数后不会回退公开游戏 Touch Bar，而是关闭当前 modal，等待应用重新激活或窗口重新成为 key 时再次挂载。
+- Touch Bar 诊断日志开关为 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1`：日志通过 `NSLog` 输出，统一前缀为 `[TouchBarDiag]`，主要用于观察私有 modal 的 present、dismiss、刷新、健康检查与重挂载过程。
 - 最新打包启动崩溃根因是资源 Bundle 路径：SwiftPM 生成的 `Bundle.module` 更适合直接从 `.build` 运行，手工组装 `.app` 时应显式兼容 `Bundle.main.resourceURL/Contents/Resources`。
 - 当前打包脚本默认输出通用二进制：分别构建 `x86_64` 与 `arm64`，再用 `lipo` 合成，最终 `file dist/Eliminate Teris 1.app/Contents/MacOS/Eliminate Teris 1` 应显示 `Mach-O universal binary with 2 architectures`。
-- 当前正式方案不再提供 `ELIMINATE_TOUCHBAR_MODAL`：运行时固定使用公开 `window.touchBar`，避免公开→私有切换带来的黑屏与双段刷新副作用。
-- 打包版与开发态当前使用同一条公开 Touch Bar 路径：都依赖 `prepareForDisplay()` 的异步首刷与一次延迟刷新，不再区分“私有 modal 优先”策略。
+- 当前正式方案不再提供 `ELIMINATE_TOUCHBAR_MODAL`：运行时固定使用私有 `system modal` 显示游戏 Touch Bar，不再支持公开/私有双路线切换。
+- 打包版与开发态当前都以私有 modal 为唯一正式显示路径；公开 `window.touchBar` 仅保留在历史文档中作为已废弃方案。
 - 当前通过 `package.sh` 一键打包：`swift build -c release` 后组装 `.app`（含资源 Bundle + Info.plist + ad-hoc 签名），并尝试生成 DMG；若 DMG 不可用则自动回退为 ZIP。
 - 已新增 `GameAudioSystem` 程序化音频链路：自由/竞分/竞速模式切换会切 BGM，且仅在“交换触发”的三阶段过渡中按阶段播放移动、消除、补位音效，避免模式切换/重置触发误报声。
 - Touch Bar 动画时序当前为三阶段链路：交换位移（0.16s）→ 消除反馈（0.20s）→ 左侧补位（0.24s）；交换对由 `GameBoardController.lastSwapPair` 提供，渲染端以 `transitionPhases` 顺序执行。
@@ -111,14 +113,14 @@
 - 消除动画可见性已增强：消除帧使用 `easeIn` + 光晕外环，缩放区间 `1.22 -> 0.12`，动画总时长 `0.28s`，并对移动/插入采用分离 easing。
 - Touch Bar 当前通过 `escapeKeyReplacementItemIdentifier = escape-placeholder`（0 宽视图）隐藏系统 ESC，避免私有 API 链路中再次显示 ESC 键。
 - Touch Bar 已接入过渡动画：共享 tile 使用位置插值，消除使用缩放淡出，新补位从左侧滑入；动画时长约 `0.22s`，曲线为 `easeOutCubic`。
-- 历史方案中，私有 API 曾采用双签名回退：优先调用 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，不可用时回退到 `presentSystemModalTouchBar:placement:systemTrayItemIdentifier:`；该链路现已停用。
-- 历史方案中曾接入 `presentSystemModalTouchBar` / `dismissSystemModalTouchBar`，并以 system modal 规避公开 API 下 ESC 预留留白；当前正式实现已回退到公开 `window.touchBar`。
+- 私有 API 当前采用双签名兼容：优先调用 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，不可用时回退到 `presentSystemModalTouchBar:placement:systemTrayItemIdentifier:`，以提升全宽 modal 在不同系统版本上的可用率。
+- 当前正式实现已重新回到 `presentSystemModalTouchBar` / `dismissSystemModalTouchBar` 路线，并在应用失活、窗口失焦时主动 dismiss，避免影响其他应用的 Touch Bar。
 - 历史排查阶段曾尝试分槽位渲染：ESC 槽位承载第 0 列、主槽位承载 1...15，并对主槽位施加 `leadingCompensationX=8` 左移补偿；当前正式实现为单槽位 16 列 + 0 宽 ESC 占位。
 - Touch Bar 当前使用单槽位渲染（`0..<16`）并通过 `escapeKeyReplacementItemIdentifier = escape-placeholder`（0 宽视图）隐藏系统 ESC。
 - 历史上曾排查过“ESC 槽位 + 主棋盘分离”带来的间距与宽度问题，包括 `globalIndex == 1` 左内边距补偿、首列宽度同步和 seam 补偿；这些逻辑现均已退出正式方案。
 - Touch Bar 首列使用独立视觉补偿：背景区域左扩 6px（不改触摸索引），图案绘制按首列可见区域居中，减少左留白同时避免首列图案偏移。
 - ESC 槽位拆分在当前环境会导致首按钮不显示，已回退为单一棋盘视图 `0..<16` + 0 宽 ESC 占位；优先保证首按钮可见。
-- Touch Bar 左侧留白的最新根因定位为 ESC 专属槽位与主棋盘区域分离；当前方案是“ESC 槽位承载第 0 列 + 主棋盘承载第 1...15 列”。
+- Touch Bar 左侧留白的历史根因曾定位为 ESC 专属槽位与主棋盘区域分离；分槽位方案（ESC 槽位承载第 0 列 + 主棋盘承载第 1...15 列）已退出当前正式实现。
 - 首列图案在排查期曾改为左对齐，现已回退为按钮内居中；当前留白修复基于“ESC 槽位拆分”，不再移动整盘坐标。
 - 旧的“棋盘整体左移补偿（`boardOriginX = -6`）”方案已下线，避免首列可视宽度变窄导致“图案不居中”副作用。
 - 首列对齐当前仅作用于背景层：仅全局第 0 列执行左补偿 `tileOuterInsetX`，图案层统一保持居中绘制。

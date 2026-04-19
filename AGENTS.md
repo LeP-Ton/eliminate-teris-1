@@ -23,16 +23,16 @@
 - Touch Bar 方块列数已从 12 扩展到 16，控制区可同时显示 16 个可交互方块。
 - Touch Bar 最左格背景已贴齐左边缘（首列取消额外左 inset），修复“首个方块左侧留白”问题。
 - Touch Bar 首列方块图案曾尝试左移与左对齐（用于排查留白来源），当前已回退为按钮内居中。
-- Touch Bar 左侧留白根因为 ESC 专属槽位与主棋盘区域分离；现将第 0 列挂到 `escapeKeyReplacementItemIdentifier`，主棋盘显示第 1...15 列，首列保持居中且不再依赖棋盘整体左移补偿。
+- 历史排查中曾定位 Touch Bar 左侧留白根因为 ESC 专属槽位与主棋盘区域分离；后续曾尝试将第 0 列挂到 `escapeKeyReplacementItemIdentifier`、主棋盘显示第 1...15 列。
 - ESC 槽位拆分方案在当前环境会导致“首按钮不显示”，已回退为单一 `GameTouchBarView(columnRange: 0..<16)`；ESC 继续使用 0 宽占位隐藏，优先保证首按钮可见。
 - Touch Bar 当前采用“首列单独视觉补偿”方案：首列背景绘制区域向左扩展 6px，图案绘制使用首列可见区域居中，避免“左贴边”和“图案偏移”互相冲突。
-- Touch Bar 最新方案：恢复 ESC 槽位拆分，第 0 列放到 `escapeKeyReplacementItemIdentifier`、第 1...15 列放主棋盘，确保最左按钮占用系统 ESC 位置且可见。
+- 历史方案曾恢复 ESC 槽位拆分，第 0 列放到 `escapeKeyReplacementItemIdentifier`、第 1...15 列放主棋盘，用于验证最左按钮占用系统 ESC 位置的可行性。
 - ESC 槽位首列宽度已改为“跟随主棋盘单列宽度自适应”，通过监听主棋盘 frame 动态更新首列宽度，修复首列偏窄问题。
 - ESC 槽位与主棋盘的系统分隔会放大首二列间距；曾尝试通过收敛第 1 列左内边距（`globalIndex == 1`）补偿。
 - Touch Bar 曾回退为单一主棋盘槽位（`0..<16`）+ 0 宽 ESC 占位以排查首二列间距。
-- 最新回调到分槽位方案：首列仍在 ESC 槽位、其余 1...15 在主棋盘槽位，但给主棋盘增加 `leadingCompensationX=8` 左移补偿以抵消跨槽位分隔，首列宽度继续按主棋盘单列宽度自适应同步。
-- 历史上曾接入私有 API `NSTouchBar.presentSystemModalTouchBar` / `dismissSystemModalTouchBar`，并尝试通过 system modal 解决左贴边与 ESC 留白问题；该路线现已停用，仅作为历史排查背景保留在 workflow 文档中。
-- 历史上的私有 API 展示链路曾实现“双签名回退”：优先 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，其次回退三参 placement 自动模式；当前正式代码已不再调用这条链路。
+- 历史回调中曾采用分槽位方案：首列在 ESC 槽位、其余 1...15 在主棋盘槽位，并给主棋盘增加 `leadingCompensationX=8` 左移补偿以抵消跨槽位分隔。
+- 历史上曾接入私有 API `NSTouchBar.presentSystemModalTouchBar` / `dismissSystemModalTouchBar`，并尝试通过 system modal 解决左贴边与 ESC 留白问题；这条路线在公开单方案阶段曾短暂停用，现已恢复为正式方案。
+- 私有 API 展示链路当前重新采用“双签名兼容”：优先 `presentSystemModalTouchBar:systemTrayItemIdentifier:`，其次回退三参 placement 自动模式，用于提升不同系统版本下的可用率。
 - 已为 Touch Bar 棋盘加入基础动画：交换/位移动画使用 tile id 插值，消除使用缩放淡出，左侧补位新方块从左向右滑入，统一采用约 0.22s 的 easing 过渡。
 - 当前已恢复 ESC 隐藏占位：`escapeKeyReplacementItemIdentifier` 绑定 0 宽 `escape-placeholder`，确保不显示系统 ESC 键且保持主棋盘渲染链路不变。
 - 已增强消除动画可见性：新增消除光晕/外环特效，消除缩放范围扩大（`1.22 -> 0.12`），并把过渡时长提升到 `0.28s`，使消除反馈更明显。
@@ -40,10 +40,11 @@
 - 动画时序现已按最新需求调整为三阶段：交换位移（0.16s）→ 消除反馈（0.20s）→ 左侧补位（0.24s）；通过 `lastSwapPair + transitionPhases` 串联，确保“先交换、再消除、后补位”。
 - 已新增程序化音效系统 `GameAudioSystem`：自由/竞分/竞速模式会自动切换不同 BGM，且在三阶段动画中按阶段触发移动、消除、补位音效；音频由运行时合成 WAV，不依赖外部资源文件。
 - 已新增 `package.sh` 打包脚本：构建 release 后生成 `.app`，自动拷贝 SwiftPM 资源 Bundle、写入 `Info.plist`、执行 ad-hoc 签名，并优先输出 DMG（失败时自动回退 ZIP）。
-- 历史上曾尝试以“release 默认公开路径”或“公开预热后晋升私有 modal”规避打包版 Touch Bar 黑屏；这些方案现均已废弃，不再参与运行时决策。
-- Touch Bar 当前正式方案为“单槽位 16 列 + 0 宽 `escape-placeholder` + 公开 `window.touchBar`”：优先保证打包版稳定显示，接受左侧贴边效果相较私有 modal 略有回退。
+- 历史上曾尝试以“release 默认公开路径”或“公开预热后晋升私有 modal”规避打包版 Touch Bar 黑屏；这些公开路径方案现均已降级为历史废案。
+- Touch Bar 当前正式方案为“单槽位 16 列 + 0 宽 `escape-placeholder` + 私有 system modal”：目标是尽量隐藏右侧常驻系统功能栏，让游戏内容全宽占满 Touch Bar。
 - `package.sh` 现在默认构建 `x86_64 + arm64` 通用二进制，并通过 `lipo` 合成为单个 `.app`，用于同时兼容 Intel 与 Apple Silicon（M1/M2/M3）Mac；可用 `PACKAGE_ARCHS` 覆盖目标架构。
 - 打包后“应用意外退出”的最新根因已确认：不是通用二进制本身，而是 `Bundle.module` 在手工 `.app` 中查找资源 Bundle 的路径与 `Contents/Resources` 不一致；现已在 `Localization.swift` 中改为兼容开发态与打包态的多路径资源查找。
-- 打包版 Touch Bar 黑屏当前按“公开路径渲染时序”处理：`GameTouchBarView` 会把零尺寸阶段的刷新请求挂起，在尺寸有效时强制补绘并记录 `hasDrawnVisibleContent/displayGeneration`；`GameViewController` 则统一挂载 `window.touchBar`，执行异步首刷与 120ms 二次刷新。
-- 已新增可开关的 Touch Bar 诊断日志：设置环境变量 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1` 后，会通过 `NSLog` 输出公开 `window.touchBar` 挂载、刷新调度、尺寸变化与首帧有效绘制信息，日志前缀统一为 `[TouchBarDiag]`。
-- 当前正式方案已回退为“仅使用公开 `window.touchBar`”：私有 modal、`ELIMINATE_TOUCHBAR_MODAL` 与公开→私有晋升链路均视为历史废案，不再参与运行时决策；现阶段优先保证打包版稳定显示与单段刷新观感。
+- 打包版 Touch Bar 黑屏当前按“私有 modal 渲染时序”处理：`GameTouchBarView` 继续负责零尺寸阶段的挂起刷新与有效尺寸补绘；`GameViewController` 则在每次 modal 挂载后执行三段刷新（即时、120ms、260ms）和 180ms 健康检查。
+- 私有 modal 挂载异常时，会自动执行 `dismiss -> re-present` 重挂载，最多重试 3 轮；若仍失败，则只关闭 modal 并等待下一次窗口重新激活/成为 key 时再次全量挂载，不回退公开游戏 Touch Bar。
+- 已新增可开关的 Touch Bar 诊断日志：设置环境变量 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1` 后，会通过 `NSLog` 输出私有 modal 的 present、dismiss、三段刷新、健康检查与重挂载轮次，日志前缀统一为 `[TouchBarDiag]`。
+- 当前正式方案已恢复为“仅使用私有 system modal 显示游戏 Touch Bar”：`ELIMINATE_TOUCHBAR_MODAL` 与公开 `window.touchBar` 路径均视为历史废案，不再参与运行时决策。
