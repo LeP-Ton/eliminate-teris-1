@@ -24,6 +24,7 @@
 "option.target_score" = "Target";
 "option.minute_format" = "%d min";
 "option.target_format" = "%d pts";
+"volume.label" = "Volume";
 
 "start.label" = "Action";
 "start.action_start" = "Start";

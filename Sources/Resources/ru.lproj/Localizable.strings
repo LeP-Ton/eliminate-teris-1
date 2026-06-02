@@ -24,6 +24,7 @@
 "option.target_score" = "Цель";
 "option.minute_format" = "%d мин";
 "option.target_format" = "%d очк.";
+"volume.label" = "Громкость";
 
 "start.label" = "Состояние";
 "start.action_start" = "Старт";

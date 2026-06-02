@@ -29,17 +29,49 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
         let amplitude: Double
     }
 
+    private struct ActiveEffectPlayer {
+        let effect: SoundEffect
+        let player: AVAudioPlayer
+    }
+
+    private static let masterVolumeKey = "game_audio_master_volume_v1"
+
     private let sampleRate: Double = 44_100
     private let stateLock = NSLock()
+    private let defaults: UserDefaults
 
     private var currentTheme: MusicTheme?
     private var backgroundPlayer: AVAudioPlayer?
-    private var activeEffectPlayers: [AVAudioPlayer] = []
+    private var activeEffectPlayers: [ActiveEffectPlayer] = []
     private var backgroundDataCache: [MusicTheme: Data] = [:]
     private var effectDataCache: [SoundEffect: Data] = [:]
+    private var storedMasterVolume: Float
 
     private override init() {
+        let defaults = UserDefaults.standard
+        self.defaults = defaults
+        self.storedMasterVolume = Self.clampedVolume(Float(defaults.double(forKey: Self.masterVolumeKey)))
+        if defaults.object(forKey: Self.masterVolumeKey) == nil {
+            self.storedMasterVolume = 1
+        }
         super.init()
+    }
+
+    var masterVolume: Float {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return storedMasterVolume
+    }
+
+    func setMasterVolume(_ volume: Float) {
+        let clampedVolume = Self.clampedVolume(volume)
+
+        stateLock.lock()
+        storedMasterVolume = clampedVolume
+        defaults.set(Double(clampedVolume), forKey: Self.masterVolumeKey)
+        applyMasterVolumeToBackgroundPlayer()
+        applyMasterVolumeToActiveEffects()
+        stateLock.unlock()
     }
 
     func updateBackgroundMusic(for mode: GameMode) {
@@ -49,6 +81,7 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
 
         // 同一模式直接复用播放器，避免频繁重建导致的听感抖动。
         if currentTheme == theme, let player = backgroundPlayer {
+            player.volume = backgroundVolume(for: theme) * storedMasterVolume
             if !player.isPlaying {
                 player.play()
             }
@@ -59,7 +92,7 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
         do {
             let player = try AVAudioPlayer(data: data, fileTypeHint: AVFileType.wav.rawValue)
             player.numberOfLoops = -1
-            player.volume = backgroundVolume(for: theme)
+            player.volume = backgroundVolume(for: theme) * storedMasterVolume
             player.prepareToPlay()
 
             backgroundPlayer?.stop()
@@ -81,8 +114,8 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
         backgroundPlayer = nil
         currentTheme = nil
 
-        for player in activeEffectPlayers {
-            player.stop()
+        for activeEffectPlayer in activeEffectPlayers {
+            activeEffectPlayer.player.stop()
         }
         activeEffectPlayers.removeAll()
     }
@@ -95,11 +128,11 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
         do {
             let player = try AVAudioPlayer(data: data, fileTypeHint: AVFileType.wav.rawValue)
             player.delegate = self
-            player.volume = effectVolume(for: effect)
+            player.volume = effectVolume(for: effect) * storedMasterVolume
             player.prepareToPlay()
 
-            activeEffectPlayers.removeAll(where: { !$0.isPlaying })
-            activeEffectPlayers.append(player)
+            activeEffectPlayers.removeAll(where: { !$0.player.isPlaying })
+            activeEffectPlayers.append(ActiveEffectPlayer(effect: effect, player: player))
             player.play()
         } catch {
             return
@@ -117,7 +150,23 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
     private func removeEffectPlayer(_ player: AVAudioPlayer) {
         stateLock.lock()
         defer { stateLock.unlock() }
-        activeEffectPlayers.removeAll(where: { $0 === player })
+        activeEffectPlayers.removeAll(where: { $0.player === player })
+    }
+
+    private func applyMasterVolumeToBackgroundPlayer() {
+        guard backgroundPlayer != nil else { return }
+        backgroundPlayer?.volume = backgroundVolume(for: currentTheme ?? .free) * storedMasterVolume
+    }
+
+    private func applyMasterVolumeToActiveEffects() {
+        activeEffectPlayers.removeAll(where: { !$0.player.isPlaying })
+        for activeEffectPlayer in activeEffectPlayers {
+            activeEffectPlayer.player.volume = effectVolume(for: activeEffectPlayer.effect) * storedMasterVolume
+        }
+    }
+
+    private static func clampedVolume(_ volume: Float) -> Float {
+        return min(max(volume, 0), 1)
     }
 
     private func theme(for mode: GameMode) -> MusicTheme {

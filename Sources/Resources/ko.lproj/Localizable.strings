@@ -24,6 +24,7 @@
 "option.target_score" = "목표 점수";
 "option.minute_format" = "%d분";
 "option.target_format" = "%d점";
+"volume.label" = "볼륨";
 
 "start.label" = "상태";
 "start.action_start" = "시작";

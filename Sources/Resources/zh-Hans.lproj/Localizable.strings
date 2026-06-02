@@ -24,6 +24,7 @@
 "option.target_score" = "目标分数";
 "option.minute_format" = "%d 分钟";
 "option.target_format" = "%d 分";
+"volume.label" = "音量";
 
 "start.label" = "状态";
 "start.action_start" = "开始";

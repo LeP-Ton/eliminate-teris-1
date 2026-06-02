@@ -11,7 +11,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         case language = 0
         case mode = 1
         case option = 2
-        case action = 3
+        case volume = 3
+        case action = 4
     }
 
     private enum BadgeTone {
@@ -193,6 +194,18 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
+    private lazy var volumeTitleLabel: NSTextField = {
+        return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
+    }()
+
+    private lazy var volumeControlView: ArcadeVolumeControlView = {
+        let view = ArcadeVolumeControlView(themeColor: settingsThemeColor)
+        view.slider.target = self
+        view.slider.action = #selector(volumeSliderChanged(_:))
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
     private lazy var startButton: ArcadeActionButton = {
         let button = ArcadeActionButton(title: "", target: self, action: #selector(startButtonTapped(_:)))
         button.imagePosition = .imageLeading
@@ -206,6 +219,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             [languageTitleLabel, languagePopup],
             [modeTitleLabel, modePopup],
             [optionTitleLabel, optionPopup],
+            [volumeTitleLabel, volumeControlView],
             [startTitleLabel, startButton]
         ])
         grid.translatesAutoresizingMaskIntoConstraints = false
@@ -495,13 +509,16 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             modePopup.heightAnchor.constraint(equalToConstant: 38),
             optionPopup.widthAnchor.constraint(equalTo: languagePopup.widthAnchor),
             optionPopup.heightAnchor.constraint(equalToConstant: 38),
+            volumeControlView.widthAnchor.constraint(equalTo: languagePopup.widthAnchor),
+            volumeControlView.heightAnchor.constraint(equalToConstant: 38),
             startButton.widthAnchor.constraint(equalTo: languagePopup.widthAnchor),
             startButton.leadingAnchor.constraint(equalTo: languagePopup.leadingAnchor),
             startButton.heightAnchor.constraint(equalToConstant: 38),
 
             languageTitleLabel.centerYAnchor.constraint(equalTo: languagePopup.centerYAnchor),
             modeTitleLabel.centerYAnchor.constraint(equalTo: modePopup.centerYAnchor),
-            optionTitleLabel.centerYAnchor.constraint(equalTo: optionPopup.centerYAnchor)
+            optionTitleLabel.centerYAnchor.constraint(equalTo: optionPopup.centerYAnchor),
+            volumeTitleLabel.centerYAnchor.constraint(equalTo: volumeControlView.centerYAnchor)
         ])
     }
 
@@ -514,6 +531,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             self?.updateCompetitiveInfo()
         }
 
+        syncVolumeControlFromAudioSystem()
         modePopup.selectItem(at: ModeSelection.free.rawValue)
         applyModeSelection(resetGame: true)
     }
@@ -678,6 +696,12 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         applyModeSelection(resetGame: true)
     }
 
+    @objc private func volumeSliderChanged(_ sender: NSSlider) {
+        let volume = Float(sender.doubleValue)
+        audioSystem.setMasterVolume(volume)
+        updateVolumeControlDisplay(for: volume)
+    }
+
     @objc private func startButtonTapped(_ sender: NSButton) {
         guard currentModeSelection != .free else { return }
         resetRuntimeIndicators()
@@ -723,7 +747,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         rulesTitleLabel.stringValue = localized("panel.rules")
         languageTitleLabel.stringValue = localized("language.label")
         modeTitleLabel.stringValue = localized("mode.label")
+        volumeTitleLabel.stringValue = localized("volume.label")
         startTitleLabel.stringValue = ""
+        syncVolumeControlFromAudioSystem()
 
         if let icon = NSImage(systemSymbolName: "square.grid.3x3.fill", accessibilityDescription: titleLabel.stringValue) {
             headerIconView.image = icon
@@ -1324,6 +1350,17 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 
+    private func syncVolumeControlFromAudioSystem() {
+        updateVolumeControlDisplay(for: audioSystem.masterVolume)
+    }
+
+    private func updateVolumeControlDisplay(for volume: Float) {
+        let clampedVolume = min(max(volume, 0), 1)
+        let percentage = Int((clampedVolume * 100).rounded())
+        volumeControlView.setVolume(Double(clampedVolume))
+        volumeControlView.setDisplayText("\(percentage)%")
+    }
+
     private func localized(_ key: String) -> String {
         return localizer.string(key)
     }
@@ -1786,6 +1823,130 @@ private final class ArcadePopupButton: NSPopUpButton {
         }
 
         chevronImageView?.contentTintColor = tint
+    }
+}
+
+private final class ArcadeVolumeControlView: NSView {
+    private let themeColor: NSColor
+    private var hoverTrackingArea: NSTrackingArea?
+    private var isHovering = false
+
+    let slider: NSSlider = {
+        let slider = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
+        slider.translatesAutoresizingMaskIntoConstraints = false
+        slider.isContinuous = true
+        slider.controlSize = .small
+        slider.allowsTickMarkValuesOnly = false
+        slider.numberOfTickMarks = 0
+        slider.focusRingType = .none
+        return slider
+    }()
+
+    private lazy var valueLabel: NSTextField = {
+        let label = NSTextField(labelWithString: "100%")
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.alignment = .right
+        label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        return label
+    }()
+
+    override var intrinsicContentSize: NSSize {
+        return NSSize(width: NSView.noIntrinsicMetric, height: 38)
+    }
+
+    init(themeColor: NSColor) {
+        self.themeColor = themeColor
+        super.init(frame: .zero)
+        commonInit()
+    }
+
+    required init?(coder: NSCoder) {
+        self.themeColor = NSColor(calibratedRed: 0.7, green: 0.86, blue: 1.0, alpha: 0.96)
+        super.init(coder: coder)
+        commonInit()
+    }
+
+    func setVolume(_ value: Double) {
+        if abs(slider.doubleValue - value) > 0.0001 {
+            slider.doubleValue = value
+        }
+    }
+
+    func setDisplayText(_ text: String) {
+        valueLabel.stringValue = text
+        updateAppearance()
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let hoverTrackingArea {
+            removeTrackingArea(hoverTrackingArea)
+        }
+
+        let options: NSTrackingArea.Options = [.activeInActiveApp, .inVisibleRect, .mouseEnteredAndExited]
+        let area = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        isHovering = true
+        updateAppearance()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        isHovering = false
+        updateAppearance()
+    }
+
+    private func commonInit() {
+        wantsLayer = true
+
+        addSubview(slider)
+        addSubview(valueLabel)
+
+        NSLayoutConstraint.activate([
+            slider.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            slider.centerYAnchor.constraint(equalTo: centerYAnchor),
+            valueLabel.leadingAnchor.constraint(equalTo: slider.trailingAnchor, constant: 10),
+            valueLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            valueLabel.widthAnchor.constraint(equalToConstant: 42)
+        ])
+
+        updateAppearance()
+    }
+
+    private func updateAppearance() {
+        guard let layer else { return }
+
+        let background: NSColor
+        let border: NSColor
+
+        if isHovering {
+            background = NSColor(calibratedRed: 0.1, green: 0.24, blue: 0.42, alpha: 0.94)
+            border = NSColor(calibratedRed: 0.36, green: 0.64, blue: 0.94, alpha: 0.9)
+        } else {
+            background = NSColor(calibratedRed: 0.09, green: 0.18, blue: 0.31, alpha: 0.9)
+            border = NSColor(calibratedRed: 0.3, green: 0.53, blue: 0.8, alpha: 0.84)
+        }
+
+        layer.backgroundColor = background.cgColor
+        layer.borderColor = border.cgColor
+        layer.borderWidth = ArcadeControlStyle.borderWidth
+        layer.cornerRadius = ArcadeControlStyle.cornerRadius
+        layer.masksToBounds = false
+        layer.shadowColor = border.withAlphaComponent(0.72).cgColor
+        layer.shadowRadius = isHovering ? 5 : 3
+        layer.shadowOpacity = 0.26
+        layer.shadowOffset = .zero
+
+        valueLabel.textColor = themeColor.withAlphaComponent(0.94)
     }
 }
 

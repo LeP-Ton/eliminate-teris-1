@@ -1,6 +1,7 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260602225626-settings-audio-volume-control.md` - 在游戏设置中新增总音量滑杆，统一控制 BGM 与音效，并通过 `UserDefaults` 持久化上次音量。
 `workflow/20260601210110-readme-project-introduction.md` - 新增面向玩家与开发者的 README，完整介绍游戏定位、玩法模式、运行打包方式、硬件要求与项目结构。
 `workflow/20260419210231-public-touchbar-only-retire-modal.md` - 正式回退为公开 `window.touchBar` 唯一路径，停用私有 modal 与相关状态机，优先保证打包版稳定显示。
 `workflow/20260419203037-touchbar-modal-warmup-promotion.md` - Touch Bar 启动改为先公开预热、再晋升私有 modal，降低 modal 首挂载阶段的概率黑屏。
@@ -49,6 +50,7 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要确认“游戏设置里的音量滑杆接在哪里、是否会记住上次设置、是否同时影响 BGM 与音效”时，优先读取 `20260602225626` 文档。
 - 需要快速了解“这款游戏是什么、怎么玩、如何运行与打包、适合什么设备”时，优先读取 `20260601210110` 文档。
 - 需要确认“当前正式方案是否已经彻底放弃私有 modal，只保留公开 Touch Bar”时，优先读取 `20260419210231` 文档。
 - 需要处理“私有 modal 自身会偶发黑屏，但又不想彻底放弃左贴边效果”时，优先读取 `20260419203037` 文档。
@@ -98,6 +100,8 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
+- 游戏设置已新增总音量滑杆：UI 位于设置面板内，采用蓝色主题容器 + 百分比显示，当前控制的是“总音量”而非独立 BGM/SFX 分轨。
+- `GameAudioSystem` 现已负责音量持久化：使用 `UserDefaults` 保存 `0...1` 区间的主音量，并在 BGM 播放、音效触发以及运行中调整时统一应用。
 - 仓库现已提供完整 `README.md`：包含项目介绍、玩法说明、模式设计、Touch Bar 交互方式、运行/打包命令、硬件要求与目录结构，可直接作为对外介绍入口。
 - 当前正式 Touch Bar 方案已经统一为公开 `window.touchBar`：私有 modal、`ELIMINATE_TOUCHBAR_MODAL` 与预热晋升链路都已停用并视为历史废案；启动时仅保留公开 Touch Bar 的异步首刷与一次延迟刷新。
 - Touch Bar 当前启动策略为：先挂载公开 `window.touchBar`，再异步执行一次 `prepareForDisplay()` 并追加 120ms 的二次刷新，避免首帧发生在零尺寸阶段。

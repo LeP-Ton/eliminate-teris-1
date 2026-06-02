@@ -24,6 +24,7 @@
 "option.target_score" = "目標スコア";
 "option.minute_format" = "%d分";
 "option.target_format" = "%d点";
+"volume.label" = "音量";
 
 "start.label" = "状態";
 "start.action_start" = "開始";
