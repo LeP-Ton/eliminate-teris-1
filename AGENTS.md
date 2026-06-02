@@ -1,5 +1,10 @@
 # 项目认知记录
 
+## 2026-06-01
+- 仓库已新增面向玩家与开发者的 `README.md`，系统介绍游戏定位、核心玩法、三种模式、Touch Bar 交互方式、本地挑战记录、多语言与程序化音频能力。
+- `README.md` 已补充运行与打包说明：推荐通过 `./run.sh` 本地启动，通过 `./package.sh` 生成通用 macOS `.app/.dmg/.zip` 分发产物。
+- `README.md` 已明确硬件定位：完整体验依赖带 Touch Bar 的 MacBook，当前正式 Touch Bar 方案优先走公开 `window.touchBar`，以稳定显示为先。
+
 ## 2026-02-14
 - 项目通过 `run.sh` 启动可执行程序，当前策略已改为“每次启动前强制重新编译”，避免启动到旧构建产物。
 - `run.sh` 会优先使用 `/Applications/Xcode.app/Contents/Developer` 作为 `DEVELOPER_DIR`（若用户未手动设置）。
