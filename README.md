@@ -1,5 +1,7 @@
 # Eliminate Teris 1
 
+简体中文 | [English](README.en.md)
+
 把消除游戏搬进 MacBook Touch Bar 的一次认真尝试。
 
 `Eliminate Teris 1` 是一款为 macOS 与 Touch Bar 场景设计的轻量消除游戏：战场不在大屏幕中央，而是在键盘上方那条熟悉又常被忽视的细长区域里。你会在 16 格的一维棋盘上交换相邻方块、制造三连消除、追逐更高分数，也会在竞速与限时模式里，把每一次操作都压缩成更紧凑、更直接的节奏。
