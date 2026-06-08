@@ -8,6 +8,8 @@ if [[ -z "${DEVELOPER_DIR:-}" && -d "/Applications/Xcode.app/Contents/Developer"
   export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
 fi
 
+export ELIMINATE_DEVELOPMENT_MODE=1
+
 echo "[run.sh] 正在重新编译..."
 (cd "$ROOT_DIR" && swift build --disable-sandbox)
 

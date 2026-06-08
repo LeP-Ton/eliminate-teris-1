@@ -21,6 +21,27 @@ final class ModeRecordStore {
         return "\(mode.rawValue)_\(detailValue)"
     }
 
+    private static let developmentModeEnvironmentKey = "ELIMINATE_DEVELOPMENT_MODE"
+
+    private static var shouldInjectDevelopmentSeedRecords: Bool {
+        let rawValue = ProcessInfo.processInfo.environment[developmentModeEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        switch rawValue {
+        case "1", "true", "yes", "on", "debug":
+            return true
+        case "0", "false", "no", "off", "release":
+            return false
+        default:
+#if DEBUG
+            return true
+#else
+            return false
+#endif
+        }
+    }
+
     private let storageKey = "mode_records_v1"
     private let seedVersionKey = "mode_records_seed_version"
     private let seedVersion = 5
@@ -33,10 +54,23 @@ final class ModeRecordStore {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         load()
-        if normalizeBucketsToMaxCount() {
+        var shouldSave = normalizeBucketsToMaxCount()
+
+        if Self.shouldInjectDevelopmentSeedRecords {
+            // 开发模式下确保测试记录存在，便于持续验证 0/1/9 条等边界展示。
+            if synchronizeDevelopmentSeedRecords() {
+                shouldSave = true
+            }
+        } else {
+            // 非开发模式启动时主动清掉旧 seed，避免历史调试数据泄漏到正式体验。
+            if removeSeedRecordsIfNeeded() {
+                shouldSave = true
+            }
+        }
+
+        if shouldSave {
             save()
         }
-        seedTestRecordsIfNeeded()
     }
 
     func records(for mode: ModeRecordKey, detailValue: Int) -> [ModeRecord] {
@@ -104,42 +138,53 @@ final class ModeRecordStore {
         }
     }
 
-    private func seedTestRecordsIfNeeded() {
-        guard defaults.integer(forKey: seedVersionKey) < seedVersion else { return }
+    @discardableResult
+    private func synchronizeDevelopmentSeedRecords() -> Bool {
+        var changed = false
 
         for minutes in scoreAttackDurations {
-            ensureSeedRecords(
+            if ensureSeedRecords(
                 for: .scoreAttack,
                 detailValue: minutes,
                 seeds: makeScoreAttackSeedRecords(durationMinutes: minutes)
-            )
+            ) {
+                changed = true
+            }
         }
 
         for targetScore in speedRunTargets {
-            ensureSeedRecords(
+            if ensureSeedRecords(
                 for: .speedRun,
                 detailValue: targetScore,
                 seeds: makeSpeedRunSeedRecords(targetScore: targetScore)
-            )
+            ) {
+                changed = true
+            }
         }
 
-        defaults.set(seedVersion, forKey: seedVersionKey)
-        save()
+        if defaults.integer(forKey: seedVersionKey) < seedVersion {
+            defaults.set(seedVersion, forKey: seedVersionKey)
+            changed = true
+        }
+
+        return changed
     }
 
-    private func ensureSeedRecords(for mode: ModeRecordKey, detailValue: Int, seeds: [ModeRecord]) {
+    @discardableResult
+    private func ensureSeedRecords(for mode: ModeRecordKey, detailValue: Int, seeds: [ModeRecord]) -> Bool {
         let scopeID = Self.scopeID(mode: mode, detailValue: detailValue)
-        var bucket = recordsByScope[scopeID] ?? []
+        let originalBucket = recordsByScope[scopeID] ?? []
+        var bucket = originalBucket
 
         // 仅包含 seed 的旧分桶直接替换，确保 seed 策略升级后可生效。
         if bucket.isEmpty || bucket.allSatisfy({ Self.isSeedRecordID($0.id) }) {
             bucket = seeds
             sortAndTrim(&bucket, for: mode)
             recordsByScope[scopeID] = bucket
-            return
+            return hasDifferentRecords(lhs: originalBucket, rhs: bucket)
         }
 
-        guard bucket.count < maxRecordsPerScope else { return }
+        guard bucket.count < maxRecordsPerScope else { return false }
 
         let existingIDs = Set(bucket.map(\.id))
         let availableSeeds = seeds.filter { !existingIDs.contains($0.id) }
@@ -148,6 +193,43 @@ final class ModeRecordStore {
         sortAndTrim(&bucket, for: mode)
 
         recordsByScope[scopeID] = bucket
+        return hasDifferentRecords(lhs: originalBucket, rhs: bucket)
+    }
+
+    @discardableResult
+    private func removeSeedRecordsIfNeeded() -> Bool {
+        var changed = false
+
+        for (scopeID, bucket) in recordsByScope {
+            let filtered = bucket.filter { !Self.isSeedRecordID($0.id) }
+            guard hasDifferentRecords(lhs: bucket, rhs: filtered) else { continue }
+
+            changed = true
+            if filtered.isEmpty {
+                recordsByScope.removeValue(forKey: scopeID)
+            } else {
+                recordsByScope[scopeID] = filtered
+            }
+        }
+
+        return changed
+    }
+
+    private func hasDifferentRecords(lhs: [ModeRecord], rhs: [ModeRecord]) -> Bool {
+        guard lhs.count == rhs.count else { return true }
+
+        for (left, right) in zip(lhs, rhs) {
+            if left.id != right.id ||
+                left.score != right.score ||
+                left.elapsedTime != right.elapsedTime ||
+                left.durationMinutes != right.durationMinutes ||
+                left.targetScore != right.targetScore ||
+                left.createdAt != right.createdAt {
+                return true
+            }
+        }
+
+        return false
     }
 
     private func makeScoreAttackSeedRecords(durationMinutes: Int) -> [ModeRecord] {

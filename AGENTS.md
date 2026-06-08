@@ -10,6 +10,7 @@
 - 仓库已新增面向玩家与开发者的 `README.md`，系统介绍游戏定位、核心玩法、三种模式、Touch Bar 交互方式、本地挑战记录、多语言与程序化音频能力。
 - `README.md` 已补充运行与打包说明：推荐通过 `./run.sh` 本地启动，通过 `./package.sh` 生成通用 macOS `.app/.dmg/.zip` 分发产物。
 - `README.md` 已明确硬件定位：完整体验依赖带 Touch Bar 的 MacBook，当前正式 Touch Bar 方案已重新同步为 `custom-model` 分支的私有 modal 路线，以全宽展示与左贴边体验为先。
+- 挑战记录测试 seed 现已改为“仅开发模式注入”：`run.sh` 会导出 `ELIMINATE_DEVELOPMENT_MODE=1`，而非开发模式启动时会自动清理旧 seed，避免测试数据进入正式体验。
 
 ## 2026-02-14
 - 项目通过 `run.sh` 启动可执行程序，当前策略已改为“每次启动前强制重新编译”，避免启动到旧构建产物。

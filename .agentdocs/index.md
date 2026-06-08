@@ -1,6 +1,7 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260608230301-record-seeds-dev-only.md` - 挑战记录测试数据改为仅开发模式注入：`run.sh` 显式开启开发模式，非开发模式启动时会自动清理旧 seed。
 `workflow/20260608223729-custom-model-private-modal-sync.md` - 放弃继续发散版本后，直接把 `custom-model` 分支的私有 modal Touch Bar 方案同步回主线，同时保留现有 README 与音量功能。
 `workflow/20260602231628-readme-english-support.md` - 为项目 README 增加英文支持：新增 `README.en.md`，并在中英文文档顶部补充语言切换入口。
 `workflow/20260602225626-settings-audio-volume-control.md` - 在游戏设置中新增总音量滑杆，统一控制 BGM 与音效，并通过 `UserDefaults` 持久化上次音量。
@@ -56,6 +57,7 @@
 - 需要确认“游戏设置里的音量滑杆接在哪里、是否会记住上次设置、是否同时影响 BGM 与音效”时，优先读取 `20260602225626` 文档。
 - 需要快速了解“这款游戏是什么、怎么玩、如何运行与打包、适合什么设备”时，优先读取 `20260601210110` 文档。
 - 需要确认“主线现在是否已经重新同步回 `custom-model` 的私有 modal 方案、同时保留音量功能”时，优先读取 `20260608223729` 文档。
+- 需要确认“竞分/竞速挑战记录里的测试数据是否还会在正式模式出现、如何只在开发态保留 seed”时，优先读取 `20260608230301` 文档。
 - 需要确认“当前正式方案是否已经彻底放弃私有 modal，只保留公开 Touch Bar（历史阶段）”时，优先读取 `20260419210231` 文档。
 - 需要处理“私有 modal 自身会偶发黑屏，但又不想彻底放弃左贴边效果”时，优先读取 `20260419203037` 文档。
 - 需要在真机上追踪“为什么这次启动仍然黑屏、是否触发了 fallback、首帧有没有真正画出来”时，优先读取 `20260419200923` 文档。
@@ -109,6 +111,7 @@
 - `GameAudioSystem` 现已负责音量持久化：使用 `UserDefaults` 保存 `0...1` 区间的主音量，并在 BGM 播放、音效触发以及运行中调整时统一应用。
 - 仓库现已提供完整 `README.md`：包含项目介绍、玩法说明、模式设计、Touch Bar 交互方式、运行/打包命令、硬件要求与目录结构，可直接作为对外介绍入口。
 - 当前正式 Touch Bar 方案已重新同步为 `custom-model` 分支的私有 modal：运行时通过 `presentSystemModalTouchBar` / `dismissSystemModalTouchBar` 管理展示，不再走公开 `window.touchBar` 唯一路径。
+- 挑战记录测试数据当前只在开发模式注入：`run.sh` 会导出 `ELIMINATE_DEVELOPMENT_MODE=1`，`ModeRecordStore` 在非开发模式启动时会主动移除旧 seed，避免正式版本看到 9/1/0 条测试记录。
 - Touch Bar 当前启动策略为：挂载私有 modal 后执行首次异步刷新、120ms 二次刷新、260ms 三次刷新，并在 180ms 做健康检查；若首挂失败，会自动重挂载最多 3 次。
 - Touch Bar 诊断日志开关仍为 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1`：日志通过 `NSLog` 输出，统一前缀为 `[TouchBarDiag]`，当前主要用于观察私有 modal 的挂载、刷新调度、健康检查与重挂载。
 - 主线已保留游戏设置里的总音量滑杆：这次同步私有 modal 时没有回退 `GameAudioSystem` 的音量持久化与 UI 控件。
