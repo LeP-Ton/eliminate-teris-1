@@ -1,6 +1,7 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260608223729-custom-model-private-modal-sync.md` - 放弃继续发散版本后，直接把 `custom-model` 分支的私有 modal Touch Bar 方案同步回主线，同时保留现有 README 与音量功能。
 `workflow/20260602231628-readme-english-support.md` - 为项目 README 增加英文支持：新增 `README.en.md`，并在中英文文档顶部补充语言切换入口。
 `workflow/20260602225626-settings-audio-volume-control.md` - 在游戏设置中新增总音量滑杆，统一控制 BGM 与音效，并通过 `UserDefaults` 持久化上次音量。
 `workflow/20260601210110-readme-project-introduction.md` - 新增面向玩家与开发者的 README，完整介绍游戏定位、玩法模式、运行打包方式、硬件要求与项目结构。
@@ -54,7 +55,8 @@
 - 需要确认“README 是否已有英文版、英文文档放在哪里、如何在中英文之间切换”时，优先读取 `20260602231628` 文档。
 - 需要确认“游戏设置里的音量滑杆接在哪里、是否会记住上次设置、是否同时影响 BGM 与音效”时，优先读取 `20260602225626` 文档。
 - 需要快速了解“这款游戏是什么、怎么玩、如何运行与打包、适合什么设备”时，优先读取 `20260601210110` 文档。
-- 需要确认“当前正式方案是否已经彻底放弃私有 modal，只保留公开 Touch Bar”时，优先读取 `20260419210231` 文档。
+- 需要确认“主线现在是否已经重新同步回 `custom-model` 的私有 modal 方案、同时保留音量功能”时，优先读取 `20260608223729` 文档。
+- 需要确认“当前正式方案是否已经彻底放弃私有 modal，只保留公开 Touch Bar（历史阶段）”时，优先读取 `20260419210231` 文档。
 - 需要处理“私有 modal 自身会偶发黑屏，但又不想彻底放弃左贴边效果”时，优先读取 `20260419203037` 文档。
 - 需要在真机上追踪“为什么这次启动仍然黑屏、是否触发了 fallback、首帧有没有真正画出来”时，优先读取 `20260419200923` 文档。
 - 需要排查“打包版 Touch Bar 偶发黑屏，但又不想失去左贴边 modal 展示”时，优先读取 `20260419194740` 文档。
@@ -106,14 +108,14 @@
 - 游戏设置已新增总音量滑杆：UI 位于设置面板内，采用蓝色主题容器 + 百分比显示，当前控制的是“总音量”而非独立 BGM/SFX 分轨。
 - `GameAudioSystem` 现已负责音量持久化：使用 `UserDefaults` 保存 `0...1` 区间的主音量，并在 BGM 播放、音效触发以及运行中调整时统一应用。
 - 仓库现已提供完整 `README.md`：包含项目介绍、玩法说明、模式设计、Touch Bar 交互方式、运行/打包命令、硬件要求与目录结构，可直接作为对外介绍入口。
-- 当前正式 Touch Bar 方案已经统一为公开 `window.touchBar`：私有 modal、`ELIMINATE_TOUCHBAR_MODAL` 与预热晋升链路都已停用并视为历史废案；启动时仅保留公开 Touch Bar 的异步首刷与一次延迟刷新。
-- Touch Bar 当前启动策略为：先挂载公开 `window.touchBar`，再异步执行一次 `prepareForDisplay()` 并追加 120ms 的二次刷新，避免首帧发生在零尺寸阶段。
-- Touch Bar 诊断日志开关为 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1`：日志通过 `NSLog` 输出，统一前缀为 `[TouchBarDiag]`，主要用于观察公开 `window.touchBar` 的挂载、刷新调度、尺寸变化与有效首帧绘制。
-- 打包版 Touch Bar 黑屏当前按“公开路径渲染时序”处理：`GameTouchBarView` 会把零尺寸阶段的刷新记为 pending，待 bounds 有效后补绘；`GameViewController` 会异步执行两次 `prepareForDisplay()`，不再触发私有 modal 健康检查与自动晋升。
+- 当前正式 Touch Bar 方案已重新同步为 `custom-model` 分支的私有 modal：运行时通过 `presentSystemModalTouchBar` / `dismissSystemModalTouchBar` 管理展示，不再走公开 `window.touchBar` 唯一路径。
+- Touch Bar 当前启动策略为：挂载私有 modal 后执行首次异步刷新、120ms 二次刷新、260ms 三次刷新，并在 180ms 做健康检查；若首挂失败，会自动重挂载最多 3 次。
+- Touch Bar 诊断日志开关仍为 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1`：日志通过 `NSLog` 输出，统一前缀为 `[TouchBarDiag]`，当前主要用于观察私有 modal 的挂载、刷新调度、健康检查与重挂载。
+- 主线已保留游戏设置里的总音量滑杆：这次同步私有 modal 时没有回退 `GameAudioSystem` 的音量持久化与 UI 控件。
 - 最新打包启动崩溃根因是资源 Bundle 路径：SwiftPM 生成的 `Bundle.module` 更适合直接从 `.build` 运行，手工组装 `.app` 时应显式兼容 `Bundle.main.resourceURL/Contents/Resources`。
 - 当前打包脚本默认输出通用二进制：分别构建 `x86_64` 与 `arm64`，再用 `lipo` 合成，最终 `file dist/Eliminate Teris 1.app/Contents/MacOS/Eliminate Teris 1` 应显示 `Mach-O universal binary with 2 architectures`。
-- 当前正式方案不再提供 `ELIMINATE_TOUCHBAR_MODAL`：运行时固定使用公开 `window.touchBar`，避免公开→私有切换带来的黑屏与双段刷新副作用。
-- 打包版与开发态当前使用同一条公开 Touch Bar 路径：都依赖 `prepareForDisplay()` 的异步首刷与一次延迟刷新，不再区分“私有 modal 优先”策略。
+- 当前正式方案不再强调公开 Touch Bar 保底：主线已直接回到私有 modal，`ELIMINATE_TOUCHBAR_MODAL` 相关公开回退语义只保留在历史文档中。
+- 打包版与开发态当前使用同一条私有 modal 路径：都依赖三段刷新、健康检查与重挂载，不再是“公开 Touch Bar 优先”策略。
 - 当前通过 `package.sh` 一键打包：`swift build -c release` 后组装 `.app`（含资源 Bundle + Info.plist + ad-hoc 签名），并尝试生成 DMG；若 DMG 不可用则自动回退为 ZIP。
 - 已新增 `GameAudioSystem` 程序化音频链路：自由/竞分/竞速模式切换会切 BGM，且仅在“交换触发”的三阶段过渡中按阶段播放移动、消除、补位音效，避免模式切换/重置触发误报声。
 - Touch Bar 动画时序当前为三阶段链路：交换位移（0.16s）→ 消除反馈（0.20s）→ 左侧补位（0.24s）；交换对由 `GameBoardController.lastSwapPair` 提供，渲染端以 `transitionPhases` 顺序执行。

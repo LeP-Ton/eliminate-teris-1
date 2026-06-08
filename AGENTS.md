@@ -9,7 +9,7 @@
 ## 2026-06-01
 - 仓库已新增面向玩家与开发者的 `README.md`，系统介绍游戏定位、核心玩法、三种模式、Touch Bar 交互方式、本地挑战记录、多语言与程序化音频能力。
 - `README.md` 已补充运行与打包说明：推荐通过 `./run.sh` 本地启动，通过 `./package.sh` 生成通用 macOS `.app/.dmg/.zip` 分发产物。
-- `README.md` 已明确硬件定位：完整体验依赖带 Touch Bar 的 MacBook，当前正式 Touch Bar 方案优先走公开 `window.touchBar`，以稳定显示为先。
+- `README.md` 已明确硬件定位：完整体验依赖带 Touch Bar 的 MacBook，当前正式 Touch Bar 方案已重新同步为 `custom-model` 分支的私有 modal 路线，以全宽展示与左贴边体验为先。
 
 ## 2026-02-14
 - 项目通过 `run.sh` 启动可执行程序，当前策略已改为“每次启动前强制重新编译”，避免启动到旧构建产物。
@@ -52,9 +52,9 @@
 - 已新增程序化音效系统 `GameAudioSystem`：自由/竞分/竞速模式会自动切换不同 BGM，且在三阶段动画中按阶段触发移动、消除、补位音效；音频由运行时合成 WAV，不依赖外部资源文件。
 - 已新增 `package.sh` 打包脚本：构建 release 后生成 `.app`，自动拷贝 SwiftPM 资源 Bundle、写入 `Info.plist`、执行 ad-hoc 签名，并优先输出 DMG（失败时自动回退 ZIP）。
 - 历史上曾尝试以“release 默认公开路径”或“公开预热后晋升私有 modal”规避打包版 Touch Bar 黑屏；这些方案现均已废弃，不再参与运行时决策。
-- Touch Bar 当前正式方案为“单槽位 16 列 + 0 宽 `escape-placeholder` + 公开 `window.touchBar`”：优先保证打包版稳定显示，接受左侧贴边效果相较私有 modal 略有回退。
+- Touch Bar 当前正式方案已重新同步为“单槽位 16 列 + 0 宽 `escape-placeholder` + 私有 `system modal`”：通过 `presentSystemModalTouchBar` / `dismissSystemModalTouchBar` 争取全宽显示与左贴边效果。
 - `package.sh` 现在默认构建 `x86_64 + arm64` 通用二进制，并通过 `lipo` 合成为单个 `.app`，用于同时兼容 Intel 与 Apple Silicon（M1/M2/M3）Mac；可用 `PACKAGE_ARCHS` 覆盖目标架构。
 - 打包后“应用意外退出”的最新根因已确认：不是通用二进制本身，而是 `Bundle.module` 在手工 `.app` 中查找资源 Bundle 的路径与 `Contents/Resources` 不一致；现已在 `Localization.swift` 中改为兼容开发态与打包态的多路径资源查找。
-- 打包版 Touch Bar 黑屏当前按“公开路径渲染时序”处理：`GameTouchBarView` 会把零尺寸阶段的刷新请求挂起，在尺寸有效时强制补绘并记录 `hasDrawnVisibleContent/displayGeneration`；`GameViewController` 则统一挂载 `window.touchBar`，执行异步首刷与 120ms 二次刷新。
-- 已新增可开关的 Touch Bar 诊断日志：设置环境变量 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1` 后，会通过 `NSLog` 输出公开 `window.touchBar` 挂载、刷新调度、尺寸变化与首帧有效绘制信息，日志前缀统一为 `[TouchBarDiag]`。
-- 当前正式方案已回退为“仅使用公开 `window.touchBar`”：私有 modal、`ELIMINATE_TOUCHBAR_MODAL` 与公开→私有晋升链路均视为历史废案，不再参与运行时决策；现阶段优先保证打包版稳定显示与单段刷新观感。
+- 打包版 Touch Bar 黑屏当前重新按“私有 modal 渲染时序”处理：`GameViewController` 会在挂载后执行三段刷新、健康检查与最多 3 次重挂载，尽量避免私有 modal 首挂载黑屏。
+- 已新增可开关的 Touch Bar 诊断日志：设置环境变量 `ELIMINATE_TOUCHBAR_DIAGNOSTICS=1` 后，会通过 `NSLog` 输出私有 modal 挂载、刷新调度、健康检查与重挂载信息，日志前缀统一为 `[TouchBarDiag]`。
+- 当前正式方案不再是公开 `window.touchBar` 唯一路径：主线已重新切回私有 modal，公开 Touch Bar 仅作为历史排查阶段的背景记录保存在 workflow 文档中。
