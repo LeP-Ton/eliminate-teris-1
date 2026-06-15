@@ -2,11 +2,42 @@
 
 [简体中文](README.md) | English
 
+![Platform](https://img.shields.io/badge/Platform-macOS%2012%2B-1f6feb)
+![Swift](https://img.shields.io/badge/Swift-5.7%2B-f05138)
+![Touch%20Bar](https://img.shields.io/badge/Touch%20Bar-Optimized-111111)
+![Status](https://img.shields.io/badge/Status-Playable-2ea043)
+
 A serious attempt to bring a match puzzle game onto the MacBook Touch Bar.
 
 `Eliminate Teris 1` is a lightweight macOS puzzle game designed around the Touch Bar. The battlefield is not the center of your screen, but the narrow strip above your keyboard that people often notice less and use even less. On a one-dimensional board of 16 slots, you swap adjacent tiles, create matches of three or more, chase higher scores, and compress every action into a tighter and more direct rhythm in score attack and speed run modes.
 
 The rules are easy to understand and quick to pick up. But once you actually start playing, you may realize that this small strip of Touch Bar still has enough room for judgment, tempo, tactile feedback, and that irresistible “one more round” feeling.
+
+## Table of Contents
+
+- [Screenshot Preview](#screenshot-preview)
+- [Highlights](#highlights)
+- [How to Play](#how-to-play)
+- [Modes](#modes)
+- [Interface Overview](#interface-overview)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Why This Project Is Interesting](#why-this-project-is-interesting)
+
+## Screenshot Preview
+
+### Desktop Window
+
+![Desktop window placeholder](docs/screenshots/desktop-main.svg)
+
+Ideally shows the settings panel, time and score panel, challenge records, and mode briefing together.
+
+### Touch Bar Board
+
+![Touch Bar board placeholder](docs/screenshots/touchbar-board.gif)
+
+Ideally shows the 16-cell battlefield, swap actions, clear feedback, and refill rhythm.
 
 ## Highlights
 
@@ -192,4 +223,4 @@ You may especially enjoy this project if:
 
 `Eliminate Teris 1` is not trying to be a huge content-heavy game. It is a small work with a very clear personality: the satisfaction of match-clearing, the uniqueness of the Touch Bar, and a bit of pixel-arcade flavor compressed into a narrow but surprisingly playful space.
 
-If you like projects that are modest in scale but serious in intent, feel free to run it, tweak it, and keep building on it.
+If you also like things that are small but fun, feel free to follow and leave a comment.

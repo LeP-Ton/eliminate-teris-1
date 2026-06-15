@@ -1,6 +1,12 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20260615223620-readme-screenshot-preview-remove-note-and-table.md` - 移除中英文 README 截图预览区的说明提示，并把表格布局改为更自然的分段图片展示。
+`workflow/20260615222900-readme-screenshot-preview-remove-package-column.md` - 从中英文 README 的截图预览区移除“打包产物”栏位，并同步更新截图资源说明文档。
+`workflow/20260610234858-readme-english-closing-copy-sync.md` - 同步调整英文 README 结尾邀请文案，与中文版本统一为更轻松的“关注并留言”语气。
+`workflow/20260610234418-readme-closing-copy-update.md` - 调整中文 README 结尾邀请文案，从“运行它、改它”改为更轻松的“关注并留言”表达。
+`workflow/20260610232523-readme-screenshot-assets-folder.md` - 新增 `docs/screenshots/` 截图资源目录、三张占位图与替换说明，并把中英文 README 的截图区改为真实图片引用模板。
+`workflow/20260610231349-readme-top-badges-toc-screenshot-preview.md` - 为中英文 README 顶部新增项目徽章、目录与截图预览占位区，强化仓库首页展示与导航。
 `workflow/20260608230301-record-seeds-dev-only.md` - 挑战记录测试数据改为仅开发模式注入：`run.sh` 显式开启开发模式，非开发模式启动时会自动清理旧 seed。
 `workflow/20260608223729-custom-model-private-modal-sync.md` - 放弃继续发散版本后，直接把 `custom-model` 分支的私有 modal Touch Bar 方案同步回主线，同时保留现有 README 与音量功能。
 `workflow/20260602231628-readme-english-support.md` - 为项目 README 增加英文支持：新增 `README.en.md`，并在中英文文档顶部补充语言切换入口。
@@ -53,6 +59,12 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要确认“截图预览区是否已经去掉提示文案与表格，改为纵向分段展示”时，优先读取 `20260615223620` 文档。
+- 需要确认“截图预览区是否已经去掉打包产物，仅保留桌面主界面与 Touch Bar 棋盘”时，优先读取 `20260615222900` 文档。
+- 需要确认“英文 README 结尾是否也已经同步改成更轻松的关注/留言语气”时，优先读取 `20260610234858` 文档。
+- 需要确认“README 最后一段的邀请文案现在是什么语气、是否已经改成‘关注并留言’”时，优先读取 `20260610234418` 文档。
+- 需要确认“README 截图应该放在哪个目录、默认占位图叫什么、后续如何替换成正式截图”时，优先读取 `20260610232523` 文档。
+- 需要确认“README 顶部是否已有徽章、目录与截图预览区，以及后续应该把正式截图补到哪里”时，优先读取 `20260610231349` 文档。
 - 需要确认“README 是否已有英文版、英文文档放在哪里、如何在中英文之间切换”时，优先读取 `20260602231628` 文档。
 - 需要确认“游戏设置里的音量滑杆接在哪里、是否会记住上次设置、是否同时影响 BGM 与音效”时，优先读取 `20260602225626` 文档。
 - 需要快速了解“这款游戏是什么、怎么玩、如何运行与打包、适合什么设备”时，优先读取 `20260601210110` 文档。
@@ -106,6 +118,12 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
+- 中英文 README 的截图预览区现已去掉顶部说明提示与表格结构，改为“标题 + 图片 + 简短说明”的纵向分段展示。
+- README 截图预览区现已收敛为两栏：仅保留“桌面主界面”和“Touch Bar 棋盘”；`docs/screenshots/README.md` 也已同步移除“打包产物”说明。
+- 英文 README 结尾现已与中文同步，改为更轻松的展示页式邀请语：强调“small but fun”，并以“follow and leave a comment”收尾。
+- 中文 README 结尾的邀请语现已改为“如果你也喜欢这种‘不大，但有趣’的东西，欢迎关注并留言。”，整体语气比此前更轻、更偏展示页式收束。
+- 仓库现已新增 `docs/screenshots/` 作为 README 截图资源目录；当前 README 截图预览实际使用的是“桌面主界面”和“Touch Bar 棋盘”两类资源，后续只需替换同名资源或同步修改 README 链接即可。
+- README 顶部现已补充静态徽章、目录与截图预览占位区：`README.md` 与 `README.en.md` 都能在首屏快速展示平台/Swift/Touch Bar/状态信息，并为后续正式截图预留固定位置。
 - README 当前已支持中英文双文档：`README.md` 为中文主文档，`README.en.md` 为完整英文版，两个文档顶部均提供互链切换。
 - 游戏设置已新增总音量滑杆：UI 位于设置面板内，采用蓝色主题容器 + 百分比显示，当前控制的是“总音量”而非独立 BGM/SFX 分轨。
 - `GameAudioSystem` 现已负责音量持久化：使用 `UserDefaults` 保存 `0...1` 区间的主音量，并在 BGM 播放、音效触发以及运行中调整时统一应用。

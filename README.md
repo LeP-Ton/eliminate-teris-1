@@ -2,11 +2,42 @@
 
 简体中文 | [English](README.en.md)
 
+![Platform](https://img.shields.io/badge/Platform-macOS%2012%2B-1f6feb)
+![Swift](https://img.shields.io/badge/Swift-5.7%2B-f05138)
+![Touch%20Bar](https://img.shields.io/badge/Touch%20Bar-Optimized-111111)
+![Status](https://img.shields.io/badge/Status-Playable-2ea043)
+
 把消除游戏搬进 MacBook Touch Bar 的一次认真尝试。
 
 `Eliminate Teris 1` 是一款为 macOS 与 Touch Bar 场景设计的轻量消除游戏：战场不在大屏幕中央，而是在键盘上方那条熟悉又常被忽视的细长区域里。你会在 16 格的一维棋盘上交换相邻方块、制造三连消除、追逐更高分数，也会在竞速与限时模式里，把每一次操作都压缩成更紧凑、更直接的节奏。
 
 它的规则很直白，上手很快；但真正玩起来时，你会发现这一条窄窄的 Touch Bar，依然能装下判断、节奏、手感和一点点“再来一把”的执念。
+
+## 目录
+
+- [截图预览](#截图预览)
+- [游戏特色](#游戏特色)
+- [怎么玩](#怎么玩)
+- [模式说明](#模式说明)
+- [游戏界面说明](#游戏界面说明)
+- [运行环境](#运行环境)
+- [快速开始](#快速开始)
+- [项目结构速览](#项目结构速览)
+- [为什么这个项目有意思](#为什么这个项目有意思)
+
+## 截图预览
+
+### 桌面主界面
+
+![桌面主界面占位图](docs/screenshots/desktop-main.svg)
+
+建议展示设置、时间与得分、挑战记录、玩法说明四大模块。
+
+### Touch Bar 棋盘
+
+![Touch Bar 棋盘占位图](docs/screenshots/touchbar-board.gif)
+
+建议展示 16 格主战场、交换动作、消除反馈与补位节奏。
 
 ## 游戏特色
 
@@ -192,4 +223,4 @@ PACKAGE_ARCHS="arm64" ./package.sh
 
 `Eliminate Teris 1` 不是一款追求庞大内容量的游戏，它更像一个方向明确、个性鲜明的小作品：把消除的满足感、Touch Bar 的特殊性、以及一点点像素街机气质，压缩进一条狭长却足够有趣的交互空间里。
 
-如果你也喜欢这种“不大，但认真”的东西，欢迎运行它、改它、继续把它做得更好。
+如果你也喜欢这种“不大，但有趣”的东西，欢迎关注并留言。
