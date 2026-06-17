@@ -1,6 +1,41 @@
 import Cocoa
 import ObjectiveC.runtime
 
+private enum CyberpunkPalette {
+    // 统一的赛博朋克基础色板，优先用“深底 + 霓虹描边 + 高亮扫描”。
+    static let abyss = NSColor(calibratedRed: 0.02, green: 0.03, blue: 0.06, alpha: 1)
+    static let midnight = NSColor(calibratedRed: 0.05, green: 0.08, blue: 0.14, alpha: 1)
+    static let ultraviolet = NSColor(calibratedRed: 0.12, green: 0.05, blue: 0.16, alpha: 1)
+    static let panelBase = NSColor(calibratedRed: 0.07, green: 0.08, blue: 0.11, alpha: 0.95)
+    static let panelOverlay = NSColor(calibratedRed: 0.1, green: 0.08, blue: 0.14, alpha: 0.86)
+    static let neonYellow = NSColor(calibratedRed: 0.98, green: 0.94, blue: 0.01, alpha: 1)
+    static let neonCyan = NSColor(calibratedRed: 0.18, green: 0.9, blue: 1.0, alpha: 1)
+    static let neonMagenta = NSColor(calibratedRed: 1.0, green: 0.24, blue: 0.69, alpha: 1)
+    static let neonGreen = NSColor(calibratedRed: 0.42, green: 1.0, blue: 0.29, alpha: 1)
+    static let neonRed = NSColor(calibratedRed: 1.0, green: 0.19, blue: 0.34, alpha: 1)
+    static let textPrimary = NSColor(calibratedRed: 0.99, green: 0.95, blue: 0.42, alpha: 0.98)
+    static let textSecondary = NSColor(calibratedRed: 0.58, green: 0.95, blue: 1.0, alpha: 0.82)
+    static let textMuted = NSColor(calibratedRed: 0.78, green: 0.84, blue: 0.96, alpha: 0.58)
+}
+
+private func makeCyberpunkPanelPath(in rect: CGRect, cut: CGFloat = 18, lowerInset: CGFloat = 70, lowerStep: CGFloat = 12) -> NSBezierPath {
+    let path = NSBezierPath()
+    let safeLowerInset = min(max(lowerInset, cut + 18), max(rect.width - 28, cut + 18))
+
+    path.move(to: CGPoint(x: rect.minX, y: rect.minY + cut))
+    path.line(to: CGPoint(x: rect.minX + cut, y: rect.minY))
+    path.line(to: CGPoint(x: rect.maxX - cut * 2.2, y: rect.minY))
+    path.line(to: CGPoint(x: rect.maxX - cut, y: rect.minY + cut))
+    path.line(to: CGPoint(x: rect.maxX, y: rect.minY + cut))
+    path.line(to: CGPoint(x: rect.maxX, y: rect.maxY - lowerStep))
+    path.line(to: CGPoint(x: rect.maxX - lowerStep, y: rect.maxY))
+    path.line(to: CGPoint(x: rect.minX + safeLowerInset, y: rect.maxY))
+    path.line(to: CGPoint(x: rect.minX + safeLowerInset - 14, y: rect.maxY - lowerStep))
+    path.line(to: CGPoint(x: rect.minX, y: rect.maxY - lowerStep))
+    path.close()
+    return path
+}
+
 final class GameViewController: NSViewController, NSTouchBarDelegate {
     private enum ModeSelection: Int {
         case free = 0
@@ -33,11 +68,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private let localizer = Localizer.shared
-    private let settingsThemeColor = NSColor(calibratedRed: 0.7, green: 0.86, blue: 1.0, alpha: 0.96)
-    private let statusThemeColor = NSColor(calibratedRed: 0.74, green: 0.98, blue: 0.78, alpha: 0.96)
-    private let recordsThemeColor = NSColor(calibratedRed: 1.0, green: 0.8, blue: 0.58, alpha: 0.96)
-    private let rulesThemeColor = NSColor(calibratedRed: 1.0, green: 0.53, blue: 0.5, alpha: 0.96)
-    private let rulesBodyThemeColor = NSColor(calibratedRed: 1.0, green: 0.82, blue: 0.82, alpha: 0.9)
+    private let settingsThemeColor = CyberpunkPalette.neonYellow
+    private let statusThemeColor = CyberpunkPalette.neonCyan
+    private let recordsThemeColor = CyberpunkPalette.neonMagenta
+    private let rulesThemeColor = CyberpunkPalette.neonRed
+    private let rulesBodyThemeColor = CyberpunkPalette.textPrimary.withAlphaComponent(0.92)
 
     private let columns = 16
     private let scoreAttackMinutes = [1, 2, 3]
@@ -80,7 +115,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var headerIconView: NSImageView = {
         let imageView = NSImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.contentTintColor = NSColor.systemYellow
+        imageView.contentTintColor = CyberpunkPalette.neonYellow
         imageView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 28, weight: .heavy)
         imageView.imageScaling = .scaleProportionallyDown
         return imageView
@@ -89,7 +124,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var titleLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
         label.font = NSFont.monospacedSystemFont(ofSize: 28, weight: .heavy)
-        label.textColor = NSColor.white
+        label.textColor = CyberpunkPalette.textPrimary
         label.alignment = .left
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -98,7 +133,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var subtitleLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
         label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        label.textColor = NSColor.white.withAlphaComponent(0.72)
+        label.textColor = CyberpunkPalette.textSecondary
         label.alignment = .left
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -170,8 +205,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
-    private lazy var languagePopup: ArcadePopupButton = {
-        let popup = ArcadePopupButton(frame: .zero, pullsDown: false)
+    private lazy var languagePopup: ArcadeCustomPopupButton = {
+        let popup = ArcadeCustomPopupButton(frame: .zero, pullsDown: false)
         popup.target = self
         popup.action = #selector(languageSelectionChanged(_:))
         popup.translatesAutoresizingMaskIntoConstraints = false
@@ -182,8 +217,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
-    private lazy var modePopup: ArcadePopupButton = {
-        let popup = ArcadePopupButton(frame: .zero, pullsDown: false)
+    private lazy var modePopup: ArcadeCustomPopupButton = {
+        let popup = ArcadeCustomPopupButton(frame: .zero, pullsDown: false)
         popup.target = self
         popup.action = #selector(modeSelectionChanged(_:))
         popup.translatesAutoresizingMaskIntoConstraints = false
@@ -194,8 +229,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeControlTitleLabel(color: settingsThemeColor.withAlphaComponent(0.92))
     }()
 
-    private lazy var optionPopup: ArcadePopupButton = {
-        let popup = ArcadePopupButton(frame: .zero, pullsDown: false)
+    private lazy var optionPopup: ArcadeCustomPopupButton = {
+        let popup = ArcadeCustomPopupButton(frame: .zero, pullsDown: false)
         popup.target = self
         popup.action = #selector(optionSelectionChanged(_:))
         popup.translatesAutoresizingMaskIntoConstraints = false
@@ -248,7 +283,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var competitiveInfoLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
         label.alignment = .left
-        label.textColor = NSColor.systemGreen
+        label.textColor = CyberpunkPalette.neonCyan
         label.font = NSFont.monospacedSystemFont(ofSize: 18, weight: .heavy)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -257,7 +292,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var resultLabel: NSTextField = {
         let label = NSTextField(wrappingLabelWithString: "")
         label.alignment = .left
-        label.textColor = statusThemeColor.withAlphaComponent(0.86)
+        label.textColor = CyberpunkPalette.textMuted
         label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         label.maximumNumberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -402,8 +437,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var rulesCardView: PixelFrameCardView = {
-        // 罗德岛风格的偏深红强调色。
-        return PixelFrameCardView(accentColor: NSColor(calibratedRed: 0.93, green: 0.28, blue: 0.3, alpha: 1.0))
+        return PixelFrameCardView(accentColor: CyberpunkPalette.neonRed)
     }()
 
     private lazy var rulesCardStack: NSStackView = {
@@ -1268,27 +1302,31 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
         switch tone {
         case .ready:
-            statusBadgeLabel.textColor = NSColor.white.withAlphaComponent(0.92)
-            statusBadgeLabel.layer?.backgroundColor = NSColor(calibratedRed: 0.22, green: 0.26, blue: 0.32, alpha: 0.95).cgColor
-            statusBadgeLabel.layer?.borderColor = NSColor(calibratedRed: 0.38, green: 0.47, blue: 0.6, alpha: 0.95).cgColor
+            statusBadgeLabel.textColor = CyberpunkPalette.textPrimary
+            statusBadgeLabel.layer?.backgroundColor = CyberpunkPalette.panelBase.withAlphaComponent(0.95).cgColor
+            statusBadgeLabel.layer?.borderColor = CyberpunkPalette.neonCyan.withAlphaComponent(0.7).cgColor
 
         case .running:
-            statusBadgeLabel.textColor = NSColor(calibratedRed: 0.82, green: 1.0, blue: 0.82, alpha: 1)
-            statusBadgeLabel.layer?.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.29, blue: 0.16, alpha: 0.95).cgColor
-            statusBadgeLabel.layer?.borderColor = NSColor(calibratedRed: 0.38, green: 0.82, blue: 0.42, alpha: 0.95).cgColor
+            statusBadgeLabel.textColor = CyberpunkPalette.textPrimary
+            statusBadgeLabel.layer?.backgroundColor = CyberpunkPalette.neonGreen.withAlphaComponent(0.18).cgColor
+            statusBadgeLabel.layer?.borderColor = CyberpunkPalette.neonGreen.withAlphaComponent(0.92).cgColor
 
         case .combo:
-            statusBadgeLabel.textColor = NSColor(calibratedRed: 1.0, green: 0.97, blue: 0.76, alpha: 1)
-            statusBadgeLabel.layer?.backgroundColor = NSColor(calibratedRed: 0.44, green: 0.27, blue: 0.06, alpha: 0.95).cgColor
-            statusBadgeLabel.layer?.borderColor = NSColor(calibratedRed: 1.0, green: 0.78, blue: 0.2, alpha: 0.95).cgColor
+            statusBadgeLabel.textColor = CyberpunkPalette.neonYellow
+            statusBadgeLabel.layer?.backgroundColor = CyberpunkPalette.neonYellow.withAlphaComponent(0.12).cgColor
+            statusBadgeLabel.layer?.borderColor = CyberpunkPalette.neonYellow.withAlphaComponent(0.95).cgColor
 
         case .finish:
-            statusBadgeLabel.textColor = NSColor(calibratedRed: 1, green: 0.87, blue: 0.87, alpha: 1)
-            statusBadgeLabel.layer?.backgroundColor = NSColor(calibratedRed: 0.4, green: 0.14, blue: 0.16, alpha: 0.95).cgColor
-            statusBadgeLabel.layer?.borderColor = NSColor(calibratedRed: 0.98, green: 0.44, blue: 0.44, alpha: 0.95).cgColor
+            statusBadgeLabel.textColor = CyberpunkPalette.textPrimary
+            statusBadgeLabel.layer?.backgroundColor = CyberpunkPalette.neonRed.withAlphaComponent(0.18).cgColor
+            statusBadgeLabel.layer?.borderColor = CyberpunkPalette.neonRed.withAlphaComponent(0.95).cgColor
         }
 
         statusBadgeLabel.layer?.borderWidth = 1
+        statusBadgeLabel.layer?.shadowColor = (statusBadgeLabel.layer?.borderColor ?? CyberpunkPalette.neonCyan.cgColor)
+        statusBadgeLabel.layer?.shadowOpacity = 0.35
+        statusBadgeLabel.layer?.shadowRadius = 8
+        statusBadgeLabel.layer?.shadowOffset = .zero
     }
 
     private func hideStatusBadge() {
@@ -1503,7 +1541,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let font = NSFont.monospacedSystemFont(ofSize: 9, weight: .heavy)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: recordsThemeColor.withAlphaComponent(0.96)
+            .foregroundColor: CyberpunkPalette.textPrimary
         ]
         let textSize = (text as NSString).size(withAttributes: attributes)
         let horizontalInset: CGFloat = 6
@@ -1517,10 +1555,10 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         image.lockFocus()
 
         let rect = NSRect(origin: .zero, size: size)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4)
-        NSColor(calibratedRed: 0.96, green: 0.56, blue: 0.18, alpha: 0.24).setFill()
+        let path = makeCyberpunkPanelPath(in: rect.insetBy(dx: 0.5, dy: 0.5), cut: 4, lowerInset: max(18, rect.width - 10), lowerStep: 4)
+        recordsThemeColor.withAlphaComponent(0.16).setFill()
         path.fill()
-        NSColor(calibratedRed: 1.0, green: 0.74, blue: 0.32, alpha: 0.85).setStroke()
+        recordsThemeColor.withAlphaComponent(0.9).setStroke()
         path.lineWidth = 1
         path.stroke()
 
@@ -1528,7 +1566,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         paragraph.alignment = .center
         let drawAttributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: recordsThemeColor.withAlphaComponent(0.96),
+            .foregroundColor: CyberpunkPalette.textPrimary,
             .paragraphStyle: paragraph
         ]
         let textRect = NSRect(
@@ -1650,7 +1688,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let label = NSTextField(labelWithString: "")
         label.alignment = .right
         label.textColor = color
-        label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
+        label.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy)
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -1661,6 +1699,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         label.alignment = .left
         label.textColor = color
         label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .heavy)
+        label.shadow = {
+            let shadow = NSShadow()
+            shadow.shadowColor = color.withAlphaComponent(0.55)
+            shadow.shadowBlurRadius = 6
+            shadow.shadowOffset = .zero
+            return shadow
+        }()
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }
@@ -1690,7 +1735,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let stack = NSStackView(views: [iconView, titleLabel])
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 6
+        stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
         return stack
     }
@@ -1731,17 +1776,19 @@ private final class ArcadeStageView: NSView {
         super.draw(dirtyRect)
 
         let baseGradient = NSGradient(colors: [
-            NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.09, alpha: 1),
-            NSColor(calibratedRed: 0.08, green: 0.1, blue: 0.16, alpha: 1),
-            NSColor(calibratedRed: 0.05, green: 0.07, blue: 0.11, alpha: 1)
+            CyberpunkPalette.abyss,
+            CyberpunkPalette.midnight,
+            CyberpunkPalette.ultraviolet
         ])
         baseGradient?.draw(in: bounds, angle: -90)
 
-        drawGlow(at: CGPoint(x: bounds.maxX * 0.16, y: bounds.maxY * 0.2), radius: 220, color: NSColor.systemBlue.withAlphaComponent(0.16))
-        drawGlow(at: CGPoint(x: bounds.maxX * 0.78, y: bounds.maxY * 0.72), radius: 260, color: NSColor.systemPurple.withAlphaComponent(0.12))
+        drawGlow(at: CGPoint(x: bounds.maxX * 0.14, y: bounds.maxY * 0.18), radius: 250, color: CyberpunkPalette.neonMagenta.withAlphaComponent(0.16))
+        drawGlow(at: CGPoint(x: bounds.maxX * 0.82, y: bounds.maxY * 0.68), radius: 280, color: CyberpunkPalette.neonCyan.withAlphaComponent(0.13))
+        drawGlow(at: CGPoint(x: bounds.maxX * 0.54, y: bounds.maxY * 0.04), radius: 210, color: CyberpunkPalette.neonYellow.withAlphaComponent(0.08))
 
         drawScanlines(in: bounds)
         drawPixelMatrix(in: bounds)
+        drawCircuitStripes(in: bounds)
     }
 
     private func drawGlow(at center: CGPoint, radius: CGFloat, color: NSColor) {
@@ -1765,7 +1812,7 @@ private final class ArcadeStageView: NSView {
             path.line(to: CGPoint(x: rect.maxX, y: y))
             y += 4
         }
-        NSColor.white.withAlphaComponent(alpha).setStroke()
+        CyberpunkPalette.neonCyan.withAlphaComponent(alpha).setStroke()
         path.lineWidth = 1
         path.stroke()
     }
@@ -1781,12 +1828,35 @@ private final class ArcadeStageView: NSView {
                 let wave = CGFloat(sin((Double(x + y) / 80.0) + Double(animationTick) * 0.05))
                 let alpha = 0.03 + max(0, wave) * 0.05
                 let dotRect = CGRect(x: x, y: y, width: size, height: size)
-                NSColor.white.withAlphaComponent(alpha).setFill()
+                CyberpunkPalette.neonYellow.withAlphaComponent(alpha).setFill()
                 NSBezierPath(rect: dotRect).fill()
                 y += step
             }
             x += step
         }
+    }
+
+    private func drawCircuitStripes(in rect: CGRect) {
+        let stripeColor = CyberpunkPalette.neonMagenta.withAlphaComponent(0.16)
+        let guideColor = CyberpunkPalette.neonYellow.withAlphaComponent(0.12)
+
+        let topPath = NSBezierPath()
+        topPath.move(to: CGPoint(x: rect.minX + 36, y: rect.minY + 34))
+        topPath.line(to: CGPoint(x: rect.minX + 220, y: rect.minY + 34))
+        topPath.line(to: CGPoint(x: rect.minX + 250, y: rect.minY + 16))
+        topPath.line(to: CGPoint(x: rect.maxX - 90, y: rect.minY + 16))
+        stripeColor.setStroke()
+        topPath.lineWidth = 2
+        topPath.stroke()
+
+        let bottomPath = NSBezierPath()
+        bottomPath.move(to: CGPoint(x: rect.maxX - 40, y: rect.maxY - 36))
+        bottomPath.line(to: CGPoint(x: rect.maxX - 240, y: rect.maxY - 36))
+        bottomPath.line(to: CGPoint(x: rect.maxX - 280, y: rect.maxY - 18))
+        bottomPath.line(to: CGPoint(x: rect.minX + 120, y: rect.maxY - 18))
+        guideColor.setStroke()
+        bottomPath.lineWidth = 2
+        bottomPath.stroke()
     }
 }
 
@@ -1807,25 +1877,40 @@ private final class PixelFrameCardView: NSView {
         super.draw(dirtyRect)
 
         let cardRect = bounds.insetBy(dx: 0.5, dy: 0.5)
-        let rounded = NSBezierPath(roundedRect: cardRect, xRadius: 10, yRadius: 10)
+        let outerPath = makeCyberpunkPanelPath(in: cardRect, cut: 18, lowerInset: 74, lowerStep: 12)
+        let innerRect = cardRect.insetBy(dx: 7, dy: 7)
+        let innerPath = makeCyberpunkPanelPath(in: innerRect, cut: 12, lowerInset: 62, lowerStep: 9)
 
-        NSColor(calibratedRed: 0.1, green: 0.12, blue: 0.17, alpha: 0.93).setFill()
-        rounded.fill()
+        let fillGradient = NSGradient(colors: [
+            CyberpunkPalette.panelBase,
+            CyberpunkPalette.panelOverlay
+        ])
+        fillGradient?.draw(in: outerPath, angle: -90)
 
-        accentColor.withAlphaComponent(0.48).setStroke()
-        rounded.lineWidth = 1
-        rounded.stroke()
+        outerPath.lineWidth = 1.4
+        accentColor.withAlphaComponent(0.88).setStroke()
+        outerPath.stroke()
 
-        let innerRect = cardRect.insetBy(dx: 8, dy: 8)
-        let innerPath = NSBezierPath(roundedRect: innerRect, xRadius: 6, yRadius: 6)
-        NSColor.white.withAlphaComponent(0.05).setStroke()
         innerPath.lineWidth = 1
+        accentColor.withAlphaComponent(0.2).setStroke()
         innerPath.stroke()
 
-        drawCornerPixel(at: CGPoint(x: cardRect.minX + 7, y: cardRect.minY + 7), color: accentColor)
-        drawCornerPixel(at: CGPoint(x: cardRect.maxX - 11, y: cardRect.minY + 7), color: accentColor)
-        drawCornerPixel(at: CGPoint(x: cardRect.minX + 7, y: cardRect.maxY - 11), color: accentColor)
-        drawCornerPixel(at: CGPoint(x: cardRect.maxX - 11, y: cardRect.maxY - 11), color: accentColor)
+        drawTechEdgeMarkers(in: cardRect)
+        drawCornerPixel(at: CGPoint(x: cardRect.minX + 10, y: cardRect.minY + 10), color: accentColor)
+        drawCornerPixel(at: CGPoint(x: cardRect.maxX - 15, y: cardRect.minY + 10), color: accentColor)
+        drawCornerPixel(at: CGPoint(x: cardRect.minX + 10, y: cardRect.maxY - 15), color: accentColor)
+        drawCornerPixel(at: CGPoint(x: cardRect.maxX - 15, y: cardRect.maxY - 15), color: accentColor)
+    }
+
+    private func drawTechEdgeMarkers(in rect: CGRect) {
+        let markerColor = accentColor.withAlphaComponent(0.95)
+        let subtleColor = CyberpunkPalette.neonYellow.withAlphaComponent(0.6)
+
+        markerColor.setFill()
+        NSBezierPath(rect: CGRect(x: rect.minX + 22, y: rect.minY + 6, width: 42, height: 3)).fill()
+        subtleColor.setFill()
+        NSBezierPath(rect: CGRect(x: rect.maxX - 78, y: rect.maxY - 8, width: 30, height: 2)).fill()
+        NSBezierPath(rect: CGRect(x: rect.maxX - 42, y: rect.maxY - 8, width: 10, height: 2)).fill()
     }
 
     private func drawCornerPixel(at origin: CGPoint, color: NSColor) {
@@ -1873,7 +1958,7 @@ private final class PixelDividerView: NSView {
         let path = NSBezierPath()
         path.move(to: CGPoint(x: bounds.minX, y: baseline))
         path.line(to: CGPoint(x: bounds.maxX, y: baseline))
-        NSColor.white.withAlphaComponent(0.08).setStroke()
+        CyberpunkPalette.neonMagenta.withAlphaComponent(0.22).setStroke()
         path.lineWidth = 1
         path.stroke()
 
@@ -1886,7 +1971,10 @@ private final class PixelDividerView: NSView {
             let wave = CGFloat(sin(Double(index) * 0.65 + Double(phase)))
             let alpha = 0.16 + max(0, wave) * 0.48
             let rect = CGRect(x: x, y: baseline - 2, width: segmentWidth, height: 4)
-            NSColor.systemTeal.withAlphaComponent(alpha).setFill()
+            let color = index.isMultiple(of: 2)
+                ? CyberpunkPalette.neonCyan.withAlphaComponent(alpha)
+                : CyberpunkPalette.neonYellow.withAlphaComponent(alpha * 0.9)
+            color.setFill()
             NSBezierPath(rect: rect).fill()
             x += segmentWidth + segmentGap
             index += 1
@@ -1997,7 +2085,7 @@ private final class ArcadePopupButton: NSPopUpButton {
         wantsLayer = true
         isBordered = false
         focusRingType = .none
-        contentTintColor = NSColor(calibratedRed: 0.8, green: 0.91, blue: 1.0, alpha: 0.96)
+        contentTintColor = CyberpunkPalette.textPrimary
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         font = NSFont.monospacedSystemFont(ofSize: 14, weight: .semibold)
@@ -2015,8 +2103,8 @@ private final class ArcadePopupButton: NSPopUpButton {
     private func updateTitleStyle() {
         let title = selectedItem?.title ?? ""
         let color = isEnabled
-            ? NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.96)
-            : NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.42)
+            ? CyberpunkPalette.textPrimary
+            : CyberpunkPalette.textPrimary.withAlphaComponent(0.42)
         attributedTitle = NSAttributedString(
             string: "    \(title)    ",
             attributes: [
@@ -2039,27 +2127,27 @@ private final class ArcadePopupButton: NSPopUpButton {
         let border: NSColor
 
         if !isEnabled {
-            background = NSColor(calibratedRed: 0.16, green: 0.16, blue: 0.16, alpha: 0.8)
-            border = NSColor(calibratedRed: 0.32, green: 0.32, blue: 0.32, alpha: 0.8)
+            background = CyberpunkPalette.panelBase.withAlphaComponent(0.72)
+            border = CyberpunkPalette.neonCyan.withAlphaComponent(0.18)
         } else if isHighlighted {
-            background = NSColor(calibratedRed: 0.09, green: 0.3, blue: 0.58, alpha: 0.96)
-            border = NSColor(calibratedRed: 0.4, green: 0.72, blue: 1.0, alpha: 0.95)
+            background = CyberpunkPalette.neonMagenta.withAlphaComponent(0.28)
+            border = CyberpunkPalette.neonYellow
         } else if isHovering {
-            background = NSColor(calibratedRed: 0.1, green: 0.24, blue: 0.42, alpha: 0.94)
-            border = NSColor(calibratedRed: 0.36, green: 0.64, blue: 0.94, alpha: 0.9)
+            background = CyberpunkPalette.neonCyan.withAlphaComponent(0.18)
+            border = CyberpunkPalette.neonCyan.withAlphaComponent(0.92)
         } else {
-            background = NSColor(calibratedRed: 0.09, green: 0.18, blue: 0.31, alpha: 0.9)
-            border = NSColor(calibratedRed: 0.3, green: 0.53, blue: 0.8, alpha: 0.84)
+            background = CyberpunkPalette.midnight.withAlphaComponent(0.92)
+            border = CyberpunkPalette.neonCyan.withAlphaComponent(0.78)
         }
 
         layer.backgroundColor = background.cgColor
         layer.borderColor = border.cgColor
         layer.borderWidth = ArcadeControlStyle.borderWidth
-        layer.cornerRadius = ArcadeControlStyle.cornerRadius
+        layer.cornerRadius = 0
         layer.masksToBounds = false
         layer.shadowColor = border.withAlphaComponent(0.75).cgColor
-        layer.shadowRadius = isHovering ? 5 : 3
-        layer.shadowOpacity = isEnabled ? 0.28 : 0
+        layer.shadowRadius = isHovering ? 8 : 5
+        layer.shadowOpacity = isEnabled ? 0.38 : 0
         layer.shadowOffset = .zero
 
         updateChevronTint()
@@ -2091,11 +2179,11 @@ private final class ArcadePopupButton: NSPopUpButton {
     private func updateChevronTint() {
         let tint: NSColor
         if !isEnabled {
-            tint = NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.36)
+            tint = CyberpunkPalette.textPrimary.withAlphaComponent(0.36)
         } else if isHighlighted {
-            tint = NSColor(calibratedRed: 0.92, green: 0.97, blue: 1.0, alpha: 0.92)
+            tint = CyberpunkPalette.neonYellow
         } else {
-            tint = NSColor(calibratedRed: 0.82, green: 0.92, blue: 1.0, alpha: 0.74)
+            tint = CyberpunkPalette.textPrimary.withAlphaComponent(0.82)
         }
 
         chevronImageView?.contentTintColor = tint
@@ -2205,24 +2293,24 @@ private final class ArcadeVolumeControlView: NSView {
         let border: NSColor
 
         if isHovering {
-            background = NSColor(calibratedRed: 0.1, green: 0.24, blue: 0.42, alpha: 0.94)
-            border = NSColor(calibratedRed: 0.36, green: 0.64, blue: 0.94, alpha: 0.9)
+            background = CyberpunkPalette.neonCyan.withAlphaComponent(0.16)
+            border = CyberpunkPalette.neonCyan.withAlphaComponent(0.92)
         } else {
-            background = NSColor(calibratedRed: 0.09, green: 0.18, blue: 0.31, alpha: 0.9)
-            border = NSColor(calibratedRed: 0.3, green: 0.53, blue: 0.8, alpha: 0.84)
+            background = CyberpunkPalette.midnight.withAlphaComponent(0.92)
+            border = CyberpunkPalette.neonCyan.withAlphaComponent(0.76)
         }
 
         layer.backgroundColor = background.cgColor
         layer.borderColor = border.cgColor
         layer.borderWidth = ArcadeControlStyle.borderWidth
-        layer.cornerRadius = ArcadeControlStyle.cornerRadius
+        layer.cornerRadius = 0
         layer.masksToBounds = false
         layer.shadowColor = border.withAlphaComponent(0.72).cgColor
-        layer.shadowRadius = isHovering ? 5 : 3
-        layer.shadowOpacity = 0.26
+        layer.shadowRadius = isHovering ? 8 : 5
+        layer.shadowOpacity = 0.34
         layer.shadowOffset = .zero
 
-        valueLabel.textColor = themeColor.withAlphaComponent(0.94)
+        valueLabel.textColor = CyberpunkPalette.textPrimary
     }
 }
 
@@ -2297,7 +2385,7 @@ private final class ArcadeActionButton: NSButton {
         focusRingType = .none
         imagePosition = .noImage
         alignment = .center
-        contentTintColor = NSColor(calibratedRed: 0.84, green: 1.0, blue: 0.86, alpha: 0.96)
+        contentTintColor = CyberpunkPalette.textPrimary
         setContentHuggingPriority(.defaultLow, for: .horizontal)
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         setButtonType(.momentaryPushIn)
@@ -2346,8 +2434,8 @@ private final class ArcadeActionButton: NSButton {
 
     private func updateTitleStyle() {
         let color = isEnabled
-            ? NSColor(calibratedRed: 0.84, green: 1.0, blue: 0.86, alpha: 0.96)
-            : NSColor(calibratedRed: 0.84, green: 1.0, blue: 0.86, alpha: 0.45)
+            ? CyberpunkPalette.textPrimary
+            : CyberpunkPalette.textPrimary.withAlphaComponent(0.45)
         textLabel.stringValue = displayTitle
         textLabel.textColor = color
         textLabel.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .semibold)
@@ -2365,27 +2453,27 @@ private final class ArcadeActionButton: NSButton {
         let border: NSColor
 
         if !isEnabled {
-            background = NSColor(calibratedRed: 0.18, green: 0.18, blue: 0.18, alpha: 0.85)
-            border = NSColor(calibratedRed: 0.3, green: 0.3, blue: 0.3, alpha: 0.8)
+            background = CyberpunkPalette.panelBase.withAlphaComponent(0.8)
+            border = CyberpunkPalette.neonYellow.withAlphaComponent(0.18)
         } else if isHighlighted {
-            background = NSColor(calibratedRed: 0.09, green: 0.47, blue: 0.2, alpha: 0.98)
-            border = NSColor(calibratedRed: 0.5, green: 0.92, blue: 0.54, alpha: 0.95)
+            background = CyberpunkPalette.neonYellow.withAlphaComponent(0.26)
+            border = CyberpunkPalette.neonYellow
         } else if isHovering {
-            background = NSColor(calibratedRed: 0.12, green: 0.39, blue: 0.18, alpha: 0.95)
-            border = NSColor(calibratedRed: 0.46, green: 0.86, blue: 0.5, alpha: 0.9)
+            background = CyberpunkPalette.neonGreen.withAlphaComponent(0.18)
+            border = CyberpunkPalette.neonGreen.withAlphaComponent(0.92)
         } else {
-            background = NSColor(calibratedRed: 0.1, green: 0.28, blue: 0.15, alpha: 0.92)
-            border = NSColor(calibratedRed: 0.34, green: 0.72, blue: 0.4, alpha: 0.82)
+            background = CyberpunkPalette.panelOverlay.withAlphaComponent(0.92)
+            border = CyberpunkPalette.neonGreen.withAlphaComponent(0.82)
         }
 
         layer.backgroundColor = background.cgColor
         layer.borderColor = border.cgColor
         layer.borderWidth = ArcadeControlStyle.borderWidth
-        layer.cornerRadius = ArcadeControlStyle.cornerRadius
+        layer.cornerRadius = 0
         layer.masksToBounds = false
         layer.shadowColor = border.withAlphaComponent(0.75).cgColor
-        layer.shadowRadius = isHovering ? 5 : 3
-        layer.shadowOpacity = isEnabled ? 0.28 : 0
+        layer.shadowRadius = isHovering ? 8 : 5
+        layer.shadowOpacity = isEnabled ? 0.38 : 0
         layer.shadowOffset = .zero
     }
 }
@@ -2429,25 +2517,26 @@ private final class PixelBannerView: NSView {
         super.draw(dirtyRect)
 
         let outerRect = bounds.insetBy(dx: 0.5, dy: 0.5)
-        let outerPath = NSBezierPath(roundedRect: outerRect, xRadius: 10, yRadius: 10)
-        NSColor(calibratedRed: 0.08, green: 0.1, blue: 0.14, alpha: 1).setFill()
+        let outerPath = makeCyberpunkPanelPath(in: outerRect, cut: 20, lowerInset: 88, lowerStep: 14)
+        NSColor(calibratedRed: 0.03, green: 0.05, blue: 0.08, alpha: 1).setFill()
         outerPath.fill()
 
-        NSColor(calibratedRed: 0.35, green: 0.45, blue: 0.62, alpha: 0.52).setStroke()
-        outerPath.lineWidth = 1
+        CyberpunkPalette.neonCyan.withAlphaComponent(0.72).setStroke()
+        outerPath.lineWidth = 1.2
         outerPath.stroke()
 
         let boardRect = outerRect.insetBy(dx: 12, dy: 12)
-        NSColor.black.withAlphaComponent(0.38).setFill()
-        NSBezierPath(roundedRect: boardRect, xRadius: 6, yRadius: 6).fill()
+        CyberpunkPalette.panelBase.withAlphaComponent(0.86).setFill()
+        makeCyberpunkPanelPath(in: boardRect, cut: 12, lowerInset: 70, lowerStep: 9).fill()
 
         drawGrid(in: boardRect)
         drawTetrominoes(in: boardRect)
+        drawSignalLabel(in: outerRect)
     }
 
     private func drawGrid(in rect: CGRect) {
         let pulse = 0.06 + CGFloat((sin(Double(animationTick) * 0.08) + 1) * 0.025)
-        let lineColor = NSColor.white.withAlphaComponent(pulse)
+        let lineColor = CyberpunkPalette.neonCyan.withAlphaComponent(pulse * 1.3)
         let step: CGFloat = 9
         let path = NSBezierPath()
 
@@ -2546,6 +2635,17 @@ private final class PixelBannerView: NSView {
             NSColor.white.withAlphaComponent(0.25 + pulse * 0.2).setFill()
             NSBezierPath(rect: shineRect).fill()
         }
+    }
+
+    private func drawSignalLabel(in rect: CGRect) {
+        let text = "NEON GRID // READY"
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy),
+            .foregroundColor: CyberpunkPalette.neonYellow.withAlphaComponent(0.96),
+            .kern: 0.8
+        ]
+        let textRect = CGRect(x: rect.minX + 18, y: rect.maxY - 20, width: 180, height: 12)
+        (text as NSString).draw(in: textRect, withAttributes: attributes)
     }
 }
 
