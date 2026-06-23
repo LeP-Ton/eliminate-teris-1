@@ -1048,6 +1048,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         let snapshot = controller.snapshot()
         updateStartControl(for: snapshot)
         updateRecordPanel(with: snapshot)
+
+        // Ensure controls grid column alignment after localization changes
+        controlsGrid.column(at: 0).xPlacement = .trailing
+        controlsGrid.column(at: 1).xPlacement = .leading
+        view.layoutSubtreeIfNeeded()
     }
 
     private func configureLanguagePopup() {
