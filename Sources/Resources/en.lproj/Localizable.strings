@@ -33,6 +33,12 @@
 "hud.score_attack" = "Score: %d   Time Left: %@";
 "hud.speed_run" = "Score: %d/%d   Time: %@";
 
+"hud.score_attack_line1" = "Score: %d";
+"hud.score_attack_line2" = "Time Left: %@";
+
+"hud.speed_run_line1" = "Score: %d/%d";
+"hud.speed_run_line2" = "Time: %@";
+
 "result.waiting_start" = "Ready. Click Start to begin.";
 "result.score_attack_finished" = "Time's up! Final score: %d";
 "result.speed_run_finished" = "Target reached in %@";
@@ -73,3 +79,8 @@
 "rules.short.settlement.free" = "No win/lose settlement and no ranking";
 "rules.short.settlement.score_attack" = "Settles when countdown ends, ranked by final score";
 "rules.short.settlement.speed_run" = "Settles immediately on target reach, ranked by elapsed time";
+"panel.achievements" = "Achievements";
+"achievement.unlocked" = "Unlocked: Achievement %d";
+"achievement.title" = "Achievement %d";
+"achievement.desc" = "Description for achievement %d. Requirement: example requirement.";
+"action.ok" = "OK";

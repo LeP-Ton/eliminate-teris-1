@@ -31,6 +31,12 @@
 "start.action_restart" = "重新开始";
 
 "hud.score_attack" = "得分：%d   剩余时间：%@";
+
+"hud.score_attack_line1" = "得分：%d";
+"hud.score_attack_line2" = "剩余时间：%@";
+
+"hud.speed_run_line1" = "得分：%d/%d";
+"hud.speed_run_line2" = "已用时间：%@";
 "hud.speed_run" = "得分：%d/%d   已用时间：%@";
 
 "result.waiting_start" = "准备就绪，点击开始后计时。";
@@ -73,3 +79,8 @@
 "rules.short.settlement.free" = "不判定胜负，不参与排名结算";
 "rules.short.settlement.score_attack" = "倒计时归零后结算，以最终得分排名";
 "rules.short.settlement.speed_run" = "达到目标分数后立即结算，以用时排名";
+"panel.achievements" = "成就";
+"achievement.unlocked" = "已解锁：成就 %d";
+"achievement.title" = "成就 %d";
+"achievement.desc" = "这是第 %d 项成就的说明。完成条件：示例条件。";
+"action.ok" = "确定";

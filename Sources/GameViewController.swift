@@ -40,6 +40,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private let rulesBodyThemeColor = NSColor(calibratedRed: 1.0, green: 0.82, blue: 0.82, alpha: 0.9)
 
     private let columns = 16
+    private let contentFixedWidth: CGFloat = 672
     private let scoreAttackMinutes = [1, 2, 3]
     private let speedRunTargets = [300, 600, 900]
     private let recordStore = ModeRecordStore.shared
@@ -73,6 +74,10 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private var hasSavedFinishedRecord = false
     private var latestRecordIDByMode: [String: String] = [:]
     private var lastRecordsLayoutWidth: CGFloat = 0
+    private var achievementButtons: [Int: NSButton] = [:]
+    private var achievementsContentWidthConstraint: NSLayoutConstraint?
+    private var achievementsContainerWrapper: NSView?
+    private var achievementsUnlockObserver: NSObjectProtocol?
     private var settingsExpandedWidthConstraint: NSLayoutConstraint?
     private var settingsVersusRightColumnConstraint: NSLayoutConstraint?
     private var rightColumnMinWidthConstraint: NSLayoutConstraint?
@@ -246,10 +251,14 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var competitiveInfoLabel: NSTextField = {
-        let label = NSTextField(labelWithString: "")
+        let label = NSTextField(wrappingLabelWithString: "")
         label.alignment = .left
         label.textColor = NSColor.systemGreen
         label.font = NSFont.monospacedSystemFont(ofSize: 18, weight: .heavy)
+        label.maximumNumberOfLines = 2
+        if let cell = label.cell as? NSTextFieldCell {
+            cell.lineBreakMode = .byWordWrapping
+        }
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -265,11 +274,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var rulesTitleLabel: NSTextField = {
-        return makeSectionTitleLabel(color: rulesThemeColor)
+        return makeSectionTitleLabel(color: NSColor.white)
     }()
 
     private lazy var rulesTitleIconView: NSImageView = {
-        return makeSectionIconView(symbolName: "doc.text", color: rulesThemeColor)
+        return makeSectionIconView(symbolName: "doc.text", color: NSColor.white)
     }()
 
     private lazy var rulesHeaderStack: NSStackView = {
@@ -279,7 +288,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private lazy var rulesBodyLabel: NSTextField = {
         let label = NSTextField(wrappingLabelWithString: "")
         label.alignment = .left
-        label.textColor = rulesBodyThemeColor
+        label.textColor = NSColor.white
         label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
         label.maximumNumberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -401,9 +410,61 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return stack
     }()
 
-    private lazy var rulesCardView: PixelFrameCardView = {
-        // 罗德岛风格的偏深红强调色。
+    // 玩法说明改为无强调边框卡片，使用默认白色文字
+    private lazy var rulesCardView: NSView = {
+        let view = NSView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor(calibratedRed: 0.1, green: 0.12, blue: 0.17, alpha: 0.93).cgColor
+        view.layer?.cornerRadius = 10
+        return view
+    }()
+
+    // 成就模块：使用原本玩法说明的红色边框卡片样式
+    private lazy var achievementsTitleLabel: NSTextField = {
+        return makeSectionTitleLabel(color: rulesThemeColor)
+    }()
+
+    private lazy var achievementsTitleIconView: NSImageView = {
+        return makeSectionIconView(symbolName: "rosette", color: rulesThemeColor)
+    }()
+
+    private lazy var achievementsHeaderStack: NSStackView = {
+        return makeSectionHeaderStack(iconView: achievementsTitleIconView, titleLabel: achievementsTitleLabel)
+    }()
+
+    private lazy var achievementsContainerStack: NSStackView = {
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 10
+        stack.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
+    }()
+
+    private lazy var achievementsScrollView: NSScrollView = {
+        let scroll = NSScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.drawsBackground = false
+        scroll.hasHorizontalScroller = true
+        scroll.hasVerticalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.borderType = .noBorder
+        // documentView will be set when building content to allow explicit content width
+        return scroll
+    }()
+
+    private lazy var achievementsCardView: PixelFrameCardView = {
         return PixelFrameCardView(accentColor: NSColor(calibratedRed: 0.93, green: 0.28, blue: 0.3, alpha: 1.0))
+    }()
+
+    private lazy var achievementsCardStack: NSStackView = {
+        let stack = NSStackView(views: [achievementsHeaderStack, achievementsScrollView])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
     }()
 
     private lazy var rulesCardStack: NSStackView = {
@@ -422,7 +483,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }()
 
     private lazy var contentStack: NSStackView = {
-        let stack = NSStackView(views: [headerStack, dividerView, pixelBannerView, cardsStack, rulesCardView])
+        // Put achievements above rules by default
+        let stack = NSStackView(views: [headerStack, dividerView, pixelBannerView, cardsStack, achievementsCardView, rulesCardView])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 14
@@ -450,6 +512,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         statusCardView.addSubview(statusCardStack)
         recordsCardView.addSubview(recordsCardStack)
         rulesCardView.addSubview(rulesCardStack)
+        achievementsCardView.addSubview(achievementsCardStack)
 
         let settingsVersusRightColumnConstraint = settingsCardView.widthAnchor.constraint(
             greaterThanOrEqualTo: rightColumnStack.widthAnchor,
@@ -465,12 +528,15 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
         NSLayoutConstraint.activate([
             contentStack.topAnchor.constraint(equalTo: view.topAnchor, constant: 22),
-            contentStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            contentStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            // 固定主内容宽度并整体水平居中，竖直方向顶部对齐
+            contentStack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            contentStack.widthAnchor.constraint(equalToConstant: contentFixedWidth),
             contentStack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -20),
 
             headerIconView.widthAnchor.constraint(equalToConstant: 34),
             headerIconView.heightAnchor.constraint(equalToConstant: 34),
+            // 确保标题宽度与主内容宽度一致，从而标题和卡片左对齐
+            headerStack.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
 
             dividerView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             dividerView.heightAnchor.constraint(equalToConstant: 10),
@@ -509,11 +575,19 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             recordsScrollView.widthAnchor.constraint(equalTo: recordsCardStack.widthAnchor),
             recordsScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 72),
             rulesCardView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
+            achievementsCardView.widthAnchor.constraint(equalTo: contentStack.widthAnchor),
             rulesCardStack.topAnchor.constraint(equalTo: rulesCardView.topAnchor, constant: 14),
             rulesCardStack.leadingAnchor.constraint(equalTo: rulesCardView.leadingAnchor, constant: 14),
             rulesCardStack.trailingAnchor.constraint(equalTo: rulesCardView.trailingAnchor, constant: -14),
             rulesCardStack.bottomAnchor.constraint(equalTo: rulesCardView.bottomAnchor, constant: -14),
             rulesBodyLabel.widthAnchor.constraint(equalTo: rulesCardStack.widthAnchor),
+            achievementsCardStack.topAnchor.constraint(equalTo: achievementsCardView.topAnchor, constant: 14),
+            achievementsCardStack.leadingAnchor.constraint(equalTo: achievementsCardView.leadingAnchor, constant: 14),
+            achievementsCardStack.trailingAnchor.constraint(equalTo: achievementsCardView.trailingAnchor, constant: -14),
+            achievementsCardStack.bottomAnchor.constraint(equalTo: achievementsCardView.bottomAnchor, constant: -14),
+            achievementsScrollView.widthAnchor.constraint(equalTo: achievementsCardStack.widthAnchor),
+            // 固定成就卡片高度与 PixelBannerView 相同（与标题下方的四块方块区域等高）
+            achievementsCardView.heightAnchor.constraint(equalTo: pixelBannerView.heightAnchor),
 
             languagePopup.widthAnchor.constraint(equalToConstant: 240),
             languagePopup.heightAnchor.constraint(equalToConstant: 38),
@@ -546,11 +620,122 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         syncVolumeControlFromAudioSystem()
         modePopup.selectItem(at: ModeSelection.free.rawValue)
         applyModeSelection(resetGame: true)
+        configureAchievements()
+    }
+
+    // MARK: - Achievements
+
+    private func configureAchievements() {
+        // 构建一个 wrapper 作为 scroll 的 documentView，以便设定明确的内容宽度
+        // 清理旧内容
+        achievementButtons.removeAll()
+        achievementsContainerStack.subviews.forEach { $0.removeFromSuperview() }
+        achievementsContentWidthConstraint?.isActive = false
+        achievementsContentWidthConstraint = nil
+        achievementsContainerWrapper?.removeFromSuperview()
+        achievementsContainerWrapper = nil
+
+        let wrapper = NSView()
+        wrapper.translatesAutoresizingMaskIntoConstraints = false
+        wrapper.addSubview(achievementsContainerStack)
+        // 让容器在 wrapper 中垂直居中显示（tag 风格）
+        NSLayoutConstraint.activate([
+            achievementsContainerStack.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
+            achievementsContainerStack.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+            achievementsContainerStack.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor)
+        ])
+
+        achievementsScrollView.documentView = wrapper
+        achievementsContainerWrapper = wrapper
+
+        // 生成约 20 个成就按钮（tag 风格，高度较小），并计算内容宽度以确保横向滚动
+        let count = 20
+        let buttonWidth: CGFloat = 140
+        let buttonHeight: CGFloat = 28
+        let spacing = achievementsContainerStack.spacing
+
+        for index in 1...count {
+            let button = NSButton()
+            button.bezelStyle = .regularSquare
+            button.isBordered = false
+            button.wantsLayer = true
+            button.layer?.cornerRadius = 6
+            button.translatesAutoresizingMaskIntoConstraints = false
+
+            let title = localizedFormat("achievement.title", index)
+            let label = NSTextField(labelWithString: title)
+            label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
+            label.textColor = NSColor.white
+            label.alignment = .center
+            label.translatesAutoresizingMaskIntoConstraints = false
+
+            button.addSubview(label)
+            NSLayoutConstraint.activate([
+                label.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+                label.centerYAnchor.constraint(equalTo: button.centerYAnchor)
+            ])
+
+            button.layer?.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.2, alpha: 1).cgColor
+            button.layer?.borderColor = NSColor(calibratedRed: 0.93, green: 0.28, blue: 0.3, alpha: 1.0).cgColor
+            button.layer?.borderWidth = 1
+
+            NSLayoutConstraint.activate([
+                button.widthAnchor.constraint(equalToConstant: buttonWidth),
+                button.heightAnchor.constraint(equalToConstant: buttonHeight)
+            ])
+
+            button.tag = index
+            button.target = self
+            button.action = #selector(achievementTapped(_:))
+
+            achievementsContainerStack.addArrangedSubview(button)
+            achievementButtons[index] = button
+        }
+
+        // 计算内容宽度并锁定 wrapper 宽度，确保横向滚动行为正常
+        let contentWidth = CGFloat(count) * buttonWidth + CGFloat(max(0, count - 1)) * spacing + achievementsContainerStack.edgeInsets.left + achievementsContainerStack.edgeInsets.right
+        achievementsContentWidthConstraint = wrapper.widthAnchor.constraint(equalToConstant: contentWidth)
+        achievementsContentWidthConstraint?.isActive = true
+        // wrapper 的高度与按钮高度一致（含内边距），并且容器已经垂直居中，避免溢出卡片
+        wrapper.heightAnchor.constraint(equalToConstant: buttonHeight + achievementsContainerStack.edgeInsets.top + achievementsContainerStack.edgeInsets.bottom).isActive = true
+
+        // 根据持久化状态刷新每个按钮样式
+        for index in 1...count {
+            updateAchievementButtonAppearance(index)
+        }
+
+        // 监听解锁通知，异步更新 UI
+        if achievementsUnlockObserver == nil {
+            achievementsUnlockObserver = NotificationCenter.default.addObserver(forName: AchievementsManager.didUnlockNotification, object: nil, queue: .main) { [weak self] note in
+                guard let id = note.userInfo?["id"] as? Int else { return }
+                self?.onAchievementUnlocked(id)
+            }
+        }
+    }
+
+    @objc private func achievementTapped(_ sender: NSButton) {
+        let idx = sender.tag
+        let title = localizedFormat("achievement.title", idx)
+        let desc = localizedFormat("achievement.desc", idx)
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = title
+        alert.informativeText = desc
+        alert.addButton(withTitle: localized("action.ok"))
+        if let window = view.window {
+            alert.beginSheetModal(for: window, completionHandler: nil)
+        } else {
+            alert.runModal()
+        }
     }
 
     deinit {
         if let observerToken {
             controller.removeObserver(observerToken)
+        }
+        if let observer = achievementsUnlockObserver {
+            NotificationCenter.default.removeObserver(observer)
+            achievementsUnlockObserver = nil
         }
         removeTouchBarLifecycleObservers()
         invalidateSystemModalTouchBarPresentation(reason: "deinit")
@@ -1021,6 +1206,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         statusTitleLabel.stringValue = localized("panel.status")
         recordsTitleLabel.stringValue = localized("panel.records")
         rulesTitleLabel.stringValue = localized("panel.rules")
+        achievementsTitleLabel.stringValue = localized("panel.achievements")
         languageTitleLabel.stringValue = localized("language.label")
         modeTitleLabel.stringValue = localized("mode.label")
         volumeTitleLabel.stringValue = localized("volume.label")
@@ -1183,7 +1369,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         case .scoreAttack:
             statusCardView.isHidden = false
             let remaining = formatClock(snapshot.remainingTime ?? 0)
-            competitiveInfoLabel.stringValue = localizedFormat("hud.score_attack", snapshot.score, remaining)
+            let scoreLine = localizedFormat("hud.score_attack_line1", snapshot.score)
+            let timeLine = localizedFormat("hud.score_attack_line2", remaining)
+            competitiveInfoLabel.stringValue = "\(scoreLine)\n\(timeLine)"
 
             if snapshot.isFinished {
                 resultLabel.stringValue = localizedFormat("result.score_attack_finished", snapshot.score)
@@ -1200,7 +1388,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             statusCardView.isHidden = false
             let targetScore = snapshot.targetScore ?? 0
             let elapsed = formatClock(snapshot.elapsedTime)
-            competitiveInfoLabel.stringValue = localizedFormat("hud.speed_run", snapshot.score, targetScore, elapsed)
+            let scoreLine = localizedFormat("hud.speed_run_line1", snapshot.score, targetScore)
+            let timeLine = localizedFormat("hud.speed_run_line2", elapsed)
+            competitiveInfoLabel.stringValue = "\(scoreLine)\n\(timeLine)"
 
             if snapshot.isFinished {
                 resultLabel.stringValue = localizedFormat("result.speed_run_finished", elapsed)
@@ -1213,6 +1403,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
                 resultLabel.isHidden = true
             }
         }
+        // 检查并触发成就解锁条件（轻量示例）
+        checkAchievementTriggers(with: snapshot)
     }
 
     private func updateComboState(with snapshot: GameSnapshot) {
@@ -1255,14 +1447,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             hideStatusBadge()
 
         case .scoreAttack, .speedRun:
-            if snapshot.isFinished {
-                setStatusBadge(text: localized("status.finish"), tone: .finish)
-            } else if !snapshot.isRunning {
+            // 在计时/得分模式下不显示“进行中”或“已结束”徽章，只保留连击（combo）提示
+            if !snapshot.isRunning || snapshot.isFinished {
                 hideStatusBadge()
             } else if comboStreak >= 2 {
                 setStatusBadge(text: localizedFormat("status.combo", comboStreak), tone: .combo)
             } else {
-                setStatusBadge(text: localized("status.running"), tone: .running)
+                hideStatusBadge()
             }
         }
     }
@@ -1649,6 +1840,57 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
         let format = localized(key)
         return String(format: format, locale: localizer.locale, arguments: arguments)
+    }
+
+    // MARK: - Achievement helpers
+
+    private func updateAchievementButtonAppearance(_ id: Int) {
+        let unlocked = AchievementsManager.shared.isUnlocked(id: id)
+        guard let button = achievementButtons[id] else { return }
+        if unlocked {
+            button.layer?.backgroundColor = NSColor(calibratedRed: 0.14, green: 0.44, blue: 0.12, alpha: 1).cgColor
+            button.layer?.borderColor = NSColor(calibratedRed: 0.28, green: 0.84, blue: 0.36, alpha: 1).cgColor
+        } else {
+            button.layer?.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.2, alpha: 1).cgColor
+            button.layer?.borderColor = NSColor(calibratedRed: 0.93, green: 0.28, blue: 0.3, alpha: 1.0).cgColor
+        }
+    }
+
+    private func onAchievementUnlocked(_ id: Int) {
+        updateAchievementButtonAppearance(id)
+        if let btn = achievementButtons[id] {
+            let pop = NSPopover()
+            let vc = NSViewController()
+            let label = NSTextField(labelWithString: localizedFormat("achievement.unlocked", id))
+            label.textColor = NSColor.white
+            label.backgroundColor = NSColor.clear
+            label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
+            vc.view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 40))
+            vc.view.addSubview(label)
+            label.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                label.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
+                label.centerYAnchor.constraint(equalTo: vc.view.centerYAnchor)
+            ])
+            pop.contentViewController = vc
+            pop.behavior = .transient
+            pop.show(relativeTo: btn.bounds, of: btn, preferredEdge: .maxY)
+        }
+    }
+
+    private func checkAchievementTriggers(with snapshot: GameSnapshot) {
+        // 简单示例触发点：分数、连击和完成局
+        if snapshot.score >= 100 {
+            AchievementsManager.shared.unlock(id: 1)
+        }
+
+        if comboStreak >= 3 {
+            AchievementsManager.shared.unlock(id: 2)
+        }
+
+        if snapshot.isFinished {
+            AchievementsManager.shared.unlock(id: 3)
+        }
     }
 
     private func makeControlTitleLabel(color: NSColor) -> NSTextField {
