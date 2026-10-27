@@ -1823,7 +1823,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 }
 
-private final class ArcadeStageView: NSView {
+/// 主窗口与成就面板共用像素背景，统一扫描线与光晕效果。
+final class ArcadeStageView: NSView {
     private var animationTick: CGFloat = 0
     private var animationTimer: Timer?
 
@@ -1917,7 +1918,8 @@ private final class ArcadeStageView: NSView {
     }
 }
 
-private final class PixelFrameCardView: NSView {
+/// 共用主题卡片，边框、内框和四角像素在各窗口保持一致。
+final class PixelFrameCardView: NSView {
     private let accentColor: NSColor
 
     init(accentColor: NSColor) {

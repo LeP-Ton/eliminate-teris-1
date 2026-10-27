@@ -21,16 +21,25 @@ final class AchievementPresentationTests: AchievementTestCase {
         let filter = try XCTUnwrap(descendants(content).compactMap { $0 as? NSSegmentedControl }.first)
         func progressBars() -> Int { descendants(content).filter { $0 is NSProgressIndicator }.count }
         XCTAssertEqual(progressBars(), 20)
-        filter.selectedSegment = 2
-        XCTAssertTrue(filter.sendAction(filter.action, to: filter.target))
+        content.layoutSubtreeIfNeeded()
+        // 使用真实鼠标事件验证主题控件的点击区域，而非直接修改选择状态。
+        func clickFilter(at fraction: CGFloat) throws {
+            let point = filter.convert(NSPoint(x: filter.bounds.width * fraction, y: filter.bounds.midY), to: nil)
+            let event = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0,
+                                                       windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+            filter.mouseDown(with: event)
+        }
+        try clickFilter(at: 5.0 / 6)
+        XCTAssertEqual(filter.selectedSegment, 2)
         XCTAssertEqual(progressBars(), 1)
-        filter.selectedSegment = 1
-        filter.sendAction(filter.action, to: filter.target)
+        try clickFilter(at: 0.5)
+        XCTAssertEqual(filter.selectedSegment, 1)
         XCTAssertEqual(progressBars(), 19)
     }
 
     func testLibraryRowsHaveUsableLayoutForEveryLanguage() throws {
         _ = NSApplication.shared
+        swap(score: 100)
         let original = Localizer.shared.language
         defer { Localizer.shared.setLanguage(original) }
         let panel = AchievementsWindowController(manager: manager)
@@ -51,6 +60,15 @@ final class AchievementPresentationTests: AchievementTestCase {
                 for meter in descendants(document).compactMap({ $0 as? NSProgressIndicator }) {
                     XCTAssertGreaterThan(meter.frame.width, 300, language.rawValue)
                     XCTAssertGreaterThan(meter.frame.height, 0)
+                }
+                // 保留真实视图渲染用于视觉验收，产物仅写入临时目录。
+                if language == .chineseSimplified, width == 600 {
+                    let bitmap = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+                    content.cacheDisplay(in: content.bounds, to: bitmap)
+                    let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                    let preview = FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-achievement-panel-preview.png")
+                    try png.write(to: preview)
+                    print("成就面板视觉预览：\(preview.path)")
                 }
             }
         }

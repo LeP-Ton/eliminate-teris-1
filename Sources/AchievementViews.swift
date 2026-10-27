@@ -176,6 +176,112 @@ final class AchievementBadgeStripView: NSScrollView {
     @objc private func badgeTapped(_ sender: NSButton) { onSelect?(sender.tag) }
 }
 
+/// 成就沿用主界面的红色卡片主题，已解锁项目使用状态栏同款浅绿色。
+private enum AchievementPanelStyle {
+    static let accent = NSColor(calibratedRed: 1, green: 0.53, blue: 0.5, alpha: 0.96)
+    static let success = NSColor(calibratedRed: 0.74, green: 0.98, blue: 0.78, alpha: 0.96)
+    static let body = NSColor(calibratedRed: 1, green: 0.82, blue: 0.82, alpha: 0.9)
+    static let muted = NSColor(calibratedRed: 0.78, green: 0.71, blue: 0.75, alpha: 1)
+    static let controlFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
+
+    static func drawControl(_ rect: NSRect, title: String, selected: Bool) {
+        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
+        NSColor(calibratedRed: selected ? 0.27 : 0.12, green: 0.14, blue: 0.2, alpha: 1).setFill()
+        path.fill()
+        accent.withAlphaComponent(selected ? 0.95 : 0.4).setStroke()
+        path.lineWidth = 1
+        path.stroke()
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: controlFont,
+            .foregroundColor: selected ? accent : body
+        ]
+        let size = (title as NSString).size(withAttributes: attributes)
+        (title as NSString).draw(at: NSPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2),
+                                 withAttributes: attributes)
+    }
+}
+
+/// 保留原生分段控件的选择状态和辅助功能，以主题绘制代替系统浅色胶囊。
+private final class AchievementFilterControl: NSSegmentedControl {
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: (0..<segmentCount).reduce(0) { $0 + segmentWidth($1) } + CGFloat(max(0, segmentCount - 1)) * 8,
+               height: 32)
+    }
+
+    func refreshMetrics() {
+        for index in 0..<segmentCount { setWidth(segmentWidth(index), forSegment: index) }
+        invalidateIntrinsicContentSize()
+        needsDisplay = true
+    }
+
+    private func segmentWidth(_ index: Int) -> CGFloat {
+        max(70, ceil(((label(forSegment: index) ?? "") as NSString).size(withAttributes: [.font: AchievementPanelStyle.controlFont]).width) + 24)
+    }
+
+    private func segmentRect(_ index: Int) -> NSRect {
+        let x = (0..<index).reduce(CGFloat(0)) { $0 + segmentWidth($1) + 8 }
+        return NSRect(x: x, y: 0, width: segmentWidth(index), height: bounds.height)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        for index in 0..<segmentCount {
+            AchievementPanelStyle.drawControl(segmentRect(index), title: label(forSegment: index) ?? "", selected: selectedSegment == index)
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        guard isEnabled, let index = (0..<segmentCount).first(where: { segmentRect($0).contains(point) }) else { return }
+        selectedSegment = index
+        needsDisplay = true
+        sendAction(action, to: target)
+    }
+}
+
+private final class AchievementPanelActionButton: NSButton {
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: max(88, ceil((title as NSString).size(withAttributes: [.font: AchievementPanelStyle.controlFont]).width) + 24), height: 32)
+    }
+
+    override var isHighlighted: Bool { didSet { needsDisplay = true } }
+
+    override func draw(_ dirtyRect: NSRect) {
+        AchievementPanelStyle.drawControl(bounds, title: title, selected: isHighlighted)
+    }
+}
+
+/// 像素进度条沿用原生进度接口，显示颜色与所在成就卡片一致。
+private final class AchievementProgressIndicator: NSProgressIndicator {
+    var accentColor: NSColor = AchievementPanelStyle.accent
+
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 10) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let track = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 2, yRadius: 2)
+        NSColor(calibratedRed: 0.05, green: 0.07, blue: 0.11, alpha: 1).setFill()
+        track.fill()
+        accentColor.withAlphaComponent(0.3).setStroke()
+        track.lineWidth = 1
+        track.stroke()
+        let inner = bounds.insetBy(dx: 3, dy: 3)
+        guard inner.width > 0, inner.height > 0 else { return }
+        let fraction = min(1, max(0, (doubleValue - minValue) / max(1, maxValue - minValue)))
+        let filledWidth = inner.width * fraction
+        var x = inner.minX
+        while x < inner.maxX {
+            let width = min(6, inner.maxX - x)
+            accentColor.withAlphaComponent(0.1).setFill()
+            NSBezierPath(rect: NSRect(x: x, y: inner.minY, width: width, height: inner.height)).fill()
+            let activeWidth = min(width, max(0, inner.minX + filledWidth - x))
+            if activeWidth > 0 {
+                accentColor.setFill()
+                NSBezierPath(rect: NSRect(x: x, y: inner.minY, width: activeWidth, height: inner.height)).fill()
+            }
+            x += 9
+        }
+    }
+}
+
 /// 面板不争夺主窗口焦点，点击筛选时仍保留 Touch Bar 的游戏棋盘。
 private final class AchievementPanel: NSPanel {
     override var canBecomeKey: Bool { false }
@@ -188,9 +294,9 @@ private final class AchievementDocumentView: NSView {
 
 final class AchievementsWindowController: NSWindowController {
     private let manager: AchievementsManager
-    private let filter = NSSegmentedControl()
+    private let filter = AchievementFilterControl()
     private let heading = NSTextField(labelWithString: "")
-    private let backButton = NSButton()
+    private let backButton = AchievementPanelActionButton()
     private let list = NSStackView()
     private let scroll = NSScrollView()
     private var detailID: Int?
@@ -203,6 +309,10 @@ final class AchievementsWindowController: NSWindowController {
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = true
         panel.minSize = NSSize(width: 480, height: 360)
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.09, alpha: 1)
+        panel.titlebarAppearsTransparent = true
+        panel.contentView = ArcadeStageView(frame: NSRect(x: 0, y: 0, width: 600, height: 580))
         super.init(window: panel)
         buildContent()
     }
@@ -245,11 +355,13 @@ final class AchievementsWindowController: NSWindowController {
         window?.title = AchievementText.string("panel.achievements")
         heading.stringValue = AchievementText.format("achievement.summary", manager.unlockedIDs().count, AchievementDefinition.all.count)
         backButton.title = AchievementText.string("achievement.view_all")
+        backButton.invalidateIntrinsicContentSize()
         backButton.isHidden = detailID == nil
         filter.isHidden = detailID != nil
         for (index, key) in ["all", "locked", "unlocked"].enumerated() {
             filter.setLabel(AchievementText.string("achievement.filter.\(key)"), forSegment: index)
         }
+        filter.refreshMetrics()
         list.arrangedSubviews.forEach { view in
             list.removeArrangedSubview(view)
             view.removeFromSuperview()
@@ -266,8 +378,8 @@ final class AchievementsWindowController: NSWindowController {
             let group = definitions.filter { $0.category == category }
             guard !group.isEmpty else { continue }
             let label = NSTextField(labelWithString: AchievementText.string("achievement.category.\(category.rawValue)"))
-            label.font = .systemFont(ofSize: 13, weight: .bold)
-            label.textColor = .systemRed
+            label.font = .monospacedSystemFont(ofSize: 12, weight: .heavy)
+            label.textColor = AchievementPanelStyle.accent
             list.addArrangedSubview(label)
             for definition in group {
                 let row = makeRow(definition)
@@ -276,29 +388,48 @@ final class AchievementsWindowController: NSWindowController {
             }
         }
         if definitions.isEmpty {
-            list.addArrangedSubview(NSTextField(labelWithString: AchievementText.string("achievement.empty")))
+            let empty = NSTextField(wrappingLabelWithString: AchievementText.string("achievement.empty"))
+            empty.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+            empty.textColor = AchievementPanelStyle.body
+            list.addArrangedSubview(empty)
         }
     }
 
     private func buildContent() {
         guard let content = window?.contentView else { return }
-        heading.font = .systemFont(ofSize: 16, weight: .semibold)
+        heading.font = .monospacedSystemFont(ofSize: 16, weight: .heavy)
+        heading.textColor = AchievementPanelStyle.accent
+        heading.lineBreakMode = .byTruncatingTail
+        heading.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         filter.segmentCount = 3
         filter.trackingMode = .selectOne
         filter.selectedSegment = 0
         filter.target = self
         filter.action = #selector(filterChanged)
-        backButton.bezelStyle = .rounded
+        backButton.isBordered = false
+        backButton.setButtonType(.momentaryPushIn)
         backButton.target = self
         backButton.action = #selector(showAll)
         let actions = NSStackView(views: [filter, backButton])
         actions.orientation = .horizontal
-        let toolbar = NSStackView(views: [heading, actions])
+        let icon = NSImageView(image: NSImage(systemSymbolName: "rosette", accessibilityDescription: nil) ?? NSImage())
+        icon.contentTintColor = AchievementPanelStyle.accent
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.widthAnchor.constraint(equalToConstant: 20).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 20).isActive = true
+        let titleRow = NSStackView(views: [icon, heading])
+        titleRow.orientation = .horizontal
+        titleRow.alignment = .centerY
+        titleRow.spacing = 8
+        let toolbar = NSStackView(views: [titleRow, actions])
         toolbar.orientation = .vertical
         toolbar.alignment = .leading
-        toolbar.spacing = 8
+        toolbar.spacing = 12
         toolbar.translatesAutoresizingMaskIntoConstraints = false
-        content.addSubview(toolbar)
+        let header = PixelFrameCardView(accentColor: AchievementPanelStyle.accent)
+        header.translatesAutoresizingMaskIntoConstraints = false
+        header.addSubview(toolbar)
+        content.addSubview(header)
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.hasVerticalScroller = true
@@ -314,10 +445,17 @@ final class AchievementsWindowController: NSWindowController {
         list.translatesAutoresizingMaskIntoConstraints = false
         document.addSubview(list)
         NSLayoutConstraint.activate([
-            toolbar.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
-            toolbar.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            toolbar.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -16),
-            scroll.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 14),
+            header.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
+            header.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
+            header.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
+            toolbar.topAnchor.constraint(equalTo: header.topAnchor, constant: 16),
+            toolbar.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 16),
+            toolbar.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -16),
+            toolbar.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -16),
+            titleRow.widthAnchor.constraint(equalTo: toolbar.widthAnchor),
+            filter.heightAnchor.constraint(equalToConstant: 32),
+            backButton.heightAnchor.constraint(equalToConstant: 32),
+            scroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 4),
             scroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
@@ -331,18 +469,15 @@ final class AchievementsWindowController: NSWindowController {
 
     private func makeRow(_ definition: AchievementDefinition) -> NSView {
         let unlocked = manager.isUnlocked(id: definition.id)
-        let row = NSView()
-        row.wantsLayer = true
-        row.layer?.cornerRadius = 8
-        row.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        row.layer?.borderWidth = 1
-        row.layer?.borderColor = (unlocked ? NSColor.systemGreen : NSColor.separatorColor).cgColor
+        let accent = unlocked ? AchievementPanelStyle.success : AchievementPanelStyle.accent
+        let row = PixelFrameCardView(accentColor: accent)
         row.translatesAutoresizingMaskIntoConstraints = false
         let name = NSTextField(wrappingLabelWithString: AchievementText.string(definition.titleKey))
-        name.font = .systemFont(ofSize: 14, weight: .semibold)
+        name.font = .monospacedSystemFont(ofSize: 13, weight: .semibold)
+        name.textColor = accent
         name.setAccessibilityLabel(AchievementText.title(definition, manager: manager))
         let icon = NSImageView(image: NSImage(systemSymbolName: unlocked ? "checkmark.seal.fill" : "lock.fill", accessibilityDescription: nil) ?? NSImage())
-        icon.contentTintColor = unlocked ? .systemGreen : .secondaryLabelColor
+        icon.contentTintColor = accent
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 16).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 16).isActive = true
@@ -350,12 +485,17 @@ final class AchievementsWindowController: NSWindowController {
         titleRow.orientation = .horizontal
         titleRow.spacing = 6
         let condition = NSTextField(wrappingLabelWithString: AchievementText.string(definition.descriptionKey))
-        condition.textColor = .secondaryLabelColor
+        condition.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        condition.textColor = AchievementPanelStyle.body
         let progress = NSTextField(wrappingLabelWithString: AchievementText.progress(definition, manager: manager))
+        progress.font = .monospacedSystemFont(ofSize: 11, weight: .medium)
+        progress.textColor = accent
         let status = NSTextField(wrappingLabelWithString: AchievementText.status(definition, manager: manager))
-        status.font = .systemFont(ofSize: 11)
-        status.textColor = unlocked ? .systemGreen : .secondaryLabelColor
-        let meter = NSProgressIndicator()
+        status.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
+        status.textColor = unlocked ? AchievementPanelStyle.success : AchievementPanelStyle.muted
+        let meter = AchievementProgressIndicator()
+        meter.accentColor = accent
+        meter.heightAnchor.constraint(equalToConstant: 10).isActive = true
         meter.style = .bar
         meter.isIndeterminate = false
         meter.minValue = 0
@@ -365,7 +505,7 @@ final class AchievementsWindowController: NSWindowController {
         let stack = NSStackView(views: [titleRow, condition, progress, meter, status])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 7
+        stack.spacing = 9
         stack.translatesAutoresizingMaskIntoConstraints = false
         row.addSubview(stack)
         for view in stack.arrangedSubviews {
@@ -373,10 +513,10 @@ final class AchievementsWindowController: NSWindowController {
             view.setContentCompressionResistancePriority(.required, for: .vertical)
         }
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: row.topAnchor, constant: 12),
-            stack.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -12),
-            stack.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -12)
+            stack.topAnchor.constraint(equalTo: row.topAnchor, constant: 16),
+            stack.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -16)
         ])
         return row
     }
