@@ -23,6 +23,10 @@ final class GameBoardController {
     }
 
     private let columnsCount: Int
+    private let achievements: AchievementsManager
+    private let currentDate: () -> Date
+    private let stateFactory: (Int) -> GameState
+    private var roundID = UUID()
     private var state: GameState
     private var mode: GameMode = .free
     private var roundStartDate = Date()
@@ -35,9 +39,16 @@ final class GameBoardController {
     private var selectedIndex: Int?
     private var observers: [UUID: Observer] = [:]
 
-    init(columns: Int) {
+    init(columns: Int, achievements: AchievementsManager = .shared,
+         now: @escaping () -> Date = Date.init,
+         stateFactory: @escaping (Int) -> GameState = { GameState(columns: $0) }) {
         self.columnsCount = columns
-        self.state = GameState(columns: columns)
+        self.achievements = achievements
+        self.currentDate = now
+        self.stateFactory = stateFactory
+        self.state = stateFactory(columns)
+        self.roundStartDate = now()
+        achievements.beginRound(id: roundID)
     }
 
     var columns: Int {
@@ -46,7 +57,7 @@ final class GameBoardController {
 
     func configure(mode: GameMode) {
         self.mode = mode
-        resetBoard(startDate: Date())
+        resetBoard(startDate: currentDate())
         stoppedElapsedTime = 0
         isRunningRound = isFreeMode
         isFinished = false
@@ -56,22 +67,23 @@ final class GameBoardController {
     func startRound() {
         guard !isFreeMode else { return }
 
-        resetBoard(startDate: Date())
+        resetBoard(startDate: currentDate())
         stoppedElapsedTime = 0
         isRunningRound = true
         isFinished = false
         notifyChange()
     }
 
-    func tick(now: Date = Date()) {
+    func tick(now: Date? = nil) {
         guard !isFreeMode else { return }
         guard isRunningRound else { return }
 
-        _ = updateFinishedState(now: now)
+        _ = updateFinishedState(now: now ?? currentDate())
         notifyChange()
     }
 
-    func snapshot(now: Date = Date()) -> GameSnapshot {
+    func snapshot(now: Date? = nil) -> GameSnapshot {
+        let now = now ?? currentDate()
         _ = updateFinishedState(now: now)
 
         let elapsed: TimeInterval
@@ -176,6 +188,7 @@ final class GameBoardController {
 
     func performSwap(from leftIndex: Int, to rightIndex: Int) {
         guard canInteract() else { return }
+        guard (0..<columnsCount).contains(leftIndex), (0..<columnsCount).contains(rightIndex) else { return }
         guard abs(leftIndex - rightIndex) == 1 else { return }
         guard !lockedIndices.contains(leftIndex), !lockedIndices.contains(rightIndex) else { return }
 
@@ -187,7 +200,10 @@ final class GameBoardController {
         lockedIndices.remove(rightIndex)
         selectedIndex = nil
 
-        _ = updateFinishedState(now: Date())
+        // 最后一笔交换先入账，再发送达标结算，保证同一操作触发的成就全部生效。
+        let now = currentDate()
+        achievements.recordSwap(roundID: roundID, swapID: UUID(), result: state.lastResolution, score: state.score, at: now)
+        _ = updateFinishedState(now: now)
         notifyChange()
     }
 
@@ -215,15 +231,17 @@ final class GameBoardController {
     }
 
     private func resetBoard(startDate: Date) {
-        state = GameState(columns: columnsCount)
+        state = stateFactory(columnsCount)
+        roundID = UUID()
+        achievements.beginRound(id: roundID)
         lockedIndices.removeAll()
         selectedIndex = nil
         lastSwapPair = nil
         roundStartDate = startDate
     }
 
-    private func canInteract(now: Date = Date()) -> Bool {
-        _ = updateFinishedState(now: now)
+    private func canInteract() -> Bool {
+        _ = updateFinishedState(now: currentDate())
         if isFreeMode {
             return !isFinished
         }
@@ -259,6 +277,7 @@ final class GameBoardController {
             stoppedElapsedTime = elapsed
             lockedIndices.removeAll()
             selectedIndex = nil
+            achievements.finishRound(id: roundID, mode: mode, score: state.score, elapsed: elapsed, at: now)
         }
 
         return previousFinished != isFinished

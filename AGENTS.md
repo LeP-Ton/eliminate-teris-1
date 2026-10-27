@@ -1,5 +1,15 @@
 # 项目认知记录
 
+## 项目基础与检索方法
+- 项目为 macOS 12+ 原生 AppKit/Cocoa 游戏，使用 Swift 5.7+ 与 Swift Package Manager；桌面窗口负责设置和信息展示，16 格 Touch Bar 承载核心操作。
+- 本地启动使用 `./run.sh`，打包使用 `./package.sh`；自动化验证使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`，测试使用系统自带 XCTest。
+- 检索项目时先读取 `.agentdocs/index.md`，再按索引中的读取场景查阅具体文档；不要直接全量检索 `.agentdocs/workflow/`。
+
+## 2026-10-26
+- 成就采用独立的事件驱动架构：`GameState` 提供交换结算数据，`GameBoardController` 提交交换与正常结算事件，`AchievementsManager` 负责规则、去重、累计进度和版本化本地存档；界面刷新与挑战排行榜不参与成就判定。
+- 成就展示使用桌面徽章栏、非模态图鉴/详情面板与窗口内通知队列；成就面板不争夺主窗口焦点，避免影响现有 Touch Bar 展示生命周期。
+- 测试通过注入时间、棋盘补位序列与独立 UserDefaults 域验证游戏和成就规则，不依赖随机结果或玩家真实存档。
+
 ## 2026-06-10
 - README 顶部现已增强为“项目首页入口”形态：`README.md` 与 `README.en.md` 都新增了静态徽章，首屏即可看到平台、Swift 版本、Touch Bar 适配与当前可玩状态。
 - 中英文 README 顶部都已加入目录（TOC）与“截图预览”占位区；当前仓库还没有正式截图资源，后续补图时应优先填充该区域，而不是把截图分散插入正文各处。

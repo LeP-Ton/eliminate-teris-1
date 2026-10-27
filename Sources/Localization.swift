@@ -1,5 +1,8 @@
 import Foundation
 
+/// 使用代码所在 Bundle 定位 XCTest 宿主旁的 SwiftPM 资源，避免依赖测试进程的主 Bundle。
+private final class LocalizationBundleToken: NSObject {}
+
 private enum LocalizerResourceLocator {
     static let bundleName = "EliminateTeris1_EliminateTeris1"
 
@@ -7,13 +10,15 @@ private enum LocalizerResourceLocator {
         let bundleFileName = "\(bundleName).bundle"
         let executableDirectory = Bundle.main.executableURL?.deletingLastPathComponent()
         let executableParentDirectory = executableDirectory?.deletingLastPathComponent()
+        let codeBundle = Bundle(for: LocalizationBundleToken.self)
 
         // 同时兼容 SwiftPM 直接运行（bundle 与可执行文件同级）和手工打包 .app（bundle 位于 Contents/Resources）。
         let candidates: [URL?] = [
             Bundle.main.resourceURL?.appendingPathComponent(bundleFileName),
             Bundle.main.bundleURL.appendingPathComponent(bundleFileName),
             executableDirectory?.appendingPathComponent(bundleFileName),
-            executableParentDirectory?.appendingPathComponent("Resources").appendingPathComponent(bundleFileName)
+            executableParentDirectory?.appendingPathComponent("Resources").appendingPathComponent(bundleFileName),
+            codeBundle.bundleURL.deletingLastPathComponent().appendingPathComponent(bundleFileName)
         ]
 
         for candidate in candidates {

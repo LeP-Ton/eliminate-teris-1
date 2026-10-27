@@ -74,10 +74,10 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private var hasSavedFinishedRecord = false
     private var latestRecordIDByMode: [String: String] = [:]
     private var lastRecordsLayoutWidth: CGFloat = 0
-    private var achievementButtons: [Int: NSButton] = [:]
-    private var achievementsContentWidthConstraint: NSLayoutConstraint?
-    private var achievementsContainerWrapper: NSView?
     private var achievementsUnlockObserver: NSObjectProtocol?
+    private var achievementsChangeObserver: NSObjectProtocol?
+    private var achievementsPanel: AchievementsWindowController?
+    private var achievementToasts: AchievementToastPresenter?
     private var settingsExpandedWidthConstraint: NSLayoutConstraint?
     private var settingsVersusRightColumnConstraint: NSLayoutConstraint?
     private var rightColumnMinWidthConstraint: NSLayoutConstraint?
@@ -428,30 +428,24 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         return makeSectionIconView(symbolName: "rosette", color: rulesThemeColor)
     }()
 
-    private lazy var achievementsHeaderStack: NSStackView = {
-        return makeSectionHeaderStack(iconView: achievementsTitleIconView, titleLabel: achievementsTitleLabel)
+    private lazy var achievementsAllButton: NSButton = {
+        let button = NSButton(title: "", target: self, action: #selector(showAllAchievements))
+        button.bezelStyle = .inline
+        button.contentTintColor = rulesThemeColor
+        return button
     }()
 
-    private lazy var achievementsContainerStack: NSStackView = {
-        let stack = NSStackView()
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
-        stack.translatesAutoresizingMaskIntoConstraints = false
+    private lazy var achievementsHeaderStack: NSStackView = {
+        let stack = makeSectionHeaderStack(iconView: achievementsTitleIconView, titleLabel: achievementsTitleLabel)
+        stack.addArrangedSubview(NSView())
+        stack.addArrangedSubview(achievementsAllButton)
         return stack
     }()
 
-    private lazy var achievementsScrollView: NSScrollView = {
-        let scroll = NSScrollView()
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.drawsBackground = false
-        scroll.hasHorizontalScroller = true
-        scroll.hasVerticalScroller = false
-        scroll.autohidesScrollers = true
-        scroll.borderType = .noBorder
-        // documentView will be set when building content to allow explicit content width
-        return scroll
+    private lazy var achievementsScrollView: AchievementBadgeStripView = {
+        let strip = AchievementBadgeStripView()
+        strip.onSelect = { [weak self] id in self?.presentAchievements(detailID: id) }
+        return strip
     }()
 
     private lazy var achievementsCardView: PixelFrameCardView = {
@@ -586,8 +580,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             achievementsCardStack.trailingAnchor.constraint(equalTo: achievementsCardView.trailingAnchor, constant: -14),
             achievementsCardStack.bottomAnchor.constraint(equalTo: achievementsCardView.bottomAnchor, constant: -14),
             achievementsScrollView.widthAnchor.constraint(equalTo: achievementsCardStack.widthAnchor),
-            // 固定成就卡片高度与 PixelBannerView 相同（与标题下方的四块方块区域等高）
-            achievementsCardView.heightAnchor.constraint(equalTo: pixelBannerView.heightAnchor),
+            achievementsHeaderStack.widthAnchor.constraint(equalTo: achievementsCardStack.widthAnchor),
+            // 高度由标题、内边距及完整标签区共同决定，不再受横幅高度限制。
+            achievementsScrollView.heightAnchor.constraint(equalToConstant: AchievementBadgeStripView.preferredHeight),
 
             languagePopup.widthAnchor.constraint(equalToConstant: 240),
             languagePopup.heightAnchor.constraint(equalToConstant: 38),
@@ -626,108 +621,42 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     // MARK: - Achievements
 
     private func configureAchievements() {
-        // 构建一个 wrapper 作为 scroll 的 documentView，以便设定明确的内容宽度
-        // 清理旧内容
-        achievementButtons.removeAll()
-        achievementsContainerStack.subviews.forEach { $0.removeFromSuperview() }
-        achievementsContentWidthConstraint?.isActive = false
-        achievementsContentWidthConstraint = nil
-        achievementsContainerWrapper?.removeFromSuperview()
-        achievementsContainerWrapper = nil
-
-        let wrapper = NSView()
-        wrapper.translatesAutoresizingMaskIntoConstraints = false
-        wrapper.addSubview(achievementsContainerStack)
-        // 让容器在 wrapper 中垂直居中显示（tag 风格）
-        NSLayoutConstraint.activate([
-            achievementsContainerStack.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
-            achievementsContainerStack.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
-            achievementsContainerStack.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor)
-        ])
-
-        achievementsScrollView.documentView = wrapper
-        achievementsContainerWrapper = wrapper
-
-        // 生成约 20 个成就按钮（tag 风格，高度较小），并计算内容宽度以确保横向滚动
-        let count = 20
-        let buttonWidth: CGFloat = 140
-        let buttonHeight: CGFloat = 28
-        let spacing = achievementsContainerStack.spacing
-
-        for index in 1...count {
-            let button = NSButton()
-            button.bezelStyle = .regularSquare
-            button.isBordered = false
-            button.wantsLayer = true
-            button.layer?.cornerRadius = 6
-            button.translatesAutoresizingMaskIntoConstraints = false
-
-            let title = localizedFormat("achievement.title", index)
-            let label = NSTextField(labelWithString: title)
-            label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
-            label.textColor = NSColor.white
-            label.alignment = .center
-            label.translatesAutoresizingMaskIntoConstraints = false
-
-            button.addSubview(label)
-            NSLayoutConstraint.activate([
-                label.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-                label.centerYAnchor.constraint(equalTo: button.centerYAnchor)
-            ])
-
-            button.layer?.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.2, alpha: 1).cgColor
-            button.layer?.borderColor = NSColor(calibratedRed: 0.93, green: 0.28, blue: 0.3, alpha: 1.0).cgColor
-            button.layer?.borderWidth = 1
-
-            NSLayoutConstraint.activate([
-                button.widthAnchor.constraint(equalToConstant: buttonWidth),
-                button.heightAnchor.constraint(equalToConstant: buttonHeight)
-            ])
-
-            button.tag = index
-            button.target = self
-            button.action = #selector(achievementTapped(_:))
-
-            achievementsContainerStack.addArrangedSubview(button)
-            achievementButtons[index] = button
+        achievementToasts = AchievementToastPresenter(host: view) { [weak self] ids in
+            self?.presentAchievements(detailID: ids.count == 1 ? ids.first : nil)
         }
-
-        // 计算内容宽度并锁定 wrapper 宽度，确保横向滚动行为正常
-        let contentWidth = CGFloat(count) * buttonWidth + CGFloat(max(0, count - 1)) * spacing + achievementsContainerStack.edgeInsets.left + achievementsContainerStack.edgeInsets.right
-        achievementsContentWidthConstraint = wrapper.widthAnchor.constraint(equalToConstant: contentWidth)
-        achievementsContentWidthConstraint?.isActive = true
-        // wrapper 的高度与按钮高度一致（含内边距），并且容器已经垂直居中，避免溢出卡片
-        wrapper.heightAnchor.constraint(equalToConstant: buttonHeight + achievementsContainerStack.edgeInsets.top + achievementsContainerStack.edgeInsets.bottom).isActive = true
-
-        // 根据持久化状态刷新每个按钮样式
-        for index in 1...count {
-            updateAchievementButtonAppearance(index)
+        achievementsChangeObserver = NotificationCenter.default.addObserver(
+            forName: AchievementsManager.didChangeNotification, object: AchievementsManager.shared, queue: .main
+        ) { [weak self] _ in self?.refreshAchievements() }
+        achievementsUnlockObserver = NotificationCenter.default.addObserver(
+            forName: AchievementsManager.didUnlockNotification, object: AchievementsManager.shared, queue: .main
+        ) { [weak self] note in
+            guard let ids = note.userInfo?["ids"] as? [Int] else { return }
+            self?.achievementToasts?.enqueue(ids)
         }
-
-        // 监听解锁通知，异步更新 UI
-        if achievementsUnlockObserver == nil {
-            achievementsUnlockObserver = NotificationCenter.default.addObserver(forName: AchievementsManager.didUnlockNotification, object: nil, queue: .main) { [weak self] note in
-                guard let id = note.userInfo?["id"] as? Int else { return }
-                self?.onAchievementUnlocked(id)
-            }
-        }
+        refreshAchievements()
     }
 
-    @objc private func achievementTapped(_ sender: NSButton) {
-        let idx = sender.tag
-        let title = localizedFormat("achievement.title", idx)
-        let desc = localizedFormat("achievement.desc", idx)
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = title
-        alert.informativeText = desc
-        alert.addButton(withTitle: localized("action.ok"))
-        if let window = view.window {
-            alert.beginSheetModal(for: window, completionHandler: nil)
-        } else {
-            alert.runModal()
-        }
+    private func refreshAchievements() {
+        let manager = AchievementsManager.shared
+        achievementsTitleLabel.stringValue = localizedFormat("achievement.summary", manager.unlockedIDs().count, AchievementDefinition.all.count)
+        // 自绘深色背景下显式指定文字颜色，避免 inline 按钮回退成黑色文字。
+        achievementsAllButton.attributedTitle = NSAttributedString(
+            string: localized("achievement.view_all"),
+            attributes: [.font: NSFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: rulesThemeColor]
+        )
+        achievementsScrollView.refresh(manager: manager)
+        if achievementsPanel?.window?.isVisible == true { achievementsPanel?.refresh() }
+        achievementToasts?.refreshLanguage()
     }
+
+    private func presentAchievements(detailID: Int?) {
+        if achievementsPanel == nil {
+            achievementsPanel = AchievementsWindowController(manager: .shared)
+        }
+        achievementsPanel?.present(from: view.window, detailID: detailID)
+    }
+
+    @objc private func showAllAchievements() { presentAchievements(detailID: nil) }
 
     deinit {
         if let observerToken {
@@ -737,6 +666,10 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             NotificationCenter.default.removeObserver(observer)
             achievementsUnlockObserver = nil
         }
+        if let observer = achievementsChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        achievementsPanel?.close()
         removeTouchBarLifecycleObservers()
         invalidateSystemModalTouchBarPresentation(reason: "deinit")
         hudTimer?.invalidate()
@@ -1206,7 +1139,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         statusTitleLabel.stringValue = localized("panel.status")
         recordsTitleLabel.stringValue = localized("panel.records")
         rulesTitleLabel.stringValue = localized("panel.rules")
-        achievementsTitleLabel.stringValue = localized("panel.achievements")
+        refreshAchievements()
         languageTitleLabel.stringValue = localized("language.label")
         modeTitleLabel.stringValue = localized("mode.label")
         volumeTitleLabel.stringValue = localized("volume.label")
@@ -1403,8 +1336,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
                 resultLabel.isHidden = true
             }
         }
-        // 检查并触发成就解锁条件（轻量示例）
-        checkAchievementTriggers(with: snapshot)
     }
 
     private func updateComboState(with snapshot: GameSnapshot) {
@@ -1840,57 +1771,6 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
         let format = localized(key)
         return String(format: format, locale: localizer.locale, arguments: arguments)
-    }
-
-    // MARK: - Achievement helpers
-
-    private func updateAchievementButtonAppearance(_ id: Int) {
-        let unlocked = AchievementsManager.shared.isUnlocked(id: id)
-        guard let button = achievementButtons[id] else { return }
-        if unlocked {
-            button.layer?.backgroundColor = NSColor(calibratedRed: 0.14, green: 0.44, blue: 0.12, alpha: 1).cgColor
-            button.layer?.borderColor = NSColor(calibratedRed: 0.28, green: 0.84, blue: 0.36, alpha: 1).cgColor
-        } else {
-            button.layer?.backgroundColor = NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.2, alpha: 1).cgColor
-            button.layer?.borderColor = NSColor(calibratedRed: 0.93, green: 0.28, blue: 0.3, alpha: 1.0).cgColor
-        }
-    }
-
-    private func onAchievementUnlocked(_ id: Int) {
-        updateAchievementButtonAppearance(id)
-        if let btn = achievementButtons[id] {
-            let pop = NSPopover()
-            let vc = NSViewController()
-            let label = NSTextField(labelWithString: localizedFormat("achievement.unlocked", id))
-            label.textColor = NSColor.white
-            label.backgroundColor = NSColor.clear
-            label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
-            vc.view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 40))
-            vc.view.addSubview(label)
-            label.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                label.centerXAnchor.constraint(equalTo: vc.view.centerXAnchor),
-                label.centerYAnchor.constraint(equalTo: vc.view.centerYAnchor)
-            ])
-            pop.contentViewController = vc
-            pop.behavior = .transient
-            pop.show(relativeTo: btn.bounds, of: btn, preferredEdge: .maxY)
-        }
-    }
-
-    private func checkAchievementTriggers(with snapshot: GameSnapshot) {
-        // 简单示例触发点：分数、连击和完成局
-        if snapshot.score >= 100 {
-            AchievementsManager.shared.unlock(id: 1)
-        }
-
-        if comboStreak >= 3 {
-            AchievementsManager.shared.unlock(id: 2)
-        }
-
-        if snapshot.isFinished {
-            AchievementsManager.shared.unlock(id: 3)
-        }
     }
 
     private func makeControlTitleLabel(color: NSColor) -> NSTextField {

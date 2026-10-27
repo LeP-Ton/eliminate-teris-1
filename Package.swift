@@ -17,6 +17,7 @@ let package = Package(
             resources: [
                 .process("Resources")
             ]
-        )
+        ),
+        .testTarget(name: "EliminateTeris1Tests", dependencies: ["EliminateTeris1"], path: "Tests")
     ]
 )
