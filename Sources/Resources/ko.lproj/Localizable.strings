@@ -138,3 +138,35 @@
 "achievement.accessibility.locked" = "%@, 미달성";
 "achievement.accessibility.unlocked" = "%@, 달성";
 "achievement.progress.legacy" = "이전 버전에서 달성했습니다. 과거 진행 기록은 없습니다";
+
+// 按方块类型记录累计消除数量及百、千、万三档里程碑。
+"banner.total_cleared" = "누적 제거";
+"banner.piece_cleared" = "%@: 누적 제거 %@";
+"piece.orange_ricky.name" = "주황색 블록";
+"achievement.21.title" = "주황색 · 100개";
+"achievement.21.desc" = "모든 모드에서 주황색 블록을 누적 100개 제거하세요.";
+"achievement.22.title" = "주황색 · 1,000개";
+"achievement.22.desc" = "모든 모드에서 주황색 블록을 누적 1,000개 제거하세요.";
+"achievement.23.title" = "주황색 · 10,000개";
+"achievement.23.desc" = "모든 모드에서 주황색 블록을 누적 10,000개 제거하세요.";
+"piece.blue_ricky.name" = "파란색 블록";
+"achievement.24.title" = "파란색 · 100개";
+"achievement.24.desc" = "모든 모드에서 파란색 블록을 누적 100개 제거하세요.";
+"achievement.25.title" = "파란색 · 1,000개";
+"achievement.25.desc" = "모든 모드에서 파란색 블록을 누적 1,000개 제거하세요.";
+"achievement.26.title" = "파란색 · 10,000개";
+"achievement.26.desc" = "모든 모드에서 파란색 블록을 누적 10,000개 제거하세요.";
+"piece.cleveland_z.name" = "초록색 블록";
+"achievement.27.title" = "초록색 · 100개";
+"achievement.27.desc" = "모든 모드에서 초록색 블록을 누적 100개 제거하세요.";
+"achievement.28.title" = "초록색 · 1,000개";
+"achievement.28.desc" = "모든 모드에서 초록색 블록을 누적 1,000개 제거하세요.";
+"achievement.29.title" = "초록색 · 10,000개";
+"achievement.29.desc" = "모든 모드에서 초록색 블록을 누적 10,000개 제거하세요.";
+"piece.rhode_island_z.name" = "빨간색 블록";
+"achievement.30.title" = "빨간색 · 100개";
+"achievement.30.desc" = "모든 모드에서 빨간색 블록을 누적 100개 제거하세요.";
+"achievement.31.title" = "빨간색 · 1,000개";
+"achievement.31.desc" = "모든 모드에서 빨간색 블록을 누적 1,000개 제거하세요.";
+"achievement.32.title" = "빨간색 · 10,000개";
+"achievement.32.desc" = "모든 모드에서 빨간색 블록을 누적 10,000개 제거하세요.";

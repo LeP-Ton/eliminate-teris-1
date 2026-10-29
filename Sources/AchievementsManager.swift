@@ -11,6 +11,7 @@ enum AchievementGoal {
     case scoreAttack(minutes: Int, score: Int)
     case speedRun(target: Int, limit: TimeInterval?)
     case totalCleared(Int)
+    case pieceCleared(kind: PieceKind, count: Int)
 }
 
 struct AchievementDefinition {
@@ -41,7 +42,20 @@ struct AchievementDefinition {
         .init(id: 17, category: .lifetime, goal: .totalCleared(100)),
         .init(id: 18, category: .lifetime, goal: .totalCleared(1_000)),
         .init(id: 19, category: .lifetime, goal: .totalCleared(10_000)),
-        .init(id: 20, category: .lifetime, goal: .completedRounds(20))
+        .init(id: 20, category: .lifetime, goal: .completedRounds(20)),
+        // 按稳定编号追加，旧成就及其解锁时间不变。
+        .init(id: 21, category: .lifetime, goal: .pieceCleared(kind: .orangeRicky, count: 100)),
+        .init(id: 22, category: .lifetime, goal: .pieceCleared(kind: .orangeRicky, count: 1_000)),
+        .init(id: 23, category: .lifetime, goal: .pieceCleared(kind: .orangeRicky, count: 10_000)),
+        .init(id: 24, category: .lifetime, goal: .pieceCleared(kind: .blueRicky, count: 100)),
+        .init(id: 25, category: .lifetime, goal: .pieceCleared(kind: .blueRicky, count: 1_000)),
+        .init(id: 26, category: .lifetime, goal: .pieceCleared(kind: .blueRicky, count: 10_000)),
+        .init(id: 27, category: .lifetime, goal: .pieceCleared(kind: .clevelandZ, count: 100)),
+        .init(id: 28, category: .lifetime, goal: .pieceCleared(kind: .clevelandZ, count: 1_000)),
+        .init(id: 29, category: .lifetime, goal: .pieceCleared(kind: .clevelandZ, count: 10_000)),
+        .init(id: 30, category: .lifetime, goal: .pieceCleared(kind: .rhodeIslandZ, count: 100)),
+        .init(id: 31, category: .lifetime, goal: .pieceCleared(kind: .rhodeIslandZ, count: 1_000)),
+        .init(id: 32, category: .lifetime, goal: .pieceCleared(kind: .rhodeIslandZ, count: 10_000))
     ]
 }
 
@@ -85,6 +99,11 @@ final class AchievementsManager {
     func unlockedIDs() -> [Int] { unlocked.sorted() }
     func unlockDate(id: Int) -> Date? { timestamps[String(id)].map(Date.init(timeIntervalSince1970:)) }
 
+    /// 分类计数与原有累计值共用存档；旧数据缺少分类明细时返回 0，不推测历史分布。
+    func totalCleared(for kind: PieceKind) -> Double {
+        metrics["pieceCleared.\(kind.rawValue)", default: 0]
+    }
+
     func beginRound(id: UUID) {
         guard roundID != id else { return }
         roundID = id
@@ -106,6 +125,9 @@ final class AchievementsManager {
             successfulSwaps += 1
             lastClearDate = date
             metrics["totalCleared", default: 0] += Double(result.clearedCount)
+            for (kind, count) in result.clearedByKind where count > 0 {
+                metrics["pieceCleared.\(kind.rawValue)", default: 0] += Double(count)
+            }
             updateBest("rhythm", Double(rhythm))
             updateBest("successfulSwaps", Double(successfulSwaps))
         } else {
@@ -160,6 +182,7 @@ final class AchievementsManager {
             }
             return value("speedRunCompleted.\(target)", 1)
         case .totalCleared(let target): return value("totalCleared", Double(target))
+        case .pieceCleared(let kind, let count): return value("pieceCleared.\(kind.rawValue)", Double(count))
         }
     }
 

@@ -20,7 +20,7 @@ final class AchievementPresentationTests: AchievementTestCase {
         let content = try XCTUnwrap(window.contentView)
         let filter = try XCTUnwrap(descendants(content).compactMap { $0 as? NSSegmentedControl }.first)
         func progressBars() -> Int { descendants(content).filter { $0 is NSProgressIndicator }.count }
-        XCTAssertEqual(progressBars(), 20)
+        XCTAssertEqual(progressBars(), AchievementDefinition.all.count)
         content.layoutSubtreeIfNeeded()
         // 使用真实鼠标事件验证主题控件的点击区域，而非直接修改选择状态。
         func clickFilter(at fraction: CGFloat) throws {
@@ -34,7 +34,7 @@ final class AchievementPresentationTests: AchievementTestCase {
         XCTAssertEqual(progressBars(), 1)
         try clickFilter(at: 0.5)
         XCTAssertEqual(filter.selectedSegment, 1)
-        XCTAssertEqual(progressBars(), 19)
+        XCTAssertEqual(progressBars(), AchievementDefinition.all.count - 1)
     }
 
     func testLibraryRowsHaveUsableLayoutForEveryLanguage() throws {
@@ -186,6 +186,79 @@ final class AchievementPresentationTests: AchievementTestCase {
         XCTAssertLessThanOrEqual(window.frame.maxY, available.maxY - 7)
         XCTAssertTrue(window.parent === parent)
         XCTAssertFalse(window.canBecomeKey)
+    }
+
+
+    func testBannerRendersPersistedCountsBesideEveryPieceInAllLanguages() throws {
+        _ = NSApplication.shared
+        typedSwap([.orangeRicky: 100, .blueRicky: 1_000, .clevelandZ: 10_000, .rhodeIslandZ: 1_234_567_890])
+        let reloaded = AchievementsManager(defaults: defaults)
+        let original = Localizer.shared.language
+        defer { Localizer.shared.setLanguage(original) }
+        let banner = PixelBannerView(frame: NSRect(x: 0, y: 0, width: 672, height: 88))
+        for language in AppLanguage.allCases {
+            Localizer.shared.setLanguage(language)
+            banner.refresh(manager: reloaded)
+            let description = try XCTUnwrap(banner.accessibilityLabel())
+            let formatter = NumberFormatter()
+            formatter.locale = Localizer.shared.locale
+            formatter.numberStyle = .decimal
+            formatter.maximumFractionDigits = 0
+            for kind in PieceKind.allCases {
+                XCTAssertTrue(description.contains(Localizer.shared.string(kind.titleKey)))
+                let count = try XCTUnwrap(formatter.string(from: NSNumber(value: reloaded.totalCleared(for: kind))))
+                XCTAssertTrue(description.contains(count))
+            }
+            let bitmap = try XCTUnwrap(banner.bitmapImageRepForCachingDisplay(in: banner.bounds))
+            banner.cacheDisplay(in: banner.bounds, to: bitmap)
+            if language == .chineseSimplified {
+                let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+                let preview = FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-piece-counts-banner.png")
+                try png.write(to: preview)
+                print("方块累计数量预览：\(preview.path)")
+            }
+        }
+    }
+
+
+    func testBannerOnlyBouncesTheTypeWhoseCountIncreased() {
+        var now: TimeInterval = 0
+        let banner = PixelBannerView(frame: NSRect(x: 0, y: 0, width: 672, height: 88), clock: { now })
+        banner.refresh(manager: manager)
+        now = 1
+        typedSwap([.orangeRicky: 3])
+        banner.refresh(manager: manager)
+        now = 1.21
+        XCTAssertEqual(banner.numberJumpOffset(for: .orangeRicky), -6, accuracy: 0.001)
+        XCTAssertEqual(banner.numberJumpOffset(for: .blueRicky), 0)
+        XCTAssertEqual(banner.numberJumpOffset(for: .clevelandZ), 0)
+        XCTAssertEqual(banner.numberJumpOffset(for: .rhodeIslandZ), 0)
+        now = 1.5
+        XCTAssertEqual(banner.numberJumpOffset(for: .orangeRicky), 0)
+        typedSwap([.blueRicky: 3])
+        banner.refresh(manager: manager)
+        now = 1.71
+        XCTAssertEqual(banner.numberJumpOffset(for: .blueRicky), -6, accuracy: 0.001)
+        XCTAssertEqual(banner.numberJumpOffset(for: .orangeRicky), 0)
+    }
+
+    func testBannerDoesNotBounceOnLoadOrRestartBounceOnSameValueRefresh() {
+        var now: TimeInterval = 0
+        typedSwap([.orangeRicky: 100])
+        let banner = PixelBannerView(frame: NSRect(x: 0, y: 0, width: 672, height: 88), clock: { now })
+        banner.refresh(manager: manager)
+        now = 0.21
+        XCTAssertEqual(banner.numberJumpOffset(for: .orangeRicky), 0)
+        now = 1
+        typedSwap([.orangeRicky: 1])
+        banner.refresh(manager: manager)
+        now = 1.21
+        let before = banner.numberJumpOffset(for: .orangeRicky)
+        banner.refresh(manager: manager)
+        XCTAssertEqual(banner.numberJumpOffset(for: .orangeRicky), before, accuracy: 0.001)
+        now = 1.5
+        banner.refresh(manager: manager)
+        XCTAssertEqual(banner.numberJumpOffset(for: .orangeRicky), 0)
     }
 
 }

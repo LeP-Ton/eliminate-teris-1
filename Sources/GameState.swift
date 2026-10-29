@@ -6,6 +6,16 @@ struct SwapResolution: Equatable {
     let clearedCount: Int
     let cascadeCount: Int
     let longestRun: Int
+    let clearedByKind: [PieceKind: Int]
+
+    init(isValidSwap: Bool, clearedCount: Int, cascadeCount: Int, longestRun: Int,
+         clearedByKind: [PieceKind: Int] = [:]) {
+        self.isValidSwap = isValidSwap
+        self.clearedCount = clearedCount
+        self.cascadeCount = cascadeCount
+        self.longestRun = longestRun
+        self.clearedByKind = clearedByKind
+    }
 
     static let invalid = SwapResolution(isValidSwap: false, clearedCount: 0, cascadeCount: 0, longestRun: 0)
 }
@@ -77,6 +87,7 @@ final class GameState {
         var clearedCount = 0
         var cascadeCount = 0
         var longestRun = 0
+        var clearedByKind: [PieceKind: Int] = [:]
         while true {
             let (matches, runLength) = matchDetails()
             if matches.isEmpty {
@@ -87,9 +98,12 @@ final class GameState {
             clearedCount += matches.count
             cascadeCount += 1
             longestRun = max(longestRun, runLength)
+            // 补位前读取实际消除方块的类型，将每轮连锁合并到本次交换。
+            for index in matches { clearedByKind[tiles[index].kind, default: 0] += 1 }
             refillAfterClearing(matches)
         }
-        return SwapResolution(isValidSwap: true, clearedCount: clearedCount, cascadeCount: cascadeCount, longestRun: longestRun)
+        return SwapResolution(isValidSwap: true, clearedCount: clearedCount, cascadeCount: cascadeCount,
+                              longestRun: longestRun, clearedByKind: clearedByKind)
     }
 
     private func findMatches() -> Set<Int> {

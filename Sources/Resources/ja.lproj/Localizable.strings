@@ -138,3 +138,35 @@
 "achievement.accessibility.locked" = "%@、未達成";
 "achievement.accessibility.unlocked" = "%@、達成済み";
 "achievement.progress.legacy" = "旧バージョンで達成済み。過去の進捗記録はありません";
+
+// 按方块类型记录累计消除数量及百、千、万三档里程碑。
+"banner.total_cleared" = "累計消去";
+"banner.piece_cleared" = "%@：累計消去 %@";
+"piece.orange_ricky.name" = "オレンジ色のブロック";
+"achievement.21.title" = "オレンジ色・100個";
+"achievement.21.desc" = "すべてのモードで、オレンジ色のブロックを合計 100 個消す。";
+"achievement.22.title" = "オレンジ色・1,000個";
+"achievement.22.desc" = "すべてのモードで、オレンジ色のブロックを合計 1,000 個消す。";
+"achievement.23.title" = "オレンジ色・10,000個";
+"achievement.23.desc" = "すべてのモードで、オレンジ色のブロックを合計 10,000 個消す。";
+"piece.blue_ricky.name" = "青色のブロック";
+"achievement.24.title" = "青色・100個";
+"achievement.24.desc" = "すべてのモードで、青色のブロックを合計 100 個消す。";
+"achievement.25.title" = "青色・1,000個";
+"achievement.25.desc" = "すべてのモードで、青色のブロックを合計 1,000 個消す。";
+"achievement.26.title" = "青色・10,000個";
+"achievement.26.desc" = "すべてのモードで、青色のブロックを合計 10,000 個消す。";
+"piece.cleveland_z.name" = "緑色のブロック";
+"achievement.27.title" = "緑色・100個";
+"achievement.27.desc" = "すべてのモードで、緑色のブロックを合計 100 個消す。";
+"achievement.28.title" = "緑色・1,000個";
+"achievement.28.desc" = "すべてのモードで、緑色のブロックを合計 1,000 個消す。";
+"achievement.29.title" = "緑色・10,000個";
+"achievement.29.desc" = "すべてのモードで、緑色のブロックを合計 10,000 個消す。";
+"piece.rhode_island_z.name" = "赤色のブロック";
+"achievement.30.title" = "赤色・100個";
+"achievement.30.desc" = "すべてのモードで、赤色のブロックを合計 100 個消す。";
+"achievement.31.title" = "赤色・1,000個";
+"achievement.31.desc" = "すべてのモードで、赤色のブロックを合計 1,000 個消す。";
+"achievement.32.title" = "赤色・10,000個";
+"achievement.32.desc" = "すべてのモードで、赤色のブロックを合計 10,000 個消す。";

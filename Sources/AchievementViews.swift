@@ -33,7 +33,7 @@ enum AchievementText {
             let target = formatter.string(from: NSNumber(value: progress.target)) ?? "0"
             let key: String
             switch definition.goal {
-            case .totalCleared, .completedRounds: key = "achievement.progress.total"
+            case .totalCleared, .completedRounds, .pieceCleared: key = "achievement.progress.total"
             default: key = "achievement.progress.best"
             }
             return format(key, current, target)

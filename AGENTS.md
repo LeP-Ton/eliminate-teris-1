@@ -5,6 +5,9 @@
 - 本地启动使用 `./run.sh`，打包使用 `./package.sh`；自动化验证使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`，测试使用系统自带 XCTest。
 - 检索项目时先读取 `.agentdocs/index.md`，再按索引中的读取场景查阅具体文档；不要直接全量检索 `.agentdocs/workflow/`。
 
+## 2026-10-29
+- 消除结算事件包含按 `PieceKind` 稳定标识分类的明细，先记录被消除的实际类型再补位；顶部统计与类型成就共用同一累计存档数据源，按类型统计不依赖分数或界面动画反推。
+
 ## 2026-10-27
 - 主窗口与成就面板共享 `ArcadeStageView` 背景和 `PixelFrameCardView` 卡片绘制组件；跨窗口界面沿用固定深色外观、等宽字体及模块主题色，保持视觉一致。
 

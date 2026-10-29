@@ -145,3 +145,35 @@
 "achievement.accessibility.locked" = "%@, locked";
 "achievement.accessibility.unlocked" = "%@, unlocked";
 "achievement.progress.legacy" = "Unlocked in an earlier version; past progress was not recorded";
+
+// 按方块类型记录累计消除数量及百、千、万三档里程碑。
+"banner.total_cleared" = "Total cleared";
+"banner.piece_cleared" = "%@: total cleared %@";
+"piece.orange_ricky.name" = "Orange tiles";
+"achievement.21.title" = "Orange · 100";
+"achievement.21.desc" = "Clear 100 orange tiles across all modes.";
+"achievement.22.title" = "Orange · 1,000";
+"achievement.22.desc" = "Clear 1,000 orange tiles across all modes.";
+"achievement.23.title" = "Orange · 10,000";
+"achievement.23.desc" = "Clear 10,000 orange tiles across all modes.";
+"piece.blue_ricky.name" = "Blue tiles";
+"achievement.24.title" = "Blue · 100";
+"achievement.24.desc" = "Clear 100 blue tiles across all modes.";
+"achievement.25.title" = "Blue · 1,000";
+"achievement.25.desc" = "Clear 1,000 blue tiles across all modes.";
+"achievement.26.title" = "Blue · 10,000";
+"achievement.26.desc" = "Clear 10,000 blue tiles across all modes.";
+"piece.cleveland_z.name" = "Green tiles";
+"achievement.27.title" = "Green · 100";
+"achievement.27.desc" = "Clear 100 green tiles across all modes.";
+"achievement.28.title" = "Green · 1,000";
+"achievement.28.desc" = "Clear 1,000 green tiles across all modes.";
+"achievement.29.title" = "Green · 10,000";
+"achievement.29.desc" = "Clear 10,000 green tiles across all modes.";
+"piece.rhode_island_z.name" = "Red tiles";
+"achievement.30.title" = "Red · 100";
+"achievement.30.desc" = "Clear 100 red tiles across all modes.";
+"achievement.31.title" = "Red · 1,000";
+"achievement.31.desc" = "Clear 1,000 red tiles across all modes.";
+"achievement.32.title" = "Red · 10,000";
+"achievement.32.desc" = "Clear 10,000 red tiles across all modes.";

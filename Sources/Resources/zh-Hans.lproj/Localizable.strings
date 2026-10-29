@@ -145,3 +145,35 @@
 "achievement.accessibility.locked" = "%@，未解锁";
 "achievement.accessibility.unlocked" = "%@，已解锁";
 "achievement.progress.legacy" = "旧版已解锁，历史进度未记录";
+
+// 按方块类型记录累计消除数量及百、千、万三档里程碑。
+"banner.total_cleared" = "累计消除";
+"banner.piece_cleared" = "%@：累计消除 %@";
+"piece.orange_ricky.name" = "橙色方块";
+"achievement.21.title" = "橙色百格";
+"achievement.21.desc" = "全部模式累计消除 100 个橙色方块。";
+"achievement.22.title" = "橙色千格";
+"achievement.22.desc" = "全部模式累计消除 1,000 个橙色方块。";
+"achievement.23.title" = "橙色万格";
+"achievement.23.desc" = "全部模式累计消除 10,000 个橙色方块。";
+"piece.blue_ricky.name" = "蓝色方块";
+"achievement.24.title" = "蓝色百格";
+"achievement.24.desc" = "全部模式累计消除 100 个蓝色方块。";
+"achievement.25.title" = "蓝色千格";
+"achievement.25.desc" = "全部模式累计消除 1,000 个蓝色方块。";
+"achievement.26.title" = "蓝色万格";
+"achievement.26.desc" = "全部模式累计消除 10,000 个蓝色方块。";
+"piece.cleveland_z.name" = "绿色方块";
+"achievement.27.title" = "绿色百格";
+"achievement.27.desc" = "全部模式累计消除 100 个绿色方块。";
+"achievement.28.title" = "绿色千格";
+"achievement.28.desc" = "全部模式累计消除 1,000 个绿色方块。";
+"achievement.29.title" = "绿色万格";
+"achievement.29.desc" = "全部模式累计消除 10,000 个绿色方块。";
+"piece.rhode_island_z.name" = "红色方块";
+"achievement.30.title" = "红色百格";
+"achievement.30.desc" = "全部模式累计消除 100 个红色方块。";
+"achievement.31.title" = "红色千格";
+"achievement.31.desc" = "全部模式累计消除 1,000 个红色方块。";
+"achievement.32.title" = "红色万格";
+"achievement.32.desc" = "全部模式累计消除 10,000 个红色方块。";

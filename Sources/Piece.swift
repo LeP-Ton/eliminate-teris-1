@@ -5,11 +5,14 @@ struct PieceBlock: Hashable {
     let y: Int
 }
 
-enum PieceKind: CaseIterable {
-    case orangeRicky
-    case blueRicky
-    case clevelandZ
-    case rhodeIslandZ
+enum PieceKind: String, CaseIterable, Hashable {
+    // 稳定标识用于累计统计存档，不依赖枚举顺序或界面语言。
+    case orangeRicky = "orange_ricky"
+    case blueRicky = "blue_ricky"
+    case clevelandZ = "cleveland_z"
+    case rhodeIslandZ = "rhode_island_z"
+
+    var titleKey: String { "piece.\(rawValue).name" }
 
     static func random() -> PieceKind {
         return PieceKind.allCases.randomElement() ?? .orangeRicky

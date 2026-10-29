@@ -24,6 +24,10 @@ final class GameBoardControllerTests: AchievementTestCase {
         for _ in 0..<10 { _ = controller.snapshot(); controller.tick() }
         XCTAssertEqual(progress(20), 1)
         XCTAssertEqual(progress(17), 10)
+        XCTAssertEqual(manager.totalCleared(for: a), 3)
+        XCTAssertEqual(manager.totalCleared(for: b), 4)
+        XCTAssertEqual(manager.totalCleared(for: c), 3)
+        XCTAssertEqual(manager.totalCleared(for: d), 0)
         controller.performSwap(from: 0, to: 1)
         XCTAssertEqual(progress(17), 10)
     }

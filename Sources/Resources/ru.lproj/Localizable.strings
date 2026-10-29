@@ -138,3 +138,35 @@
 "achievement.accessibility.locked" = "%@, закрыто";
 "achievement.accessibility.unlocked" = "%@, открыто";
 "achievement.progress.legacy" = "Открыто в прежней версии; прошлый прогресс не записывался";
+
+// 按方块类型记录累计消除数量及百、千、万三档里程碑。
+"banner.total_cleared" = "Всего удалено";
+"banner.piece_cleared" = "%@: всего удалено %@";
+"piece.orange_ricky.name" = "Оранжевые блоки";
+"achievement.21.title" = "Оранжевые · 100";
+"achievement.21.desc" = "Удалите 100 оранжевых блоков во всех режимах.";
+"achievement.22.title" = "Оранжевые · 1,000";
+"achievement.22.desc" = "Удалите 1,000 оранжевых блоков во всех режимах.";
+"achievement.23.title" = "Оранжевые · 10,000";
+"achievement.23.desc" = "Удалите 10,000 оранжевых блоков во всех режимах.";
+"piece.blue_ricky.name" = "Синие блоки";
+"achievement.24.title" = "Синие · 100";
+"achievement.24.desc" = "Удалите 100 синих блоков во всех режимах.";
+"achievement.25.title" = "Синие · 1,000";
+"achievement.25.desc" = "Удалите 1,000 синих блоков во всех режимах.";
+"achievement.26.title" = "Синие · 10,000";
+"achievement.26.desc" = "Удалите 10,000 синих блоков во всех режимах.";
+"piece.cleveland_z.name" = "Зелёные блоки";
+"achievement.27.title" = "Зелёные · 100";
+"achievement.27.desc" = "Удалите 100 зелёных блоков во всех режимах.";
+"achievement.28.title" = "Зелёные · 1,000";
+"achievement.28.desc" = "Удалите 1,000 зелёных блоков во всех режимах.";
+"achievement.29.title" = "Зелёные · 10,000";
+"achievement.29.desc" = "Удалите 10,000 зелёных блоков во всех режимах.";
+"piece.rhode_island_z.name" = "Красные блоки";
+"achievement.30.title" = "Красные · 100";
+"achievement.30.desc" = "Удалите 100 красных блоков во всех режимах.";
+"achievement.31.title" = "Красные · 1,000";
+"achievement.31.desc" = "Удалите 1,000 красных блоков во всех режимах.";
+"achievement.32.title" = "Красные · 10,000";
+"achievement.32.desc" = "Удалите 10,000 красных блоков во всех режимах.";

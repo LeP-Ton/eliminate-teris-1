@@ -638,6 +638,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     private func refreshAchievements() {
         let manager = AchievementsManager.shared
+        pixelBannerView.refresh(manager: manager)
         achievementsTitleLabel.stringValue = localizedFormat("achievement.summary", manager.unlockedIDs().count, AchievementDefinition.all.count)
         // 自绘深色背景下显式指定文字颜色，避免 inline 按钮回退成黑色文字。
         achievementsAllButton.attributedTitle = NSAttributedString(
@@ -2519,9 +2520,55 @@ private final class ArcadeActionButton: NSButton {
     }
 }
 
-private final class PixelBannerView: NSView {
+final class PixelBannerView: NSView {
     private var animationTick: CGFloat = 0
     private var animationTimer: Timer?
+    private var countTexts: [PieceKind: String] = [:]
+    private var previousCounts: [PieceKind: Double] = [:]
+    private var jumpStartedAt: [PieceKind: TimeInterval] = [:]
+    private let animationClock: () -> TimeInterval
+
+    init(frame: NSRect, clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+        self.animationClock = clock
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    /// 数量增长时跳起并落回；使用单调时钟，避免系统时间调整干扰动画。
+    func numberJumpOffset(for kind: PieceKind) -> CGFloat {
+        guard let start = jumpStartedAt[kind] else { return 0 }
+        let progress = (animationClock() - start) / 0.42
+        guard progress >= 0, progress < 1 else { return 0 }
+        return -6 * CGFloat(sin(progress * .pi))
+    }
+
+    /// 与成就共用累计数据源，语言切换时同步更新数字格式及辅助功能说明。
+    func refresh(manager: AchievementsManager) {
+        let formatter = NumberFormatter()
+        formatter.locale = Localizer.shared.locale
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        var descriptions: [String] = []
+        let now = animationClock()
+        for kind in PieceKind.allCases {
+            let count = manager.totalCleared(for: kind)
+            if let previous = previousCounts[kind], count > previous {
+                jumpStartedAt[kind] = now
+            } else if count < previousCounts[kind, default: 0] {
+                jumpStartedAt.removeValue(forKey: kind)
+            }
+            // 首次加载与同值刷新仅恢复显示，不把历史数量误当作新消除。
+            previousCounts[kind] = count
+            let text = formatter.string(from: NSNumber(value: count)) ?? "0"
+            countTexts[kind] = text
+            descriptions.append(AchievementText.format("banner.piece_cleared", AchievementText.string(kind.titleKey), text))
+        }
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel(descriptions.joined(separator: "；"))
+        needsDisplay = true
+    }
 
     override var isFlipped: Bool {
         return true
@@ -2566,7 +2613,13 @@ private final class PixelBannerView: NSView {
         outerPath.lineWidth = 1
         outerPath.stroke()
 
-        let boardRect = outerRect.insetBy(dx: 12, dy: 12)
+        let titleRect = NSRect(x: outerRect.minX + 16, y: outerRect.minY + 10, width: max(0, outerRect.width - 32), height: 14)
+        (AchievementText.string("banner.total_cleared") as NSString).draw(in: titleRect, withAttributes: [
+            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .heavy),
+            .foregroundColor: NSColor(calibratedRed: 0.7, green: 0.86, blue: 1, alpha: 0.96)
+        ])
+        let boardRect = NSRect(x: outerRect.minX + 12, y: outerRect.minY + 30,
+                               width: max(0, outerRect.width - 24), height: max(0, outerRect.height - 42))
         NSColor.black.withAlphaComponent(0.38).setFill()
         NSBezierPath(roundedRect: boardRect, xRadius: 6, yRadius: 6).fill()
 
@@ -2575,7 +2628,8 @@ private final class PixelBannerView: NSView {
     }
 
     private func drawGrid(in rect: CGRect) {
-        let pulse = 0.06 + CGFloat((sin(Double(animationTick) * 0.08) + 1) * 0.025)
+        let pulse = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            ? 0.08 : 0.06 + CGFloat((sin(Double(animationTick) * 0.08) + 1) * 0.025)
         let lineColor = NSColor.white.withAlphaComponent(pulse)
         let step: CGFloat = 9
         let path = NSBezierPath()
@@ -2604,7 +2658,9 @@ private final class PixelBannerView: NSView {
         guard !kinds.isEmpty else { return }
 
         let slotWidth = rect.width / CGFloat(kinds.count)
-        let baseBlockSize = max(7, min(10, floor((rect.height - 14) / 4)))
+        // 当前四种图案均为两行，为浮动和数字跳动预留上下空间。
+        let baseBlockSize = max(7, min(10, floor((rect.height - 16) / 2)))
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
 
         for (index, kind) in kinds.enumerated() {
             let blocks = kind.blocks
@@ -2620,8 +2676,12 @@ private final class PixelBannerView: NSView {
             let pieceHeight = CGFloat(heightCells) * baseBlockSize
 
             let slotX = rect.minX + CGFloat(index) * slotWidth
-            let wave = CGFloat(sin(Double(animationTick) * 0.12 + Double(index) * 0.7)) * 2.2
-            let originX = slotX + (slotWidth - pieceWidth) * 0.5
+            let wave = reduceMotion ? 0 : CGFloat(sin(Double(animationTick) * 0.12 + Double(index) * 0.7)) * 2.2
+            let count = countTexts[kind] ?? "0"
+            let numberWidth = min(max(1, slotWidth - pieceWidth - 26),
+                                  SevenSegmentNumberRenderer.width(for: count, height: pieceHeight))
+            let originX = slotX + (slotWidth - pieceWidth - 10 - numberWidth) * 0.5
+            // 图案与数字共用基础 Y 坐标，因此持续浮动的相位与振幅始终一致。
             let originY = rect.minY + (rect.height - pieceHeight) * 0.5 + wave
             let glowPulse = CGFloat((sin(Double(animationTick) * 0.14 + Double(index)) + 1) * 0.5)
 
@@ -2634,6 +2694,11 @@ private final class PixelBannerView: NSView {
                 blockSize: baseBlockSize,
                 pulse: glowPulse
             )
+            let jump = reduceMotion ? 0 : numberJumpOffset(for: kind)
+            let numberRect = NSRect(x: originX + pieceWidth + 10, y: originY + jump,
+                                    width: numberWidth, height: pieceHeight)
+            let color = kind.color.blended(withFraction: 0.4, of: .white) ?? kind.color
+            SevenSegmentNumberRenderer.draw(count, in: numberRect, color: color)
         }
     }
 

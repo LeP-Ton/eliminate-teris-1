@@ -35,6 +35,14 @@ class AchievementTestCase: XCTestCase {
                            score: score, at: date.addingTimeInterval(seconds))
     }
 
+    func typedSwap(_ counts: [PieceKind: Int], id: UUID = UUID()) {
+        let total = counts.values.reduce(0, +)
+        manager.recordSwap(roundID: round, swapID: id,
+                           result: SwapResolution(isValidSwap: true, clearedCount: total, cascadeCount: 1,
+                                                  longestRun: 3, clearedByKind: counts),
+                           score: total * 10, at: date)
+    }
+
     func newRound() {
         round = UUID()
         manager.beginRound(id: round)
@@ -43,8 +51,8 @@ class AchievementTestCase: XCTestCase {
 
 final class AchievementsTests: AchievementTestCase {
     func testAllDefinitionsHaveStableIDs() {
-        XCTAssertEqual(AchievementDefinition.all.map(\.id), Array(1...20))
-        XCTAssertEqual(AchievementCategory.allCases.map { c in AchievementDefinition.all.filter { $0.category == c }.count }, [4, 5, 7, 4])
+        XCTAssertEqual(AchievementDefinition.all.map(\.id), Array(1...32))
+        XCTAssertEqual(AchievementCategory.allCases.map { c in AchievementDefinition.all.filter { $0.category == c }.count }, [4, 5, 7, 16])
     }
 
     func testOneSwapUnlocksEveryReachedMilestoneAndPersistsBeforeNotification() {
@@ -222,4 +230,69 @@ final class AchievementsTests: AchievementTestCase {
         XCTAssertTrue(manager.hasTimedResult(for: definition))
         XCTAssertEqual(manager.progress(for: definition).current, 0)
     }
+
+    func testEveryPieceKindUnlocksItsOwnHundredThousandAndTenThousandMilestones() {
+        for (index, kind) in PieceKind.allCases.enumerated() {
+            newRound()
+            let firstID = 21 + index * 3
+            for (tier, threshold) in [100, 1_000, 10_000].enumerated() {
+                let previous = Int(manager.totalCleared(for: kind))
+                typedSwap([kind: threshold - previous - 1])
+                XCTAssertEqual(progress(firstID + tier), Double(threshold - 1))
+                XCTAssertFalse(manager.isUnlocked(id: firstID + tier))
+                typedSwap([kind: 1])
+                XCTAssertTrue(manager.isUnlocked(id: firstID + tier))
+            }
+            XCTAssertEqual(manager.totalCleared(for: kind), 10_000)
+        }
+        XCTAssertTrue((21...32).allSatisfy { manager.isUnlocked(id: $0) })
+        XCTAssertEqual(progress(19), 40_000)
+    }
+
+    func testTypedClearsDoNotBleedAcrossKindsOrCountDuplicateEvents() {
+        let id = UUID()
+        typedSwap([.orangeRicky: 50, .blueRicky: 50], id: id)
+        typedSwap([.orangeRicky: 50, .blueRicky: 50], id: id)
+        XCTAssertEqual(progress(17), 100)
+        XCTAssertFalse(manager.isUnlocked(id: 21))
+        XCTAssertFalse(manager.isUnlocked(id: 24))
+        typedSwap([.orangeRicky: 50])
+        XCTAssertTrue(manager.isUnlocked(id: 21))
+        XCTAssertFalse(manager.isUnlocked(id: 24))
+        XCTAssertEqual(manager.totalCleared(for: .orangeRicky), 100)
+        XCTAssertEqual(manager.totalCleared(for: .blueRicky), 50)
+        XCTAssertEqual(manager.totalCleared(for: .clevelandZ), 0)
+        XCTAssertEqual(manager.totalCleared(for: .rhodeIslandZ), 0)
+    }
+
+    func testOneTypedEventCanUnlockAllThreeTiersTogether() {
+        var newIDs: [Int] = []
+        let observer = NotificationCenter.default.addObserver(forName: AchievementsManager.didUnlockNotification, object: manager, queue: nil) { note in
+            newIDs += (note.userInfo?["ids"] as? [Int] ?? []).filter { $0 >= 21 }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        typedSwap([.rhodeIslandZ: 10_000])
+        XCTAssertEqual(newIDs, [30, 31, 32])
+    }
+
+    func testExistingSaveKeepsTotalsAndNewTypedCountsPersistAcrossRoundsAndReloads() {
+        defaults.set(["version": 1, "unlocked": [1, 17], "timestamps": ["1": date.timeIntervalSince1970],
+                      "metrics": ["totalCleared": 1_234]], forKey: AchievementsManager.storageKey)
+        manager = AchievementsManager(defaults: defaults)
+        manager.beginRound(id: round)
+        XCTAssertEqual(progress(17), 1_234)
+        XCTAssertEqual(manager.unlockDate(id: 1), date)
+        XCTAssertTrue(PieceKind.allCases.allSatisfy { manager.totalCleared(for: $0) == 0 })
+        typedSwap([.orangeRicky: 100])
+        newRound()
+        typedSwap([.blueRicky: 1])
+        manager = AchievementsManager(defaults: defaults)
+        XCTAssertEqual(manager.totalCleared(for: .orangeRicky), 100)
+        XCTAssertEqual(manager.totalCleared(for: .blueRicky), 1)
+        XCTAssertEqual(progress(17), 1_335)
+        XCTAssertTrue(manager.isUnlocked(id: 21))
+        XCTAssertTrue(manager.isUnlocked(id: 17))
+        XCTAssertEqual(manager.unlockDate(id: 1), date)
+    }
+
 }
