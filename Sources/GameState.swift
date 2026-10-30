@@ -34,6 +34,8 @@ final class GameState {
     let columns: Int
     private(set) var tiles: [BoardTile]
     private(set) var score: Int = 0
+    /// 本局分类计数，随新棋盘清零；成就管理器另外保存跨局累计值。
+    private(set) var clearedByKind: [PieceKind: Int] = [:]
     private(set) var lastResolution: SwapResolution = .invalid
     private let nextKind: () -> PieceKind
 
@@ -99,7 +101,10 @@ final class GameState {
             cascadeCount += 1
             longestRun = max(longestRun, runLength)
             // 补位前读取实际消除方块的类型，将每轮连锁合并到本次交换。
-            for index in matches { clearedByKind[tiles[index].kind, default: 0] += 1 }
+            for index in matches {
+                clearedByKind[tiles[index].kind, default: 0] += 1
+                self.clearedByKind[tiles[index].kind, default: 0] += 1
+            }
             refillAfterClearing(matches)
         }
         return SwapResolution(isValidSwap: true, clearedCount: clearedCount, cascadeCount: cascadeCount,

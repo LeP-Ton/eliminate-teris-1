@@ -66,6 +66,7 @@ final class GameBoardControllerTests: AchievementTestCase {
                 return [c, d, c][index]
             }
         })
+        controller.startRound()
         controller.performSwap(from: 2, to: 3)
         XCTAssertTrue(manager.isUnlocked(id: 4))
         XCTAssertEqual(progress(20), 0)

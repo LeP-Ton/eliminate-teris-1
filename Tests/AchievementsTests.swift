@@ -140,30 +140,27 @@ final class AchievementsTests: AchievementTestCase {
         XCTAssertEqual(progress(20), 0)
     }
 
-    func testEachScoreAttackTierRequiresItsOwnFinishedRound() {
-        for (minutes, id) in [(1, 10), (2, 11), (3, 12)] {
+    func testEachFixedScoreAttackThresholdRequiresItsFinishedRound() {
+        for (score, id) in [(300, 10), (600, 11), (900, 12)] {
             newRound()
-            swap(score: minutes * 300)
+            swap(score: score)
             XCTAssertFalse(manager.isUnlocked(id: id))
-            manager.finishRound(id: round, mode: .scoreAttack(duration: Double(minutes * 60)), score: minutes * 300, elapsed: Double(minutes * 60), at: date)
+            manager.finishRound(id: round, mode: .scoreAttack(duration: 60), score: score, elapsed: 60, at: date)
             XCTAssertTrue(manager.isUnlocked(id: id))
         }
     }
 
-    func testSpeedRunTiersAndSixtySecondBoundary() {
+    func testFixedSpeedRunTimeChallengesAndSixtySecondBoundary() {
         manager.finishRound(id: round, mode: .speedRun(targetScore: 300), score: 300, elapsed: 60.001, at: date)
         XCTAssertTrue(manager.isUnlocked(id: 13))
         XCTAssertFalse(manager.isUnlocked(id: 16))
-        newRound()
-        manager.finishRound(id: round, mode: .speedRun(targetScore: 300), score: 330, elapsed: 60, at: date)
-        XCTAssertTrue(manager.isUnlocked(id: 16))
-        for (target, id) in [(600, 14), (900, 15)] {
+        for (seconds, id) in [(60.0, 16), (45.0, 14), (30.0, 15)] {
             newRound()
-            manager.finishRound(id: round, mode: .speedRun(targetScore: target), score: target, elapsed: 90, at: date)
+            manager.finishRound(id: round, mode: .speedRun(targetScore: 300), score: 330, elapsed: seconds, at: date)
             XCTAssertTrue(manager.isUnlocked(id: id))
         }
         let best = AchievementDefinition.all.first { $0.id == 16 }!
-        XCTAssertEqual(manager.progress(for: best).current, 60)
+        XCTAssertEqual(manager.progress(for: best).current, 30)
     }
 
     func testReloadRetainsMetricsAndTimeButStartsNewStreak() {

@@ -14,11 +14,12 @@ enum AchievementText {
 
     static func progress(_ definition: AchievementDefinition, manager: AchievementsManager) -> String {
         let progress = manager.progress(for: definition)
-        if definition.id <= 3, manager.isUnlocked(id: definition.id), progress.current < progress.target {
+        let reached = progress.isTime ? manager.hasTimedResult(for: definition) && progress.current <= progress.target : progress.current >= progress.target
+        if manager.isUnlocked(id: definition.id), !reached {
             return string("achievement.progress.legacy")
         }
         if progress.isTime {
-            guard manager.hasTimedResult(for: definition) else { return string("achievement.progress.no_time") }
+            guard manager.hasTimedResult(for: definition) else { return format("achievement.progress.no_time", progress.target) }
             return format("achievement.progress.time", progress.current, progress.target)
         }
         switch definition.goal {
@@ -176,24 +177,24 @@ final class AchievementBadgeStripView: NSScrollView {
     @objc private func badgeTapped(_ sender: NSButton) { onSelect?(sender.tag) }
 }
 
-/// 成就沿用主界面的红色卡片主题，已解锁项目使用状态栏同款浅绿色。
+/// 辅助面板沿用浅色首页的文字、边框及成功状态颜色。
 private enum AchievementPanelStyle {
-    static let accent = NSColor(calibratedRed: 1, green: 0.53, blue: 0.5, alpha: 0.96)
-    static let success = NSColor(calibratedRed: 0.74, green: 0.98, blue: 0.78, alpha: 0.96)
-    static let body = NSColor(calibratedRed: 1, green: 0.82, blue: 0.82, alpha: 0.9)
-    static let muted = NSColor(calibratedRed: 0.78, green: 0.71, blue: 0.75, alpha: 1)
-    static let controlFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .semibold)
+    static let accent = HomeStyle.ink
+    static let success = HomeStyle.green
+    static let body = HomeStyle.ink
+    static let muted = HomeStyle.secondary
+    static let controlFont = NSFont.systemFont(ofSize: 12, weight: .semibold)
 
     static func drawControl(_ rect: NSRect, title: String, selected: Bool) {
         let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
-        NSColor(calibratedRed: selected ? 0.27 : 0.12, green: 0.14, blue: 0.2, alpha: 1).setFill()
+        (selected ? NSColor(calibratedRed: 0.9, green: 0.96, blue: 1, alpha: 1) : NSColor.white).setFill()
         path.fill()
-        accent.withAlphaComponent(selected ? 0.95 : 0.4).setStroke()
+        (selected ? HomeStyle.blue : HomeStyle.border).setStroke()
         path.lineWidth = 1
         path.stroke()
         let attributes: [NSAttributedString.Key: Any] = [
             .font: controlFont,
-            .foregroundColor: selected ? accent : body
+            .foregroundColor: selected ? HomeStyle.blue : body
         ]
         let size = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2),
@@ -257,29 +258,17 @@ private final class AchievementProgressIndicator: NSProgressIndicator {
     override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 10) }
 
     override func draw(_ dirtyRect: NSRect) {
-        let track = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 2, yRadius: 2)
-        NSColor(calibratedRed: 0.05, green: 0.07, blue: 0.11, alpha: 1).setFill()
+        let track = NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2)
+        NSColor(calibratedWhite: 0.91, alpha: 1).setFill()
         track.fill()
-        accentColor.withAlphaComponent(0.3).setStroke()
-        track.lineWidth = 1
-        track.stroke()
-        let inner = bounds.insetBy(dx: 3, dy: 3)
-        guard inner.width > 0, inner.height > 0 else { return }
         let fraction = min(1, max(0, (doubleValue - minValue) / max(1, maxValue - minValue)))
-        let filledWidth = inner.width * fraction
-        var x = inner.minX
-        while x < inner.maxX {
-            let width = min(6, inner.maxX - x)
-            accentColor.withAlphaComponent(0.1).setFill()
-            NSBezierPath(rect: NSRect(x: x, y: inner.minY, width: width, height: inner.height)).fill()
-            let activeWidth = min(width, max(0, inner.minX + filledWidth - x))
-            if activeWidth > 0 {
-                accentColor.setFill()
-                NSBezierPath(rect: NSRect(x: x, y: inner.minY, width: activeWidth, height: inner.height)).fill()
-            }
-            x += 9
+        if fraction > 0 {
+            accentColor.setFill()
+            NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: bounds.width * fraction, height: bounds.height),
+                         xRadius: bounds.height / 2, yRadius: bounds.height / 2).fill()
         }
     }
+
 }
 
 /// 面板不争夺主窗口焦点，点击筛选时仍保留 Touch Bar 的游戏棋盘。
@@ -309,8 +298,8 @@ final class AchievementsWindowController: NSWindowController {
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = true
         panel.minSize = NSSize(width: 480, height: 360)
-        panel.appearance = NSAppearance(named: .darkAqua)
-        panel.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.06, blue: 0.09, alpha: 1)
+        panel.appearance = NSAppearance(named: .aqua)
+        panel.backgroundColor = HomeStyle.background
         panel.titlebarAppearsTransparent = true
         panel.contentView = ArcadeStageView(frame: NSRect(x: 0, y: 0, width: 600, height: 580))
         super.init(window: panel)
@@ -378,7 +367,7 @@ final class AchievementsWindowController: NSWindowController {
             let group = definitions.filter { $0.category == category }
             guard !group.isEmpty else { continue }
             let label = NSTextField(labelWithString: AchievementText.string("achievement.category.\(category.rawValue)"))
-            label.font = .monospacedSystemFont(ofSize: 12, weight: .heavy)
+            label.font = .systemFont(ofSize: 12, weight: .heavy)
             label.textColor = AchievementPanelStyle.accent
             list.addArrangedSubview(label)
             for definition in group {
@@ -389,7 +378,7 @@ final class AchievementsWindowController: NSWindowController {
         }
         if definitions.isEmpty {
             let empty = NSTextField(wrappingLabelWithString: AchievementText.string("achievement.empty"))
-            empty.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+            empty.font = .systemFont(ofSize: 12, weight: .regular)
             empty.textColor = AchievementPanelStyle.body
             list.addArrangedSubview(empty)
         }
@@ -397,7 +386,7 @@ final class AchievementsWindowController: NSWindowController {
 
     private func buildContent() {
         guard let content = window?.contentView else { return }
-        heading.font = .monospacedSystemFont(ofSize: 16, weight: .heavy)
+        heading.font = .systemFont(ofSize: 16, weight: .heavy)
         heading.textColor = AchievementPanelStyle.accent
         heading.lineBreakMode = .byTruncatingTail
         heading.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -473,7 +462,7 @@ final class AchievementsWindowController: NSWindowController {
         let row = PixelFrameCardView(accentColor: accent)
         row.translatesAutoresizingMaskIntoConstraints = false
         let name = NSTextField(wrappingLabelWithString: AchievementText.string(definition.titleKey))
-        name.font = .monospacedSystemFont(ofSize: 13, weight: .semibold)
+        name.font = .systemFont(ofSize: 13, weight: .semibold)
         name.textColor = accent
         name.setAccessibilityLabel(AchievementText.title(definition, manager: manager))
         let icon = NSImageView(image: NSImage(systemSymbolName: unlocked ? "checkmark.seal.fill" : "lock.fill", accessibilityDescription: nil) ?? NSImage())
@@ -485,16 +474,16 @@ final class AchievementsWindowController: NSWindowController {
         titleRow.orientation = .horizontal
         titleRow.spacing = 6
         let condition = NSTextField(wrappingLabelWithString: AchievementText.string(definition.descriptionKey))
-        condition.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        condition.font = .systemFont(ofSize: 12, weight: .regular)
         condition.textColor = AchievementPanelStyle.body
         let progress = NSTextField(wrappingLabelWithString: AchievementText.progress(definition, manager: manager))
-        progress.font = .monospacedSystemFont(ofSize: 11, weight: .medium)
+        progress.font = .systemFont(ofSize: 11, weight: .medium)
         progress.textColor = accent
         let status = NSTextField(wrappingLabelWithString: AchievementText.status(definition, manager: manager))
-        status.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
+        status.font = .systemFont(ofSize: 10, weight: .regular)
         status.textColor = unlocked ? AchievementPanelStyle.success : AchievementPanelStyle.muted
         let meter = AchievementProgressIndicator()
-        meter.accentColor = accent
+        meter.accentColor = unlocked ? HomeStyle.green : HomeStyle.yellow
         meter.heightAnchor.constraint(equalToConstant: 10).isActive = true
         meter.style = .bar
         meter.isIndeterminate = false

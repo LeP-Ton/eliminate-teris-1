@@ -5,14 +5,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let viewController = GameViewController()
+        let available = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1440, height: 900)
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: min(1180, max(960, available.width - 64)), height: min(800, max(720, available.height - 80))),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.center()
         window.title = Localizer.shared.string("window.title")
+        window.appearance = NSAppearance(named: .aqua)
+        window.contentMinSize = NSSize(width: 960, height: 720)
         window.contentViewController = viewController
         window.makeFirstResponder(viewController)
         window.makeKeyAndOrderFront(nil)

@@ -5,6 +5,13 @@
 - 本地启动使用 `./run.sh`，打包使用 `./package.sh`；自动化验证使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`，测试使用系统自带 XCTest。
 - 检索项目时先读取 `.agentdocs/index.md`，再按索引中的读取场景查阅具体文档；不要直接全量检索 `.agentdocs/workflow/`。
 
+## 2026-10-30（experiment/ui-refactor 探索分支）
+- 桌面首页由 `HomeDashboardView` 负责展示，`GameViewController` 负责事件协调、记录结算与既有 Touch Bar 展示生命周期；共用规则和浅色绘制位于 `GamePresentation`。
+- 本局数据由 `GameState` 持有并通过 `GameSnapshot` 提供，成就累计由 `AchievementsManager` 单独持久化；两种生命周期互不混用。
+- 三种模式均需点击开始；竞分固定 60 秒，竞速固定 300 分，首页不再提供档位设置。旧挑战记录保留，成就按固定规则兼容升级并保留已解锁状态。
+- 首页及辅助面板在探索分支使用暖白、蓝色选择态与黄色主操作的浅色主题，替代旧版桌面像素背景；Touch Bar 棋盘绘制链路沿用既有实现。
+- 首页主插画直接使用设计稿提取的本地透明资源，按四种形状独立缓存和浮动；图片与语言表共用 `GameResourceLocator` 定位资源，运行时不依赖网络或三维渲染服务。
+
 ## 2026-10-29
 - 消除结算事件包含按 `PieceKind` 稳定标识分类的明细，先记录被消除的实际类型再补位；顶部统计与类型成就共用同一累计存档数据源，按类型统计不依赖分数或界面动画反推。
 

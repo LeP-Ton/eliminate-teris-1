@@ -3,7 +3,8 @@ import Foundation
 /// 使用代码所在 Bundle 定位 XCTest 宿主旁的 SwiftPM 资源，避免依赖测试进程的主 Bundle。
 private final class LocalizationBundleToken: NSObject {}
 
-private enum LocalizerResourceLocator {
+/// 语言表与首页插画共用资源定位，兼容 SwiftPM 测试、直接运行及手工打包的 .app。
+enum GameResourceLocator {
     static let bundleName = "EliminateTeris1_EliminateTeris1"
 
     static func resourceBundle() -> Bundle? {
@@ -113,7 +114,7 @@ final class Localizer {
     }
 
     private func bundle(for language: AppLanguage) -> Bundle? {
-        guard let resourceBundle = LocalizerResourceLocator.resourceBundle() else {
+        guard let resourceBundle = GameResourceLocator.resourceBundle() else {
             return nil
         }
 

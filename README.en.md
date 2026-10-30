@@ -57,12 +57,12 @@ Compared with traditional two-dimensional match games, this one-dimensional stru
 
 ### 3. Three modes for practice, score chasing, and speed
 - **Free Mode**: no time limit and no target score; ideal for learning the rules and getting comfortable with the controls.
-- **Score Attack**: score as high as possible within a limited time; currently supports `1 / 2 / 3` minute presets.
-- **Speed Run**: reach a target score as quickly as possible; currently supports `300 / 600 / 900` point targets.
+- **Score Attack**: score as high as possible within a limited time; uses a fixed `60` second round and ends automatically.
+- **Speed Run**: reach a target score as quickly as possible; uses a fixed `300` point target and ends automatically.
 
 ### 4. Local challenge records
 - Records are stored locally by mode and by sub-rule.
-- For example, “Score Attack - 1 minute” and “Score Attack - 3 minutes” are ranked separately, and so are “Speed Run - 300” and “Speed Run - 900”.
+- The current interface shows 60-second Score Attack and 300-point Speed Run rankings. Other historical buckets remain in local storage.
 - Each record bucket keeps up to `9` entries so you can keep pushing your best results.
 
 ### 5. Audio feedback with a clear rhythm
@@ -98,16 +98,16 @@ Best for your first few rounds. There is no time pressure and no score target. I
 This is the most straightforward mode for chasing high scores. You need to create as many efficient swaps as possible within limited time. It rewards consistency, quick decisions, and control under pressure.
 
 ### Speed Run
-In this mode, the goal is simple: hit the target score as fast as possible. Whether the target is `300`, `600`, or `900`, success depends not only on making correct moves, but also on minimizing hesitation.
+Reach the fixed target of `300` points as quickly as possible. The round ends automatically when the target is reached.
 
 ## Interface Overview
 
-Besides the Touch Bar board itself, the desktop window provides several supporting panels:
+This `experiment/ui-refactor` branch uses a light desktop dashboard with a hero area, mode cards, live round statistics, and an achievement strip.
 
-- **Game Settings**: switch mode, sub-rules, language, and start or restart a run.
-- **Time & Score**: shows elapsed time, remaining time when applicable, and score updates.
-- **Challenge Records**: shows local best results for the current mode and current rule bucket.
-- **Mode Briefing**: explains the rules for the currently selected mode.
+- **Game Modes**: choose Free Play, Speed Run, or Score Attack, then start or restart. Time and target settings are fixed.
+- **Cleared Tiles**: live totals and four tile-type counts for this round. Restarting or switching modes clears them; lifetime achievement progress remains saved.
+- **Navigation**: records, rules, and settings open separate panels. Settings contain language and master volume.
+- **Achievements**: completion progress, five badges, and access to the full collection.
 
 In other words, this is not just “a Touch Bar strip doing something.” It is a complete play experience made of a Touch Bar battlefield and a desktop information panel.
 
@@ -187,7 +187,10 @@ Key files at a glance:
 
 - `Sources/GameTouchBarView.swift`: Touch Bar board rendering, interaction, and animation
 - `Sources/GameState.swift`: board state, match detection, clearing, and left-side refill logic
-- `Sources/GameViewController.swift`: desktop UI, mode switching, and status presentation
+- `Sources/GameViewController.swift`: event coordination, fixed mode selection, result recording, and Touch Bar lifecycle
+- `Sources/HomeDashboardView.swift`: light dashboard and live round statistics
+- `Sources/GamePresentation.swift`: fixed rules and shared rendering style
+- `Sources/HomeUtilityPanel.swift`: navigation panels
 - `Sources/ModeRecordStore.swift`: local challenge record storage and ranking
 - `Sources/GameAudioSystem.swift`: procedural BGM and sound effects
 - `Sources/Localization.swift`: language switching and resource bundle lookup

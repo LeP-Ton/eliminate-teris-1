@@ -20,7 +20,7 @@ final class AchievementLocalizationTests: XCTestCase {
             }
         }
         let english = try XCTUnwrap(tables["en"])
-        let keys = english.keys.filter { $0.hasPrefix("achievement.") || $0.hasPrefix("banner.") || $0.hasPrefix("piece.") }
+        let keys = english.keys.filter { $0.hasPrefix("achievement.") || $0.hasPrefix("banner.") || $0.hasPrefix("piece.") || $0.hasPrefix("home.") }
         for table in tables.values {
             for key in keys {
                 let value = try XCTUnwrap(table[key], key)

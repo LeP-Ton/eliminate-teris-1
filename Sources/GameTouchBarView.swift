@@ -14,6 +14,9 @@ struct GameSnapshot {
     let targetScore: Int?
     let isRunning: Bool
     let isFinished: Bool
+    var clearedByKind: [PieceKind: Int] = [:]
+
+    var totalCleared: Int { clearedByKind.values.reduce(0, +) }
 }
 
 final class GameBoardController {
@@ -31,7 +34,7 @@ final class GameBoardController {
     private var mode: GameMode = .free
     private var roundStartDate = Date()
     private var stoppedElapsedTime: TimeInterval = 0
-    private var isRunningRound = true
+    private var isRunningRound = false
     private var isFinished = false
     private var lastSwapPair: (Int, Int)?
 
@@ -59,14 +62,12 @@ final class GameBoardController {
         self.mode = mode
         resetBoard(startDate: currentDate())
         stoppedElapsedTime = 0
-        isRunningRound = isFreeMode
+        isRunningRound = false
         isFinished = false
         notifyChange()
     }
 
     func startRound() {
-        guard !isFreeMode else { return }
-
         resetBoard(startDate: currentDate())
         stoppedElapsedTime = 0
         isRunningRound = true
@@ -101,8 +102,9 @@ final class GameBoardController {
                 elapsedTime: elapsed,
                 remainingTime: nil,
                 targetScore: nil,
-                isRunning: true,
-                isFinished: isFinished
+                isRunning: isRunningRound,
+                isFinished: isFinished,
+                clearedByKind: state.clearedByKind
             )
 
         case .scoreAttack(let duration):
@@ -120,7 +122,8 @@ final class GameBoardController {
                 remainingTime: remaining,
                 targetScore: nil,
                 isRunning: isRunningRound,
-                isFinished: isFinished
+                isFinished: isFinished,
+                clearedByKind: state.clearedByKind
             )
 
         case .speedRun(let targetScore):
@@ -131,7 +134,8 @@ final class GameBoardController {
                 remainingTime: nil,
                 targetScore: targetScore,
                 isRunning: isRunningRound,
-                isFinished: isFinished
+                isFinished: isFinished,
+                clearedByKind: state.clearedByKind
             )
         }
     }
@@ -243,7 +247,7 @@ final class GameBoardController {
     private func canInteract() -> Bool {
         _ = updateFinishedState(now: currentDate())
         if isFreeMode {
-            return !isFinished
+            return isRunningRound && !isFinished
         }
         return isRunningRound && !isFinished
     }
