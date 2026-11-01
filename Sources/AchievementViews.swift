@@ -14,16 +14,12 @@ enum AchievementText {
 
     static func progress(_ definition: AchievementDefinition, manager: AchievementsManager) -> String {
         let progress = manager.progress(for: definition)
-        let reached = progress.isTime ? manager.hasTimedResult(for: definition) && progress.current <= progress.target : progress.current >= progress.target
+        let reached = progress.current >= progress.target
         if manager.isUnlocked(id: definition.id), !reached {
             return string("achievement.progress.legacy")
         }
-        if progress.isTime {
-            guard manager.hasTimedResult(for: definition) else { return format("achievement.progress.no_time", progress.target) }
-            return format("achievement.progress.time", progress.current, progress.target)
-        }
         switch definition.goal {
-        case .firstClear, .speedRun:
+        case .firstClear, .completedMode:
             return string(manager.isUnlocked(id: definition.id) ? "achievement.state.unlocked" : "achievement.state.locked")
         default:
             let formatter = NumberFormatter()

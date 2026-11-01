@@ -10,25 +10,19 @@ final class HomeUtilityPanelTests: AchievementTestCase {
     private func recordStore(empty: Bool = false) throws -> ModeRecordStore {
         var buckets: [String: [ModeRecord]] = [:]
         if !empty {
-            buckets[ModeRecordStore.scopeID(mode: .scoreAttack, detailValue: 1)] = (0..<9).map {
-                ModeRecord(id: "utility-score-\($0)", score: 920 - $0 * 70, elapsedTime: 60,
-                           durationMinutes: 1, targetScore: nil, createdAt: 1_793_361_600 - Double($0) * 86400)
+            buckets[ModeRecordStore.scopeID(mode: .timed, detailValue: 60)] = (0..<9).map {
+                ModeRecord(id: "utility-timed-\($0)", clearedCount: 92 - $0 * 7, swapsUsed: 30,
+                           elapsedTime: 60, createdAt: 1_793_361_600 - Double($0) * 86400)
             }
-            buckets[ModeRecordStore.scopeID(mode: .speedRun, detailValue: 300)] = (0..<9).map {
-                ModeRecord(id: "utility-speed-\($0)", score: 300, elapsedTime: 18.42 + Double($0) * 3.2,
-                           durationMinutes: nil, targetScore: 300, createdAt: 1_793_361_600 - Double($0) * 86400)
+            buckets[ModeRecordStore.scopeID(mode: .moves, detailValue: 30)] = (0..<9).map {
+                ModeRecord(id: "utility-moves-\($0)", clearedCount: 75 - $0 * 5, swapsUsed: 30,
+                           elapsedTime: 180 + Double($0) * 60, createdAt: 1_793_361_600 - Double($0) * 86400)
             }
-            buckets[ModeRecordStore.scopeID(mode: .scoreAttack, detailValue: 2)] = [
-                ModeRecord(id: "old-rule", score: 999_999, elapsedTime: 120, durationMinutes: 2, targetScore: nil, createdAt: 0)
+            buckets[ModeRecordStore.scopeID(mode: .timed, detailValue: 120)] = [
+                ModeRecord(id: "other-rule", clearedCount: 999_999, swapsUsed: 90, elapsedTime: 120, createdAt: 0)
             ]
         }
-        defaults.set(try JSONEncoder().encode(buckets), forKey: "mode_records_v1")
-        let previous = ProcessInfo.processInfo.environment["ELIMINATE_DEVELOPMENT_MODE"]
-        setenv("ELIMINATE_DEVELOPMENT_MODE", "0", 1)
-        defer {
-            if let previous { setenv("ELIMINATE_DEVELOPMENT_MODE", previous, 1) }
-            else { unsetenv("ELIMINATE_DEVELOPMENT_MODE") }
-        }
+        defaults.set(try JSONEncoder().encode(buckets), forKey: ModeRecordStore.storageKey)
         return ModeRecordStore(defaults: defaults)
     }
 
@@ -70,19 +64,19 @@ final class HomeUtilityPanelTests: AchievementTestCase {
         panel.refresh(mode: .free, volume: 0.4)
         let content = try XCTUnwrap(panel.window?.contentView)
         let tabs = try XCTUnwrap(descendants(content).compactMap { $0 as? AchievementFilterControl }.first)
-        XCTAssertTrue(labels(content).contains("920"))
+        XCTAssertTrue(labels(content).contains("92"))
         XCTAssertFalse(labels(content).contains { $0.contains("999999") || $0.contains("999,999") })
         tabs.selectedSegment = 1; tabs.sendAction(tabs.action, to: tabs.target)
-        XCTAssertTrue(labels(content).contains("18.42"))
-        XCTAssertFalse(labels(content).contains("920"))
-        _ = store.addScoreAttackRecord(score: 990, elapsedTime: 60, durationMinutes: 1)
-        panel.refresh(mode: .scoreAttack, volume: 0.7)
+        XCTAssertTrue(labels(content).contains("75"))
+        XCTAssertFalse(labels(content).contains("92"))
+        _ = store.addRecord(mode: .timed, detailValue: 60, clearedCount: 99, swapsUsed: 30, elapsedTime: 60)
+        panel.refresh(mode: .timed, volume: 0.7)
         XCTAssertEqual(tabs.selectedSegment, 1)
-        XCTAssertTrue(labels(content).contains("18.42"))
+        XCTAssertTrue(labels(content).contains("75"))
         tabs.selectedSegment = 0; tabs.sendAction(tabs.action, to: tabs.target)
-        XCTAssertTrue(labels(content).contains("990"))
-        XCTAssertTrue(labels(content).contains(AchievementText.format("records.metric.score", 990)))
-        XCTAssertEqual(store.records(for: .scoreAttack, detailValue: 1).count, 9)
+        XCTAssertTrue(labels(content).contains("99"))
+        XCTAssertTrue(labels(content).contains(AchievementText.format("records.metric.cleared", 99)))
+        XCTAssertEqual(store.records(for: .timed, detailValue: 60).count, 9)
     }
 
     func testEmptyRecordsAndAllRuleModesRemainAccurate() throws {
@@ -98,12 +92,57 @@ final class HomeUtilityPanelTests: AchievementTestCase {
         for mode in HomeGameMode.allCases {
             rules.refresh(mode: mode, volume: 0.4)
             let text = labels(try XCTUnwrap(rules.window?.contentView))
-            XCTAssertTrue(text.contains(AchievementText.string("home.mode_desc.score_attack")))
-            XCTAssertTrue(text.contains(AchievementText.string("home.mode_desc.speed_run")))
+            XCTAssertTrue(text.contains(AchievementText.string("home.mode_desc.timed")))
+            XCTAssertTrue(text.contains(AchievementText.string("home.mode_desc.moves")))
             XCTAssertEqual(text.filter { $0 == AchievementText.string("utility.rules.current") }.count, 1)
         }
-        XCTAssertTrue(store.records(for: .scoreAttack, detailValue: 1).isEmpty)
-        XCTAssertTrue(store.records(for: .speedRun, detailValue: 300).isEmpty)
+        XCTAssertTrue(store.records(for: .timed, detailValue: 60).isEmpty)
+        XCTAssertTrue(store.records(for: .moves, detailValue: 30).isEmpty)
+    }
+
+    func testOldRulesRecordsOnlyAppearInExplicitHistorySection() throws {
+        _ = NSApplication.shared
+        let original = Localizer.shared.language
+        defer { Localizer.shared.setLanguage(original) }
+        Localizer.shared.setLanguage(.chineseSimplified)
+        let old = LegacyModeRecord(id: "legacy-player-record", score: 450, elapsedTime: 60,
+                                   durationMinutes: 1, targetScore: nil, createdAt: 1_793_361_600)
+        let bytes = try JSONEncoder().encode(["score_attack_1": [old]])
+        defaults.set(bytes, forKey: ModeRecordStore.legacyStorageKey)
+        let store = ModeRecordStore(defaults: defaults)
+        _ = store.addRecord(mode: .timed, detailValue: 60, clearedCount: 12, swapsUsed: 4, elapsedTime: 60)
+        let panel = HomeUtilityPanel(page: "records", store: store)
+        defer { panel.close() }
+        panel.refresh(mode: .timed, volume: 0.3)
+        let content = try XCTUnwrap(panel.window?.contentView)
+        XCTAssertTrue(labels(content).contains("12"))
+        XCTAssertFalse(labels(content).contains { $0.contains("450") })
+        let button = try XCTUnwrap(descendants(content).compactMap { $0 as? HomeButton }.first {
+            $0.title == AchievementText.string("utility.records.show_history")
+        })
+        button.performClick(nil)
+        content.layoutSubtreeIfNeeded()
+        XCTAssertTrue(labels(content).contains { $0.contains("450") })
+        XCTAssertEqual(store.records(for: .timed, detailValue: 60).map(\.clearedCount), [12])
+        XCTAssertEqual(defaults.data(forKey: ModeRecordStore.legacyStorageKey), bytes)
+        try export(content, name: "utility-records-history")
+    }
+
+    func testEqualCountsHaveSharedVisibleRanksRegardlessOfTime() throws {
+        _ = NSApplication.shared
+        let store = ModeRecordStore(defaults: defaults)
+        for (count, seconds) in [(90, 5.0), (90, 500.0), (80, 1.0)] {
+            _ = store.addRecord(mode: .moves, detailValue: 30, clearedCount: count, swapsUsed: 30, elapsedTime: seconds)
+        }
+        let panel = HomeUtilityPanel(page: "records", store: store)
+        defer { panel.close() }
+        panel.refresh(mode: .moves, volume: 0.4)
+        let content = try XCTUnwrap(panel.window?.contentView)
+        let tabs = try XCTUnwrap(descendants(content).compactMap { $0 as? AchievementFilterControl }.first)
+        tabs.selectedSegment = 1; tabs.sendAction(tabs.action, to: tabs.target)
+        let rowLabels = descendants(content).compactMap { $0.accessibilityLabel() }
+        XCTAssertEqual(rowLabels.filter { $0.hasPrefix("1.") }.count, 2)
+        XCTAssertEqual(rowLabels.filter { $0.hasPrefix("3.") }.count, 1)
     }
 
     func testFiveLanguagesCompactWindowsAndExportRealPanels() throws {

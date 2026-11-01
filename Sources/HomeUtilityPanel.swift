@@ -21,6 +21,7 @@ final class HomeUtilityPanel: NSWindowController {
     private var renderedLanguage: AppLanguage?
     private var renderedMode: HomeGameMode?
     private var renderedRecordIDs: [String] = []
+    private var showingHistory = false
 
     init(page: String, store: ModeRecordStore = .shared) {
         self.page = page; self.store = store; content = UtilityPageView(page: page)
@@ -37,7 +38,7 @@ final class HomeUtilityPanel: NSWindowController {
         volume.cell = UtilityVolumeSliderCell(); volume.minValue = 0; volume.maxValue = 1
         volume.isContinuous = true; volume.target = self; volume.action = #selector(volumeChanged)
         percent.font = .monospacedDigitSystemFont(ofSize: 18, weight: .bold); percent.alignment = .right
-        recordTabs.segmentCount = 2; recordTabs.segmentSymbols = ["trophy", "stopwatch"]
+        recordTabs.segmentCount = 2; recordTabs.segmentSymbols = ["stopwatch", "arrow.left.arrow.right"]
         recordTabs.selectedSegment = 0; recordTabs.target = self; recordTabs.action = #selector(recordModeChanged)
         // 固定尺寸只注册一次，语言切换时仅重建排版与文案。
         NSLayoutConstraint.activate([
@@ -61,14 +62,14 @@ final class HomeUtilityPanel: NSWindowController {
         } else if page == "rules" {
             if languageChanged || renderedMode != mode { UtilityRulesContent.populate(content, mode: mode) }
         } else {
-            let ids = recordEntries(.scoreAttack).map(\.id) + recordEntries(.speedRun).map(\.id)
+            let ids = recordEntries(.timed).map(\.id) + recordEntries(.moves).map(\.id)
             if languageChanged {
                 content.removeSections(); content.addSection(recordTabs)
                 content.addSection(recordBody)
-                recordTabs.setLabel(UtilityStyle.text("home.mode.score_attack"), forSegment: 0)
-                recordTabs.setLabel(UtilityStyle.text("home.mode.speed_run"), forSegment: 1)
+                recordTabs.setLabel(UtilityStyle.text("home.mode.timed"), forSegment: 0)
+                recordTabs.setLabel(UtilityStyle.text("home.mode.moves"), forSegment: 1)
             }
-            recordTabs.updateCounts([recordEntries(.scoreAttack).count, recordEntries(.speedRun).count]); recordTabs.refreshMetrics()
+            recordTabs.updateCounts([recordEntries(.timed).count, recordEntries(.moves).count]); recordTabs.refreshMetrics()
             if languageChanged || ids != renderedRecordIDs { refreshRecords() }
             renderedRecordIDs = ids
         }
@@ -97,14 +98,32 @@ final class HomeUtilityPanel: NSWindowController {
                                        UtilityStyle.label(UtilityStyle.text(detail), size: 12, color: HomeStyle.secondary)], spacing: 4)
         return UtilityStyle.stack([UtilityStyle.icon(symbol, color: HomeStyle.blue, size: 26), copy], vertical: false, spacing: 13)
     }
-    private func recordEntries(_ mode: ModeRecordKey) -> [ModeRecord] { store.records(for: mode, detailValue: mode == .scoreAttack ? 1 : 300) }
+    private func recordEntries(_ mode: ModeRecordKey) -> [ModeRecord] { store.records(for: mode, detailValue: mode == .timed ? 60 : 30) }
 
     private func refreshRecords() {
         for view in recordBody.arrangedSubviews { recordBody.removeArrangedSubview(view); view.removeFromSuperview() }
-        let mode: ModeRecordKey = recordTabs.selectedSegment == 0 ? .scoreAttack : .speedRun
+        let mode: ModeRecordKey = recordTabs.selectedSegment == 0 ? .timed : .moves
         let entries = recordEntries(mode)
         for view in [UtilityRecordBestView(mode: mode, entry: entries.first), UtilityRecordContent.table(mode: mode, entries: entries)] {
             recordBody.addArrangedSubview(view); UtilityStyle.fillWidth(view, in: recordBody)
+        }
+        let sections = store.legacySections()
+        if !sections.isEmpty {
+            let historyButton = HomeButton(frame: .zero)
+            historyButton.title = UtilityStyle.text(showingHistory ? "utility.records.hide_history" : "utility.records.show_history")
+            historyButton.symbolName = "clock"
+            historyButton.heightAnchor.constraint(equalToConstant: 36).isActive = true
+            historyButton.onClick = { [weak self] in
+                guard let self else { return }
+                self.showingHistory.toggle(); self.refreshRecords(); self.content.layoutSubtreeIfNeeded()
+            }
+            recordBody.addArrangedSubview(historyButton); UtilityStyle.fillWidth(historyButton, in: recordBody)
+            if showingHistory {
+                for section in sections {
+                    let card = UtilityRecordContent.legacyTable(section)
+                    recordBody.addArrangedSubview(card); UtilityStyle.fillWidth(card, in: recordBody)
+                }
+            }
         }
     }
 

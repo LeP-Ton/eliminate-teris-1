@@ -26,7 +26,7 @@ final class AchievementFilterControlTests: AchievementTestCase {
 
     func testAnimatedSelectionSurvivesRefreshAndRapidChanges() throws {
         _ = NSApplication.shared
-        swap(score: 100)
+        swap(roundCleared: 10)
         let controller = AchievementsWindowController(manager: manager)
         defer { controller.close() }
         controller.refresh()
@@ -84,7 +84,7 @@ final class AchievementFilterControlTests: AchievementTestCase {
         _ = NSApplication.shared
         let original = Localizer.shared.language
         defer { Localizer.shared.setLanguage(original) }
-        swap(score: 100)
+        swap(roundCleared: 10)
         let controller = AchievementsWindowController(manager: manager)
         defer { controller.close() }
         for language in AppLanguage.allCases {

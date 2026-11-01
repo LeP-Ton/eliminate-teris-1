@@ -84,11 +84,11 @@
 
 // 成就定义、进度、筛选与解锁反馈。
 "achievement.1.title" = "A Small Start";
-"achievement.1.desc" = "Reach 100 points in one round of any mode.";
+"achievement.1.desc" = "Clear at least 10 tiles in one round of any mode.";
 "achievement.2.title" = "Find Your Rhythm";
-"achievement.2.desc" = "Score on 3 swaps in a row, with no more than 1.6 seconds between swaps. A swap without a clear breaks the streak.";
+"achievement.2.desc" = "Make 3 clearing swaps in a row, no more than 1.6 seconds apart. A non-clearing swap breaks the streak.";
 "achievement.3.title" = "See It Through";
-"achievement.3.desc" = "Finish a Score Attack or Speed Run round with a positive score.";
+"achievement.3.desc" = "Finish a Timed or Swap Challenge with at least one tile cleared.";
 "achievement.4.title" = "First Spark";
 "achievement.4.desc" = "Trigger your first clear with a swap.";
 "achievement.5.title" = "Four in Harmony";
@@ -102,19 +102,19 @@
 "achievement.9.title" = "Every Move Counts";
 "achievement.9.desc" = "Make 5 consecutive swaps that each clear tiles in one round, with no time limit between swaps.";
 "achievement.10.title" = "One-Minute Warmup";
-"achievement.10.desc" = "Finish a 1-minute Score Attack with at least 300 points.";
+"achievement.10.desc" = "Finish a 60-second Timed Challenge with at least 30 tiles cleared.";
 "achievement.11.title" = "Full Throttle";
-"achievement.11.desc" = "Finish a 1-minute Score Attack with at least 600 points.";
-"achievement.12.title" = "Score Limit Break";
-"achievement.12.desc" = "Finish a 1-minute Score Attack with at least 900 points.";
-"achievement.13.title" = "First Finish Line";
-"achievement.13.desc" = "Complete a 300-point Speed Run.";
-"achievement.14.title" = "Picking Up Speed";
-"achievement.14.desc" = "Complete a 300-point Speed Run in 45 seconds or less.";
-"achievement.15.title" = "Lightning Sprint";
-"achievement.15.desc" = "Complete a 300-point Speed Run in 30 seconds or less.";
-"achievement.16.title" = "Every Second Counts";
-"achievement.16.desc" = "Complete a 300-point Speed Run in 60 seconds or less.";
+"achievement.11.desc" = "Finish a 60-second Timed Challenge with at least 60 tiles cleared.";
+"achievement.12.title" = "Clear the Limit";
+"achievement.12.desc" = "Finish a 60-second Timed Challenge with at least 90 tiles cleared.";
+"achievement.13.title" = "Thirty-Swap Journey";
+"achievement.13.desc" = "Use all 30 swaps to finish Swap Challenge with at least one clear.";
+"achievement.14.title" = "Make Every Swap Count";
+"achievement.14.desc" = "Finish a 30-swap challenge with at least 30 tiles cleared.";
+"achievement.15.title" = "Thoughtful Victory";
+"achievement.15.desc" = "Finish a 30-swap challenge with at least 60 tiles cleared.";
+"achievement.16.title" = "A Full Minute";
+"achievement.16.desc" = "Finish a 60-second Timed Challenge with at least one clear.";
 "achievement.17.title" = "A Hundred Tiles";
 "achievement.17.desc" = "Clear 100 tiles across all modes.";
 "achievement.18.title" = "A Thousand Tiles";
@@ -122,7 +122,7 @@
 "achievement.19.title" = "Ten Thousand Tiles";
 "achievement.19.desc" = "Clear 10,000 tiles across all modes.";
 "achievement.20.title" = "Challenge Regular";
-"achievement.20.desc" = "Finish 20 Score Attack or Speed Run rounds. Zero-point Score Attack rounds do not count.";
+"achievement.20.desc" = "Finish 20 Timed or Swap Challenges with at least one clear each.";
 "achievement.summary" = "Achievements · %d/%d unlocked";
 "achievement.view_all" = "View all";
 "achievement.filter.all" = "All";
@@ -144,7 +144,7 @@
 "achievement.empty" = "No achievements in this filter";
 "achievement.accessibility.locked" = "%@, locked";
 "achievement.accessibility.unlocked" = "%@, unlocked";
-"achievement.progress.legacy" = "Unlocked in an earlier version; past progress was not recorded";
+"achievement.progress.legacy" = "Unlocked under previous rules; new goal not yet reached";
 
 // 按方块类型记录累计消除数量及百、千、万三档里程碑。
 "banner.total_cleared" = "Total cleared";
@@ -182,25 +182,25 @@
 "home.brand" = "Eliminate Teris 1";
 "home.game_modes" = "Game modes";
 "home.hero.free" = "Swap a little.\nSmile a lot.";
-"home.hero.speed_run" = "Beat the clock.\nFind your flow.";
-"home.hero.score_attack" = "Keep it going.\nChase your best.";
+"home.hero.timed" = "One minute.\nMake it count.";
+"home.hero.moves" = "Thirty swaps.\nThink ahead.";
 "home.subtitle.free" = "No countdown. Play at your own pace.";
-"home.subtitle.speed_run" = "Reach 300 points as quickly as you can.";
-"home.subtitle.score_attack" = "One minute. Make every swap count.";
+"home.subtitle.timed" = "Clear as many tiles as you can in one minute.";
+"home.subtitle.moves" = "Take your time. Make every swap worthwhile.";
 "home.mode.free" = "Free play";
-"home.mode.speed_run" = "Speed run";
-"home.mode.score_attack" = "Score attack";
-"home.mode_desc.free" = "No timer or target score.";
-"home.mode_desc.speed_run" = "Finish by reaching 300 points.";
-"home.mode_desc.score_attack" = "60 seconds to chase a high score.";
+"home.mode.timed" = "Timed Challenge";
+"home.mode.moves" = "Swap Challenge";
+"home.mode_desc.free" = "No time or swap limits.";
+"home.mode_desc.timed" = "60 seconds. Clear as many tiles as possible.";
+"home.mode_desc.moves" = "30 swaps. No time limit.";
 "home.operation_hint" = "Drag to swap  ·  Match three or more to clear";
 "home.start" = "Start playing";
 "home.play_again" = "Play again";
 "home.session_stats" = "This round, live";
 "home.achievement_path" = "Achievement journey";
 "home.unlocked_count" = "Unlocked %d / %d";
-"home.rules.fixed" = "Each cleared tile earns 10 points. Score Attack lasts 60 seconds; Speed Run ends at 300 points. Switching modes or restarting clears this round’s counters. Lifetime achievement progress is saved.";
-"home.records.fixed" = "Fixed rules: 60-second Score Attack · 300-point Speed Run";
+"home.rules.fixed" = "Timed Challenge lasts 60 seconds. Swap Challenge allows 30 swaps. Both rank by tiles cleared. Every legal swap counts, even without a match. Cascades cost no extra swaps; the final swap resolves fully.";
+"home.records.fixed" = "60 seconds or 30 swaps · Ranked by tiles cleared";
 
 /* 辅助面板：设置、玩法说明与挑战记录。 */
 "utility.settings.subtitle" = "Make the game feel like you.";
@@ -210,28 +210,40 @@
 "utility.settings.volume_hint" = "Adjust music and game effects together";
 "utility.settings.instant" = "Changes take effect immediately.";
 "utility.lesson.0.title" = "Swap positions";
-"utility.lesson.0.body" = "Drag neighboring tiles on the Touch Bar. Multi-touch is supported.";
+"utility.lesson.0.body" = "Swap neighboring tiles on the Touch Bar. Every legal swap counts in Swap Challenge.";
 "utility.lesson.1.title" = "Match three or more";
-"utility.lesson.1.body" = "Connect at least three tiles of the same kind. Each cleared tile earns 10 points.";
+"utility.lesson.1.body" = "Connect at least three tiles of the same kind. Each cleared tile counts once.";
 "utility.lesson.2.title" = "Keep the chain going";
-"utility.lesson.2.body" = "New tiles fill the gaps. Further matches clear automatically.";
+"utility.lesson.2.body" = "Refill cascades belong to the same swap. The final swap resolves fully.";
 "utility.rules.modes" = "Three ways to play";
 "utility.rules.current" = "Current mode";
 "utility.rules.progress" = "Restarting or changing mode resets this round. Achievements and lifetime progress stay with you.";
 "utility.unit.points" = "pts";
 "utility.unit.seconds" = "sec";
 "utility.records.best" = "Personal best";
-"utility.records.score_rule" = "Fixed 60 seconds · Higher scores rank first";
-"utility.records.speed_rule" = "Target 300 points · Faster times rank first";
 "utility.records.rank" = "Rank";
-"utility.records.result" = "Result";
+"utility.records.result" = "Tiles cleared";
 "utility.records.date" = "Played on";
 "utility.records.empty_hint" = "Finish a challenge to set your first record.";
 
 /* 滑动开局与主窗口快捷入口。 */
 "home.start_hint" = "Click, press Space, or slide the Touch Bar to start";
 "home.starting" = "Getting ready…";
-"home.starting_hint" = "Revealing the board. Timing begins when ready.";
+"home.starting_hint" = "Revealing the board. The challenge starts when ready.";
 "touchbar.slide_start" = "Slide right to start";
 "touchbar.slide_again" = "Slide right to play again";
 "touchbar.board" = "Touch Bar game board";
+
+/* 消除数量与新挑战规则。 */
+"home.cleared_title" = "Tiles cleared";
+"home.hud.timed" = "%d cleared · %@ remaining";
+"home.hud.moves" = "%d cleared · %d swaps left";
+"home.result" = "Round complete · %d tiles cleared";
+"utility.records.timed_rule" = "Fixed 60 seconds · More clears rank higher";
+"utility.records.moves_rule" = "Fixed 30 swaps · Equal clears share a rank";
+"utility.unit.tiles" = "tiles";
+"records.metric.cleared" = "%d tiles";
+"utility.records.show_history" = "View previous rules records";
+"utility.records.hide_history" = "Hide previous rules records";
+"utility.records.legacy_score" = "Previous Score Attack · %d min";
+"utility.records.legacy_speed" = "Previous Speed Run · %d-point target";

@@ -111,17 +111,17 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         if !snapshot.isFinished { hasSavedFinishedRecord = false }
         if snapshot.isFinished, !hasSavedFinishedRecord {
             hasSavedFinishedRecord = true
-            if snapshot.score > 0 {
-                switch snapshot.mode {
-                case .scoreAttack:
-                    _ = recordStore.addScoreAttackRecord(score: snapshot.score, elapsedTime: snapshot.elapsedTime, durationMinutes: 1)
-                case .speedRun:
-                    _ = recordStore.addSpeedRunRecord(score: snapshot.score, elapsedTime: snapshot.elapsedTime, targetScore: HomeGameMode.speedRunTarget)
-                case .free: break
-                }
+            switch snapshot.mode {
+            case .timed(let duration):
+                _ = recordStore.addRecord(mode: .timed, detailValue: Int(duration), clearedCount: snapshot.totalCleared,
+                                          swapsUsed: snapshot.swapsUsed, elapsedTime: snapshot.elapsedTime)
+            case .moves(let limit):
+                _ = recordStore.addRecord(mode: .moves, detailValue: limit, clearedCount: snapshot.totalCleared,
+                                          swapsUsed: snapshot.swapsUsed, elapsedTime: snapshot.elapsedTime)
+            case .free: break
             }
         }
-        if snapshot.isRunning, selection != .free, !snapshot.isFinished {
+        if snapshot.isRunning, selection == .timed, !snapshot.isFinished {
             if hudTimer == nil {
                 let timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in self?.controller.tick() }
                 RunLoop.main.add(timer, forMode: .common); hudTimer = timer

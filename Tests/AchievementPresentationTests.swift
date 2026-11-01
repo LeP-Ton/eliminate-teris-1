@@ -39,7 +39,7 @@ final class AchievementPresentationTests: AchievementTestCase {
 
     func testLibraryRowsHaveUsableLayoutForEveryLanguage() throws {
         _ = NSApplication.shared
-        swap(score: 100)
+        swap(roundCleared: 10)
         let original = Localizer.shared.language
         defer { Localizer.shared.setLanguage(original) }
         let panel = AchievementsWindowController(manager: manager)

@@ -115,7 +115,7 @@ final class HomeSessionStatsView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         HomeStyle.card(bounds)
         let dividerX = bounds.width * 0.38
-        HomeStyle.text(AchievementText.string("banner.total_cleared"), in: NSRect(x: 22, y: 17, width: dividerX - 30, height: 26), size: 20, weight: .bold)
+        HomeStyle.text(AchievementText.string("home.cleared_title"), in: NSRect(x: 22, y: 17, width: dividerX - 30, height: 26), size: 20, weight: .bold)
         let totalText = "\(snapshot?.totalCleared ?? 0)"
         var totalSize: CGFloat = 58
         while (totalText as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: totalSize, weight: .heavy)]).width > dividerX - 27, totalSize > 24 { totalSize -= 2 }
@@ -225,13 +225,11 @@ final class HomeDashboardView: NSView {
         if isStarting {
             hint.stringValue = AchievementText.string("home.starting_hint")
         } else if snapshot.isFinished {
-            hint.stringValue = mode == .speedRun
-                ? AchievementText.format("result.speed_run_finished", Self.clock(snapshot.elapsedTime))
-                : AchievementText.format("result.score_attack_finished", snapshot.score)
+            hint.stringValue = AchievementText.format("home.result", snapshot.totalCleared)
         } else if snapshot.isRunning, mode != .free {
-            hint.stringValue = mode == .scoreAttack
-                ? AchievementText.format("hud.score_attack", snapshot.score, Self.clock(snapshot.remainingTime ?? 0))
-                : AchievementText.format("hud.speed_run", snapshot.score, HomeGameMode.speedRunTarget, Self.clock(snapshot.elapsedTime))
+            hint.stringValue = mode == .timed
+                ? AchievementText.format("home.hud.timed", snapshot.totalCleared, Self.clock(snapshot.remainingTime ?? 0))
+                : AchievementText.format("home.hud.moves", snapshot.totalCleared, snapshot.remainingSwaps ?? 0)
         } else { hint.stringValue = AchievementText.string(snapshot.isRunning ? "home.operation_hint" : "home.start_hint") }
         startButton.title = AchievementText.string(isStarting ? "home.starting" : snapshot.isFinished ? "home.play_again" : snapshot.isRunning ? "start.action_restart" : "home.start")
         startButton.isEnabled = !isStarting

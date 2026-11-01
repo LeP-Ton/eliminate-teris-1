@@ -77,11 +77,11 @@
 // 成就定义、进度、筛选与解锁反馈。
 "panel.achievements" = "업적";
 "achievement.1.title" = "작은 시작";
-"achievement.1.desc" = "아무 모드에서 한 판에 100점을 달성하세요.";
+"achievement.1.desc" = "어떤 모드에서든 한 게임에 블록 10개 이상 제거.";
 "achievement.2.title" = "리듬의 시작";
-"achievement.2.desc" = "각 간격이 1.6초 이하가 되도록 점수를 얻는 교환을 3회 연속 수행하세요. 제거 없는 교환은 연속 기록을 끊습니다.";
+"achievement.2.desc" = "1.6초 이내 간격으로 제거되는 교환을 3회 연속 달성. 제거되지 않으면 중단.";
 "achievement.3.title" = "끝까지 한 판";
-"achievement.3.desc" = "점수를 얻은 점수 도전 또는 스피드런 한 판을 정상 완료하세요.";
+"achievement.3.desc" = "시간 또는 횟수 도전에서 블록을 1개 이상 제거하고 완료.";
 "achievement.4.title" = "첫 불꽃";
 "achievement.4.desc" = "교환으로 처음 블록을 제거하세요.";
 "achievement.5.title" = "네 칸의 화음";
@@ -95,19 +95,19 @@
 "achievement.9.title" = "한 수 한 수";
 "achievement.9.desc" = "한 판에서 블록을 제거하는 교환을 5회 연속 수행하세요. 교환 사이 시간 제한은 없습니다.";
 "achievement.10.title" = "1분 준비 운동";
-"achievement.10.desc" = "1분 점수 도전을 300점 이상으로 끝까지 완료하세요.";
+"achievement.10.desc" = "60초 시간 도전을 블록 30개 이상 제거하고 완료.";
 "achievement.11.title" = "전력 질주";
-"achievement.11.desc" = "1분 점수 도전을 600점 이상으로 완료하세요.";
-"achievement.12.title" = "한계 돌파";
-"achievement.12.desc" = "1분 점수 도전을 900점 이상으로 완료하세요.";
-"achievement.13.title" = "첫 결승선";
-"achievement.13.desc" = "300점 스피드런을 완료하세요.";
-"achievement.14.title" = "속도를 높여";
-"achievement.14.desc" = "300점 스피드런을 45초 이내에 완료하세요.";
-"achievement.15.title" = "번개 질주";
-"achievement.15.desc" = "300점 스피드런을 30초 이내에 완료하세요.";
-"achievement.16.title" = "매초가 소중해";
-"achievement.16.desc" = "300점 스피드런을 60초 이내에 완료하세요.";
+"achievement.11.desc" = "60초 시간 도전을 블록 60개 이상 제거하고 완료.";
+"achievement.12.title" = "제거의 극한";
+"achievement.12.desc" = "60초 시간 도전을 블록 90개 이상 제거하고 완료.";
+"achievement.13.title" = "서른 번의 여정";
+"achievement.13.desc" = "블록 1개 이상을 제거하고 교환 30회를 모두 사용해 완료.";
+"achievement.14.title" = "신중한 한 수";
+"achievement.14.desc" = "교환 30회 도전을 블록 30개 이상 제거하고 완료.";
+"achievement.15.title" = "생각의 승리";
+"achievement.15.desc" = "교환 30회 도전을 블록 60개 이상 제거하고 완료.";
+"achievement.16.title" = "온전한 1분";
+"achievement.16.desc" = "60초 시간 도전을 블록 1개 이상 제거하고 완료.";
 "achievement.17.title" = "백 칸의 시작";
 "achievement.17.desc" = "모든 모드에서 누적 100개 블록을 제거하세요.";
 "achievement.18.title" = "천 칸의 숙련자";
@@ -115,7 +115,7 @@
 "achievement.19.title" = "만 칸의 여행자";
 "achievement.19.desc" = "모든 모드에서 누적 10,000개 블록을 제거하세요.";
 "achievement.20.title" = "도전 단골";
-"achievement.20.desc" = "점수 도전 또는 스피드런을 총 20판 정상 완료하세요. 0점인 점수 도전은 제외됩니다.";
+"achievement.20.desc" = "시간 또는 횟수 도전을 매번 블록 1개 이상 제거하고 20회 완료.";
 "achievement.summary" = "업적 · %d/%d 달성";
 "achievement.view_all" = "전체 보기";
 "achievement.filter.all" = "전체";
@@ -137,7 +137,7 @@
 "achievement.empty" = "이 필터에 해당하는 업적이 없습니다";
 "achievement.accessibility.locked" = "%@, 미달성";
 "achievement.accessibility.unlocked" = "%@, 달성";
-"achievement.progress.legacy" = "이전 버전에서 달성했습니다. 과거 진행 기록은 없습니다";
+"achievement.progress.legacy" = "이전 규칙에서 해제됨. 새 목표는 아직 미달성";
 
 // 按方块类型记录累计消除数量及百、千、万三档里程碑。
 "banner.total_cleared" = "누적 제거";
@@ -175,25 +175,25 @@
 "home.brand" = "블록 제거 테트리스 1";
 "home.game_modes" = "게임 모드";
 "home.hero.free" = "가볍게 바꾸고,\n즐겁게 지워요.";
-"home.hero.speed_run" = "매초를 아끼며,\n결승선까지.";
-"home.hero.score_attack" = "연쇄를 이어,\n최고 점수에.";
+"home.hero.timed" = "1분 동안,\n제거에 집중!";
+"home.hero.moves" = "서른 번의 교환,\n한 수 앞을!";
 "home.subtitle.free" = "시간에 쫓기지 않고, 내 속도로 즐겨요.";
-"home.subtitle.speed_run" = "300점에 도달하는 가장 빠른 도전.";
-"home.subtitle.score_attack" = "60초 동안, 최고의 점수를 만들어 보세요.";
+"home.subtitle.timed" = "1분 안에 최대한 많은 블록을 제거하세요.";
+"home.subtitle.moves" = "시간에 쫓기지 말고 매번 신중하게 교환하세요.";
 "home.mode.free" = "자유 모드";
-"home.mode.speed_run" = "스피드런";
-"home.mode.score_attack" = "점수 도전";
-"home.mode_desc.free" = "시간과 목표 점수 제한 없음.";
-"home.mode_desc.speed_run" = "300점에 도달하면 종료.";
-"home.mode_desc.score_attack" = "60초 동안 최고 점수에 도전.";
+"home.mode.timed" = "시간 도전";
+"home.mode.moves" = "교환 횟수 도전";
+"home.mode_desc.free" = "시간과 교환 횟수 제한 없음.";
+"home.mode_desc.timed" = "제한 시간 60초. 최대한 많이 제거하세요.";
+"home.mode_desc.moves" = "교환 30회. 시간 제한 없음.";
 "home.operation_hint" = "드래그로 교환  ·  3개 이상 연결하면 제거";
 "home.start" = "게임 시작";
 "home.play_again" = "다시 한 판";
 "home.session_stats" = "현재 판 실시간 통계";
 "home.achievement_path" = "업적의 여정";
 "home.unlocked_count" = "달성 %d / %d";
-"home.rules.fixed" = "블록 하나당 10점입니다. 점수 도전은 60초, 스피드런은 300점에 도달하면 끝납니다. 모드 변경이나 재시작 시 현재 판의 통계는 초기화되며 업적의 누적 진행은 유지됩니다.";
-"home.records.fixed" = "고정 규칙: 60초 점수 도전 · 300점 스피드런";
+"home.rules.fixed" = "시간 도전은 60초, 횟수 도전은 교환 30회입니다. 제거 수로 순위를 정합니다. 제거되지 않은 교환도 횟수를 쓰며 연쇄 제거는 추가 횟수를 쓰지 않습니다. 마지막 교환도 모두 처리됩니다.";
+"home.records.fixed" = "60초 또는 교환 30회 · 제거 수로 순위 결정";
 
 /* 辅助面板：设置、玩法说明与挑战记录。 */
 "utility.settings.subtitle" = "나만의 리듬으로 즐겨 보세요.";
@@ -203,28 +203,40 @@
 "utility.settings.volume_hint" = "배경 음악과 게임 효과음을 함께 조절합니다";
 "utility.settings.instant" = "변경 사항은 즉시 적용됩니다.";
 "utility.lesson.0.title" = "위치 교환";
-"utility.lesson.0.body" = "Touch Bar에서 이웃한 블록을 드래그하세요. 멀티 터치도 지원합니다.";
+"utility.lesson.0.body" = "Touch Bar에서 이웃한 블록을 교환하세요. 횟수 도전은 제거되지 않아도 횟수를 씁니다.";
 "utility.lesson.1.title" = "3개 이상 연결";
-"utility.lesson.1.body" = "같은 종류를 3개 이상 연결하면 제거됩니다. 블록당 10점입니다.";
+"utility.lesson.1.body" = "같은 종류를 3개 이상 연결해 제거하세요. 실제 제거 수를 기록합니다.";
 "utility.lesson.2.title" = "계속되는 연쇄";
-"utility.lesson.2.body" = "제거한 자리에 새 블록이 채워집니다. 다시 연결되면 자동으로 제거됩니다.";
+"utility.lesson.2.body" = "채워진 블록의 연쇄도 같은 교환입니다. 마지막 교환의 연쇄도 모두 처리합니다.";
 "utility.rules.modes" = "세 가지 플레이 방식";
 "utility.rules.current" = "현재 모드";
 "utility.rules.progress" = "다시 시작하거나 모드를 바꾸면 이번 게임 통계가 초기화됩니다. 업적과 누적 진행도는 유지됩니다.";
 "utility.unit.points" = "점";
 "utility.unit.seconds" = "초";
 "utility.records.best" = "개인 최고 기록";
-"utility.records.score_rule" = "제한 시간 60초 · 점수가 높을수록 높은 순위";
-"utility.records.speed_rule" = "목표 300점 · 시간이 짧을수록 높은 순위";
 "utility.records.rank" = "순위";
-"utility.records.result" = "기록";
+"utility.records.result" = "제거 수";
 "utility.records.date" = "도전 날짜";
 "utility.records.empty_hint" = "도전을 완료하고 첫 기록을 남겨 보세요.";
 
 /* 滑动开局与主窗口快捷入口。 */
 "home.start_hint" = "클릭, 스페이스 또는 Touch Bar 슬라이드로 시작";
 "home.starting" = "준비 중…";
-"home.starting_hint" = "보드가 모두 나타나면 시간이 시작됩니다";
+"home.starting_hint" = "보드가 모두 나타나면 도전이 시작됩니다";
 "touchbar.slide_start" = "오른쪽으로 밀어서 시작";
 "touchbar.slide_again" = "오른쪽으로 밀어서 다시 시작";
 "touchbar.board" = "Touch Bar 게임 보드";
+
+/* 消除数量与新挑战规则。 */
+"home.cleared_title" = "이번 게임 제거 수";
+"home.hud.timed" = "%d개 제거 · 남은 시간 %@";
+"home.hud.moves" = "%d개 제거 · 남은 교환 %d회";
+"home.result" = "게임 종료 · 총 %d개 제거";
+"utility.records.timed_rule" = "60초 고정 · 제거 수가 많을수록 높은 순위";
+"utility.records.moves_rule" = "교환 30회 · 제거 수가 같으면 공동 순위";
+"utility.unit.tiles" = "개";
+"records.metric.cleared" = "%d개";
+"utility.records.show_history" = "이전 규칙 기록 보기";
+"utility.records.hide_history" = "이전 규칙 기록 접기";
+"utility.records.legacy_score" = "이전 점수 도전 · %d분";
+"utility.records.legacy_speed" = "이전 속도 도전 · 목표 %d점";

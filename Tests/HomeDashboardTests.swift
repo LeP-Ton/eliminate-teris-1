@@ -31,15 +31,15 @@ final class HomeDashboardTests: AchievementTestCase {
         board.startRound()
         XCTAssertEqual(board.snapshot().totalCleared, 0)
         XCTAssertEqual(manager.totalCleared(for: .orangeRicky), 30)
-        board.configure(mode: HomeGameMode.speedRun.gameMode)
+        board.configure(mode: HomeGameMode.moves.gameMode)
         XCTAssertEqual(board.snapshot().totalCleared, 0)
         XCTAssertFalse(board.snapshot().isRunning)
     }
 
-    func testFixedModesFinishAtSixtySecondsAndThreeHundredPoints() {
+    func testFixedModesFinishAtSixtySecondsAndThirtySwaps() {
         var now = date
         let board = board(now: { now })
-        board.configure(mode: HomeGameMode.scoreAttack.gameMode)
+        board.configure(mode: HomeGameMode.timed.gameMode)
         board.startRound()
         now = date.addingTimeInterval(59.9)
         board.tick()
@@ -47,10 +47,12 @@ final class HomeDashboardTests: AchievementTestCase {
         now = date.addingTimeInterval(60)
         board.tick()
         XCTAssertTrue(board.snapshot().isFinished)
-        board.configure(mode: HomeGameMode.speedRun.gameMode)
+        board.configure(mode: HomeGameMode.moves.gameMode)
         board.startRound()
         board.performSwap(from: 2, to: 3)
-        XCTAssertEqual(board.snapshot().score, 300)
+        XCTAssertEqual(board.snapshot().totalCleared, 30)
+        XCTAssertEqual(board.snapshot().remainingSwaps, 29)
+        for _ in 0..<29 { board.performSwap(from: 0, to: 1) }
         XCTAssertTrue(board.snapshot().isFinished)
         let final = board.snapshot().clearedByKind
         board.performSwap(from: 0, to: 1)
@@ -77,21 +79,22 @@ final class HomeDashboardTests: AchievementTestCase {
         let free = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .free })
         free.performClick(nil)
         XCTAssertEqual(stats.snapshot?.totalCleared, 30, "点击已选模式不应重置本局")
-        let speed = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .speedRun })
+        let speed = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .moves })
         speed.performClick(nil)
-        XCTAssertEqual(board.snapshot().targetScore, 300)
+        XCTAssertEqual(board.snapshot().remainingSwaps, 30)
         XCTAssertEqual(stats.snapshot?.totalCleared, 0)
         start.performClick(nil)
         animationTime += 1; controller.startSequence.advanceAnimation()
         board.performSwap(from: 2, to: 3)
+        for _ in 0..<29 { board.performSwap(from: 0, to: 1) }
         XCTAssertTrue(board.snapshot().isFinished)
         XCTAssertEqual(stats.snapshot?.totalCleared, 30)
-        let finished = try XCTUnwrap(records.records(for: .speedRun, detailValue: 300).first)
+        let finished = try XCTUnwrap(records.records(for: .moves, detailValue: 30).first)
         XCTAssertEqual(finished.elapsedTime, 0)
         for _ in 0..<3 { board.tick() }
-        XCTAssertEqual(records.records(for: .speedRun, detailValue: 300).first?.id, finished.id)
+        XCTAssertEqual(records.records(for: .moves, detailValue: 30).first?.id, finished.id)
         XCTAssertTrue(descendants(view).allSatisfy { !($0 is NSPopUpButton) })
-        let score = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .scoreAttack })
+        let score = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .timed })
         score.performClick(nil)
         XCTAssertEqual(board.snapshot().remainingTime, 60)
         XCTAssertEqual(stats.snapshot?.totalCleared, 0)
@@ -107,8 +110,8 @@ final class HomeDashboardTests: AchievementTestCase {
         for language in AppLanguage.allCases {
             Localizer.shared.setLanguage(language)
             for mode in HomeGameMode.allCases {
-                let snapshot = GameSnapshot(mode: mode.gameMode, score: 210, elapsedTime: 12, remainingTime: mode == .scoreAttack ? 48 : nil,
-                                            targetScore: mode == .speedRun ? 300 : nil, isRunning: true, isFinished: false,
+                let snapshot = GameSnapshot(mode: mode.gameMode, elapsedTime: 12, remainingTime: mode == .timed ? 48 : nil,
+                                            remainingSwaps: mode == .moves ? 18 : nil, isRunning: true, isFinished: false,
                                             clearedByKind: [.orangeRicky: 3, .blueRicky: 9, .clevelandZ: 6, .rhodeIslandZ: 3])
                 for size in [NSSize(width: 960, height: 720), NSSize(width: 1180, height: 800), NSSize(width: 1440, height: 940)] {
                     home.setFrameSize(size)
@@ -144,7 +147,7 @@ final class HomeDashboardTests: AchievementTestCase {
         for page in ["settings", "rules", "records"] {
             let panel = HomeUtilityPanel(page: page, store: store)
             defer { panel.close() }
-            panel.refresh(mode: .speedRun, volume: 0.4)
+            panel.refresh(mode: .timed, volume: 0.4)
             let window = try XCTUnwrap(panel.window)
             XCTAssertFalse(window.canBecomeKey)
             let content = try XCTUnwrap(window.contentView)

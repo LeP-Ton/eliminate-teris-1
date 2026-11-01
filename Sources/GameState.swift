@@ -33,7 +33,7 @@ struct BoardTile: Equatable {
 final class GameState {
     let columns: Int
     private(set) var tiles: [BoardTile]
-    private(set) var score: Int = 0
+    var totalCleared: Int { clearedByKind.values.reduce(0, +) }
     /// 本局分类计数，随新棋盘清零；成就管理器另外保存跨局累计值。
     private(set) var clearedByKind: [PieceKind: Int] = [:]
     private(set) var lastResolution: SwapResolution = .invalid
@@ -96,7 +96,6 @@ final class GameState {
                 break
             }
 
-            score += matches.count * 10
             clearedCount += matches.count
             cascadeCount += 1
             longestRun = max(longestRun, runLength)

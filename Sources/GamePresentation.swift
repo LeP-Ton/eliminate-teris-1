@@ -2,32 +2,32 @@ import Cocoa
 
 /// 首页只暴露固定规则；历史记录中的旧档位仍可被读取。
 enum HomeGameMode: Int, CaseIterable {
-    case free, speedRun, scoreAttack
+    case free, timed, moves
 
-    static let scoreAttackDuration: TimeInterval = 60
-    static let speedRunTarget = 300
+    static let timedDuration: TimeInterval = 60
+    static let moveLimit = 30
 
     var gameMode: GameMode {
         switch self {
         case .free: return .free
-        case .speedRun: return .speedRun(targetScore: Self.speedRunTarget)
-        case .scoreAttack: return .scoreAttack(duration: Self.scoreAttackDuration)
+        case .timed: return .timed(duration: Self.timedDuration)
+        case .moves: return .moves(limit: Self.moveLimit)
         }
     }
 
     var key: String {
         switch self {
         case .free: return "free"
-        case .speedRun: return "speed_run"
-        case .scoreAttack: return "score_attack"
+        case .timed: return "timed"
+        case .moves: return "moves"
         }
     }
 
     var symbol: String {
         switch self {
         case .free: return "infinity"
-        case .speedRun: return "stopwatch"
-        case .scoreAttack: return "trophy"
+        case .timed: return "stopwatch"
+        case .moves: return "arrow.left.arrow.right"
         }
     }
 }

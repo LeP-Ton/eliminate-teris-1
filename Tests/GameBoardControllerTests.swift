@@ -14,7 +14,7 @@ final class GameBoardControllerTests: AchievementTestCase {
                 return refill[index]
             }
         }
-        controller.configure(mode: .speedRun(targetScore: 100))
+        controller.configure(mode: .moves(limit: 1))
         controller.startRound()
         now = date.addingTimeInterval(2)
         controller.performSwap(from: 2, to: 3)
@@ -34,7 +34,7 @@ final class GameBoardControllerTests: AchievementTestCase {
 
     func testRestartAndModeChangeDoNotFinishAbandonedRounds() {
         let controller = GameBoardController(columns: 4, achievements: manager, now: { self.date })
-        controller.configure(mode: .scoreAttack(duration: 60))
+        controller.configure(mode: .timed(duration: 60))
         controller.startRound()
         controller.startRound()
         controller.configure(mode: .free)
@@ -42,10 +42,10 @@ final class GameBoardControllerTests: AchievementTestCase {
         XCTAssertFalse(manager.isUnlocked(id: 3))
     }
 
-    func testExpirationRefusesLateSwapAndZeroScoreDoesNotCount() {
+    func testExpirationRefusesLateSwapAndZeroClearsDoesNotCount() {
         var now = date
         let controller = GameBoardController(columns: 4, achievements: manager, now: { now })
-        controller.configure(mode: .scoreAttack(duration: 60))
+        controller.configure(mode: .timed(duration: 60))
         controller.startRound()
         let original = controller.tiles()
         now = date.addingTimeInterval(60)

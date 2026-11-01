@@ -116,8 +116,8 @@ final class GameIconPresentationTests: AchievementTestCase {
         fixture.set(["version": 1, "unlocked": [17, 18, 19], "metrics": [:]], forKey: AchievementsManager.storageKey)
         let progress = AchievementsManager(defaults: fixture)
         let home = HomeDashboardView(frame: NSRect(x: 0, y: 0, width: 1180, height: 800))
-        home.refresh(snapshot: GameSnapshot(mode: .free, score: 0, elapsedTime: 0, remainingTime: nil,
-                                           targetScore: nil, isRunning: false, isFinished: false), mode: .free, manager: progress)
+        home.refresh(snapshot: GameSnapshot(mode: .free, elapsedTime: 0, remainingTime: nil,
+                                           remainingSwaps: nil, isRunning: false, isFinished: false), mode: .free, manager: progress)
         home.layoutSubtreeIfNeeded()
         var selected: Int?
         home.onAchievement = { selected = $0 }
@@ -137,8 +137,8 @@ final class GameIconPresentationTests: AchievementTestCase {
         _ = NSApplication.shared
         let original = Localizer.shared.language
         defer { Localizer.shared.setLanguage(original) }
-        let snapshot = GameSnapshot(mode: .free, score: 0, elapsedTime: 0, remainingTime: nil,
-                                    targetScore: nil, isRunning: false, isFinished: false)
+        let snapshot = GameSnapshot(mode: .free, elapsedTime: 0, remainingTime: nil,
+                                    remainingSwaps: nil, isRunning: false, isFinished: false)
         for unlocked in [[], [1, 2, 3, 4, 5]] {
             defaults.set(["version": 1, "unlocked": unlocked, "metrics": [:]], forKey: AchievementsManager.storageKey)
             let progress = AchievementsManager(defaults: defaults)

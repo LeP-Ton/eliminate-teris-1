@@ -29,10 +29,10 @@ class AchievementTestCase: XCTestCase {
         manager.progress(for: AchievementDefinition.all.first { $0.id == id }!).current
     }
 
-    func swap(at seconds: Double = 0, count: Int = 3, waves: Int = 1, longest: Int = 3, score: Int = 30, id: UUID = UUID()) {
+    func swap(at seconds: Double = 0, count: Int = 3, waves: Int = 1, longest: Int = 3, roundCleared: Int = 3, id: UUID = UUID()) {
         manager.recordSwap(roundID: round, swapID: id,
                            result: SwapResolution(isValidSwap: true, clearedCount: count, cascadeCount: waves, longestRun: longest),
-                           score: score, at: date.addingTimeInterval(seconds))
+                           roundCleared: roundCleared, at: date.addingTimeInterval(seconds))
     }
 
     func typedSwap(_ counts: [PieceKind: Int], id: UUID = UUID()) {
@@ -40,7 +40,7 @@ class AchievementTestCase: XCTestCase {
         manager.recordSwap(roundID: round, swapID: id,
                            result: SwapResolution(isValidSwap: true, clearedCount: total, cascadeCount: 1,
                                                   longestRun: 3, clearedByKind: counts),
-                           score: total * 10, at: date)
+                           roundCleared: total, at: date)
     }
 
     func newRound() {
@@ -65,7 +65,7 @@ final class AchievementsTests: AchievementTestCase {
             XCTAssertTrue(ids.allSatisfy { reloaded.isUnlocked(id: $0) })
         }
         defer { NotificationCenter.default.removeObserver(observer) }
-        swap(count: 10_000, waves: 3, longest: 5, score: 100_000)
+        swap(count: 10_000, waves: 3, longest: 5, roundCleared: 10_000)
         XCTAssertEqual(batches, [[1, 4, 5, 6, 7, 8, 17, 18, 19]])
         XCTAssertEqual(manager.unlockDate(id: 19), date)
         swap(at: 1)
@@ -76,8 +76,8 @@ final class AchievementsTests: AchievementTestCase {
         let id = UUID()
         swap(id: id)
         swap(id: id)
-        manager.recordSwap(roundID: UUID(), swapID: UUID(), result: .invalid, score: 1000, at: date)
-        manager.recordSwap(roundID: round, swapID: UUID(), result: .invalid, score: 1000, at: date)
+        manager.recordSwap(roundID: UUID(), swapID: UUID(), result: .invalid, roundCleared: 100, at: date)
+        manager.recordSwap(roundID: round, swapID: UUID(), result: .invalid, roundCleared: 100, at: date)
         XCTAssertEqual(progress(17), 3)
         XCTAssertFalse(manager.isUnlocked(id: 1))
     }
@@ -121,46 +121,44 @@ final class AchievementsTests: AchievementTestCase {
         defaults.set(["seed": true], forKey: "mode_records_v1")
         for _ in 0..<20 {
             newRound()
-            manager.finishRound(id: round, mode: .scoreAttack(duration: 60), score: 30, elapsed: 60, at: date)
-            manager.finishRound(id: round, mode: .scoreAttack(duration: 60), score: 30, elapsed: 61, at: date)
+            manager.finishRound(id: round, mode: .timed(duration: 60), clearedCount: 3, swapsUsed: 1, elapsed: 60, at: date)
+            manager.finishRound(id: round, mode: .timed(duration: 60), clearedCount: 3, swapsUsed: 1, elapsed: 61, at: date)
         }
         XCTAssertEqual(progress(20), 20)
         XCTAssertTrue(manager.isUnlocked(id: 20))
     }
 
-    func testZeroScoreAndPrematureFinishesDoNotCount() {
-        manager.finishRound(id: round, mode: .scoreAttack(duration: 60), score: 300, elapsed: 59.99, at: date)
+    func testZeroClearsAndPrematureFinishesDoNotCount() {
+        manager.finishRound(id: round, mode: .timed(duration: 60), clearedCount: 30, swapsUsed: 10, elapsed: 59.99, at: date)
         XCTAssertEqual(progress(20), 0)
-        manager.finishRound(id: round, mode: .scoreAttack(duration: 60), score: 0, elapsed: 60, at: date)
-        manager.finishRound(id: round, mode: .scoreAttack(duration: 60), score: 300, elapsed: 61, at: date)
+        manager.finishRound(id: round, mode: .timed(duration: 60), clearedCount: 0, swapsUsed: 0, elapsed: 60, at: date)
+        manager.finishRound(id: round, mode: .timed(duration: 60), clearedCount: 30, swapsUsed: 10, elapsed: 61, at: date)
         XCTAssertEqual(progress(20), 0)
         newRound()
-        manager.finishRound(id: round, mode: .speedRun(targetScore: 300), score: 290, elapsed: 10, at: date)
-        manager.finishRound(id: round, mode: .free, score: 1000, elapsed: 100, at: date)
+        manager.finishRound(id: round, mode: .moves(limit: 30), clearedCount: 29, swapsUsed: 29, elapsed: 1000, at: date)
+        manager.finishRound(id: round, mode: .free, clearedCount: 100, swapsUsed: 30, elapsed: 100, at: date)
         XCTAssertEqual(progress(20), 0)
     }
 
-    func testEachFixedScoreAttackThresholdRequiresItsFinishedRound() {
-        for (score, id) in [(300, 10), (600, 11), (900, 12)] {
+    func testTimedThresholdsRequireFinishedRoundAndCounts() {
+        for (count, id) in [(30, 10), (60, 11), (90, 12)] {
             newRound()
-            swap(score: score)
+            swap(roundCleared: count)
             XCTAssertFalse(manager.isUnlocked(id: id))
-            manager.finishRound(id: round, mode: .scoreAttack(duration: 60), score: score, elapsed: 60, at: date)
+            manager.finishRound(id: round, mode: .timed(duration: 60), clearedCount: count, swapsUsed: 10, elapsed: 60, at: date)
             XCTAssertTrue(manager.isUnlocked(id: id))
         }
+        XCTAssertTrue(manager.isUnlocked(id: 16))
     }
 
-    func testFixedSpeedRunTimeChallengesAndSixtySecondBoundary() {
-        manager.finishRound(id: round, mode: .speedRun(targetScore: 300), score: 300, elapsed: 60.001, at: date)
+    func testMoveChallengesIgnoreTimeAndRequireThirtySwaps() {
+        manager.finishRound(id: round, mode: .moves(limit: 30), clearedCount: 60, swapsUsed: 29, elapsed: 30, at: date)
+        XCTAssertFalse(manager.isUnlocked(id: 13))
+        manager.finishRound(id: round, mode: .moves(limit: 30), clearedCount: 60, swapsUsed: 30, elapsed: 3600, at: date)
         XCTAssertTrue(manager.isUnlocked(id: 13))
+        XCTAssertTrue(manager.isUnlocked(id: 14))
+        XCTAssertTrue(manager.isUnlocked(id: 15))
         XCTAssertFalse(manager.isUnlocked(id: 16))
-        for (seconds, id) in [(60.0, 16), (45.0, 14), (30.0, 15)] {
-            newRound()
-            manager.finishRound(id: round, mode: .speedRun(targetScore: 300), score: 330, elapsed: seconds, at: date)
-            XCTAssertTrue(manager.isUnlocked(id: id))
-        }
-        let best = AchievementDefinition.all.first { $0.id == 16 }!
-        XCTAssertEqual(manager.progress(for: best).current, 30)
     }
 
     func testReloadRetainsMetricsAndTimeButStartsNewStreak() {
@@ -219,13 +217,21 @@ final class AchievementsTests: AchievementTestCase {
         XCTAssertTrue(received)
     }
 
-    func testZeroSecondSpeedRunIsDistinguishedFromMissingResult() {
-        manager.finishRound(id: round, mode: .speedRun(targetScore: 300), score: 300, elapsed: 0, at: date)
-        XCTAssertTrue(manager.isUnlocked(id: 16))
+    func testOldRulesMigrationPreservesUnlocksAndDoesNotInventNewModeProgress() {
+        defaults.set(["version": 1, "unlocked": [1, 13, 16, 21], "timestamps": ["13": date.timeIntervalSince1970],
+                      "metrics": ["bestScore": 150, "totalCleared": 456, "pieceCleared.orange_ricky": 100,
+                                  "speedRunCompleted.300": 1, "speedRun.300": 0, "scoreAttack.1": 900]],
+                     forKey: AchievementsManager.storageKey)
         manager = AchievementsManager(defaults: defaults)
-        let definition = AchievementDefinition.all.first { $0.id == 16 }!
-        XCTAssertTrue(manager.hasTimedResult(for: definition))
-        XCTAssertEqual(manager.progress(for: definition).current, 0)
+        XCTAssertEqual(manager.unlockedIDs(), [1, 13, 16, 21])
+        XCTAssertEqual(manager.unlockDate(id: 13), date)
+        XCTAssertEqual(progress(1), 15)
+        XCTAssertEqual(progress(17), 456)
+        XCTAssertEqual(manager.totalCleared(for: .orangeRicky), 100)
+        XCTAssertEqual(progress(10), 0)
+        XCTAssertEqual(progress(13), 0)
+        manager = AchievementsManager(defaults: defaults)
+        XCTAssertEqual(progress(1), 15, "迁移不会再次除以 10")
     }
 
     func testEveryPieceKindUnlocksItsOwnHundredThousandAndTenThousandMilestones() {

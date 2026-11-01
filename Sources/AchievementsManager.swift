@@ -6,10 +6,11 @@ enum AchievementCategory: String, CaseIterable {
 }
 
 enum AchievementGoal {
-    case bestScore(Int), rhythm(Int), completedRounds(Int), firstClear
+    case bestCleared(Int), rhythm(Int), completedRounds(Int), firstClear
     case longestRun(Int), cascades(Int), successfulSwaps(Int)
-    case scoreAttack(minutes: Int, score: Int)
-    case speedRun(target: Int, limit: TimeInterval?)
+    case timedClears(seconds: Int, count: Int)
+    case moveClears(limit: Int, count: Int)
+    case completedMode(mode: ModeRecordKey, ruleValue: Int)
     case totalCleared(Int)
     case pieceCleared(kind: PieceKind, count: Int)
 }
@@ -23,7 +24,7 @@ struct AchievementDefinition {
     var descriptionKey: String { "achievement.\(id).desc" }
 
     static let all: [AchievementDefinition] = [
-        .init(id: 1, category: .beginner, goal: .bestScore(100)),
+        .init(id: 1, category: .beginner, goal: .bestCleared(10)),
         .init(id: 2, category: .beginner, goal: .rhythm(3)),
         .init(id: 3, category: .beginner, goal: .completedRounds(1)),
         .init(id: 4, category: .beginner, goal: .firstClear),
@@ -32,13 +33,13 @@ struct AchievementDefinition {
         .init(id: 7, category: .skill, goal: .cascades(2)),
         .init(id: 8, category: .skill, goal: .cascades(3)),
         .init(id: 9, category: .skill, goal: .successfulSwaps(5)),
-        .init(id: 10, category: .mode, goal: .scoreAttack(minutes: 1, score: 300)),
-        .init(id: 11, category: .mode, goal: .scoreAttack(minutes: 1, score: 600)),
-        .init(id: 12, category: .mode, goal: .scoreAttack(minutes: 1, score: 900)),
-        .init(id: 13, category: .mode, goal: .speedRun(target: 300, limit: nil)),
-        .init(id: 14, category: .mode, goal: .speedRun(target: 300, limit: 45)),
-        .init(id: 15, category: .mode, goal: .speedRun(target: 300, limit: 30)),
-        .init(id: 16, category: .mode, goal: .speedRun(target: 300, limit: 60)),
+        .init(id: 10, category: .mode, goal: .timedClears(seconds: 60, count: 30)),
+        .init(id: 11, category: .mode, goal: .timedClears(seconds: 60, count: 60)),
+        .init(id: 12, category: .mode, goal: .timedClears(seconds: 60, count: 90)),
+        .init(id: 13, category: .mode, goal: .completedMode(mode: .moves, ruleValue: 30)),
+        .init(id: 14, category: .mode, goal: .moveClears(limit: 30, count: 30)),
+        .init(id: 15, category: .mode, goal: .moveClears(limit: 30, count: 60)),
+        .init(id: 16, category: .mode, goal: .completedMode(mode: .timed, ruleValue: 60)),
         .init(id: 17, category: .lifetime, goal: .totalCleared(100)),
         .init(id: 18, category: .lifetime, goal: .totalCleared(1_000)),
         .init(id: 19, category: .lifetime, goal: .totalCleared(10_000)),
@@ -62,10 +63,8 @@ struct AchievementDefinition {
 struct AchievementProgress {
     let current: Double
     let target: Double
-    let isTime: Bool
 
     var fraction: Double {
-        if isTime { return current > 0 ? min(1, target / current) : 0 }
         return min(1, current / target)
     }
 }
@@ -114,7 +113,7 @@ final class AchievementsManager {
         lastClearDate = nil
     }
 
-    func recordSwap(roundID: UUID, swapID: UUID, result: SwapResolution, score: Int, at date: Date) {
+    func recordSwap(roundID: UUID, swapID: UUID, result: SwapResolution, roundCleared: Int, at date: Date) {
         guard self.roundID == roundID, !roundFinished, result.isValidSwap,
               processedSwaps.insert(swapID).inserted else { return }
 
@@ -135,29 +134,29 @@ final class AchievementsManager {
             successfulSwaps = 0
             lastClearDate = nil
         }
-        updateBest("bestScore", Double(score))
+        updateBest("bestRoundCleared", Double(roundCleared))
         updateBest("longestRun", Double(result.longestRun))
         updateBest("cascades", Double(result.cascadeCount))
         saveAndEvaluate(at: date)
     }
 
-    func finishRound(id: UUID, mode: GameMode, score: Int, elapsed: TimeInterval, at date: Date) {
+    func finishRound(id: UUID, mode: GameMode, clearedCount: Int, swapsUsed: Int, elapsed: TimeInterval, at date: Date) {
         guard roundID == id, !roundFinished, elapsed.isFinite, elapsed >= 0 else { return }
         switch mode {
         case .free:
             return
-        case .scoreAttack(let duration):
+        case .timed(let duration):
             guard duration > 0, elapsed >= duration else { return }
             roundFinished = true
-            guard score > 0 else { return }
-            updateBest("scoreAttack.\(Int(duration / 60))", Double(score))
-        case .speedRun(let target):
-            guard target > 0, score >= target else { return }
+            guard clearedCount > 0 else { return }
+            updateBest("timedCleared.\(Int(duration))", Double(clearedCount))
+            metrics["completedMode.timed.\(Int(duration))"] = 1
+        case .moves(let limit):
+            guard limit > 0, swapsUsed >= limit else { return }
             roundFinished = true
-            let key = "speedRun.\(target)"
-            // 完成标记与用时分开保存，允许合法的 0 秒成绩。
-            metrics[key] = min(metrics[key] ?? .greatestFiniteMagnitude, elapsed)
-            metrics["speedRunCompleted.\(target)"] = 1
+            guard clearedCount > 0 else { return }
+            updateBest("movesCleared.\(limit)", Double(clearedCount))
+            metrics["completedMode.moves.\(limit)"] = 1
         }
         metrics["completedRounds", default: 0] += 1
         saveAndEvaluate(at: date)
@@ -165,30 +164,22 @@ final class AchievementsManager {
 
     func progress(for definition: AchievementDefinition) -> AchievementProgress {
         func value(_ key: String, _ target: Double) -> AchievementProgress {
-            .init(current: metrics[key, default: 0], target: target, isTime: false)
+            .init(current: metrics[key, default: 0], target: target)
         }
         switch definition.goal {
-        case .bestScore(let target): return value("bestScore", Double(target))
+        case .bestCleared(let target): return value("bestRoundCleared", Double(target))
         case .rhythm(let target): return value("rhythm", Double(target))
         case .completedRounds(let target): return value("completedRounds", Double(target))
-        case .firstClear: return .init(current: metrics["totalCleared", default: 0] > 0 ? 1 : 0, target: 1, isTime: false)
+        case .firstClear: return .init(current: metrics["totalCleared", default: 0] > 0 ? 1 : 0, target: 1)
         case .longestRun(let target): return value("longestRun", Double(target))
         case .cascades(let target): return value("cascades", Double(target))
         case .successfulSwaps(let target): return value("successfulSwaps", Double(target))
-        case .scoreAttack(let minutes, let score): return value("scoreAttack.\(minutes)", Double(score))
-        case .speedRun(let target, let limit):
-            if let limit {
-                return .init(current: metrics["speedRun.\(target)", default: 0], target: limit, isTime: true)
-            }
-            return value("speedRunCompleted.\(target)", 1)
+        case .timedClears(let seconds, let count): return value("timedCleared.\(seconds)", Double(count))
+        case .moveClears(let limit, let count): return value("movesCleared.\(limit)", Double(count))
+        case .completedMode(let mode, let rule): return value("completedMode.\(mode.rawValue).\(rule)", 1)
         case .totalCleared(let target): return value("totalCleared", Double(target))
         case .pieceCleared(let kind, let count): return value("pieceCleared.\(kind.rawValue)", Double(count))
         }
-    }
-
-    func hasTimedResult(for definition: AchievementDefinition) -> Bool {
-        guard case .speedRun(let target, let limit) = definition.goal, limit != nil else { return false }
-        return metrics["speedRunCompleted.\(target)"] == 1
     }
 
     private func updateBest(_ key: String, _ value: Double) {
@@ -199,9 +190,7 @@ final class AchievementsManager {
         var newIDs: [Int] = []
         for definition in AchievementDefinition.all where !isUnlocked(id: definition.id) {
             let progress = progress(for: definition)
-            let reached = progress.isTime
-                ? hasTimedResult(for: definition) && progress.current <= progress.target
-                : progress.current >= progress.target
+            let reached = progress.current >= progress.target
             if reached {
                 unlocked.insert(definition.id)
                 timestamps[String(definition.id)] = date.timeIntervalSince1970
@@ -222,6 +211,11 @@ final class AchievementsManager {
             // 分字段读取，避免一个损坏字段导致整份进度丢失。
             metrics = readNumbers(stored["metrics"])
             timestamps = readNumbers(stored["timestamps"])
+            // 总累计与解锁状态原样保留；旧分数只转换为可确定的单局消除数。
+            // 新模式的历史最佳使用新键，避免将旧规则结果冒充新挑战成绩。
+            if (stored["version"] as? Int ?? 1) < 2 {
+                metrics["bestRoundCleared"] = max(metrics["bestRoundCleared", default: 0], floor(metrics["bestScore", default: 0] / 10))
+            }
         } else {
             // 旧版 4...20 为无真实定义的占位，不能迁移成新成就。
             unlocked = Set((defaults.array(forKey: "AchievementsManager.unlockedIds") as? [Int] ?? []).filter { (1...3).contains($0) })
@@ -242,7 +236,7 @@ final class AchievementsManager {
     }
 
     private func save() {
-        defaults.set(["version": 1, "unlocked": unlocked.sorted(), "timestamps": timestamps, "metrics": metrics], forKey: Self.storageKey)
+        defaults.set(["version": 2, "unlocked": unlocked.sorted(), "timestamps": timestamps, "metrics": metrics], forKey: Self.storageKey)
     }
 }
 

@@ -242,16 +242,16 @@ final class UtilityRecordBestView: NSView {
         wantsLayer = true; layer?.cornerRadius = 14
         layer?.backgroundColor = HomeStyle.yellow.withAlphaComponent(0.12).cgColor
         layer?.borderColor = HomeStyle.yellow.withAlphaComponent(0.4).cgColor; layer?.borderWidth = 0.75
-        let metric = entry.map { mode == .scoreAttack ? String($0.score) : String(format: "%.2f", $0.elapsedTime) } ?? "—"
+        let metric = entry.map { String($0.clearedCount) } ?? "—"
         let value = UtilityStyle.label(metric, size: 38, weight: .heavy)
         value.font = .monospacedDigitSystemFont(ofSize: 38, weight: .heavy)
-        let unit = UtilityStyle.label(UtilityStyle.text(mode == .scoreAttack ? "utility.unit.points" : "utility.unit.seconds"), size: 13, weight: .semibold, color: HomeStyle.secondary)
+        let unit = UtilityStyle.label(UtilityStyle.text("utility.unit.tiles"), size: 13, weight: .semibold, color: HomeStyle.secondary)
         let copy = UtilityStyle.stack([
             UtilityStyle.label(UtilityStyle.text("utility.records.best"), size: 11, weight: .semibold, color: HomeStyle.secondary),
             UtilityStyle.stack([value, unit], vertical: false, spacing: 8),
-            UtilityStyle.label(UtilityStyle.text(mode == .scoreAttack ? "utility.records.score_rule" : "utility.records.speed_rule"), size: 11, color: HomeStyle.secondary)
+            UtilityStyle.label(UtilityStyle.text(mode == .timed ? "utility.records.timed_rule" : "utility.records.moves_rule"), size: 11, color: HomeStyle.secondary)
         ], spacing: 4)
-        let icon = UtilityStyle.icon(mode == .scoreAttack ? "trophy" : "stopwatch", color: .systemOrange, size: 56)
+        let icon = UtilityStyle.icon(mode == .timed ? "stopwatch" : "arrow.left.arrow.right", color: .systemOrange, size: 56)
         let row = UtilityStyle.stack([copy, icon], vertical: false, spacing: 16)
         copy.setContentHuggingPriority(.defaultLow, for: .horizontal)
         row.translatesAutoresizingMaskIntoConstraints = false; addSubview(row)
@@ -279,24 +279,24 @@ enum UtilityRecordContent {
         rows.addArrangedSubview(headings); UtilityStyle.fillWidth(headings, in: rows)
         headings.heightAnchor.constraint(equalToConstant: 30).isActive = true
         let formatter = DateFormatter(); formatter.locale = Localizer.shared.locale; formatter.dateStyle = .medium
+        let ranks = ModeRecordStore.ranks(for: entries)
         for (index, entry) in entries.enumerated() {
             let divider = NSBox(); divider.boxType = .separator
             rows.addArrangedSubview(divider); UtilityStyle.fillWidth(divider, in: rows)
-            let rank = UtilityRankView(rank: index + 1)
+            let rank = UtilityRankView(rank: ranks[index])
             rank.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([rank.widthAnchor.constraint(equalToConstant: 36), rank.heightAnchor.constraint(equalToConstant: 30)])
-            let metric = mode == .scoreAttack ? AchievementText.format("records.metric.score", entry.score)
-                : String(format: "%.2f", entry.elapsedTime) + " " + UtilityStyle.text("utility.unit.seconds")
-            let score = UtilityStyle.label(metric, size: 15, weight: index == 0 ? .bold : .semibold)
-            score.font = .monospacedDigitSystemFont(ofSize: 15, weight: index == 0 ? .bold : .semibold)
-            score.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            let metric = AchievementText.format("records.metric.cleared", entry.clearedCount)
+            let countLabel = UtilityStyle.label(metric, size: 15, weight: ranks[index] == 1 ? .bold : .semibold)
+            countLabel.font = .monospacedDigitSystemFont(ofSize: 15, weight: ranks[index] == 1 ? .bold : .semibold)
+            countLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
             let date = UtilityStyle.label(formatter.string(from: Date(timeIntervalSince1970: entry.createdAt)), size: 11, color: HomeStyle.secondary)
             date.alignment = .right
             date.widthAnchor.constraint(equalToConstant: 135).isActive = true
-            let row = UtilityStyle.stack([rank, score, date], vertical: false, spacing: 12)
+            let row = UtilityStyle.stack([rank, countLabel, date], vertical: false, spacing: 12)
             rows.addArrangedSubview(row); UtilityStyle.fillWidth(row, in: rows)
             row.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
-            row.setAccessibilityLabel("\(index + 1). \(metric), \(date.stringValue)")
+            row.setAccessibilityLabel("\(ranks[index]). \(metric), \(date.stringValue)")
         }
         if entries.isEmpty {
             let empty = UtilityStyle.stack([
@@ -310,6 +310,20 @@ enum UtilityRecordContent {
             empty.heightAnchor.constraint(greaterThanOrEqualToConstant: 180).isActive = true
         }
         return UtilityCard(rows, padding: 16)
+    }
+
+    static func legacyTable(_ section: LegacyRecordSection) -> NSView {
+        let stack = UtilityStyle.stack([], spacing: 8)
+        let title = AchievementText.format(section.kind == .scoreAttack ? "utility.records.legacy_score" : "utility.records.legacy_speed", section.ruleValue)
+        let heading = UtilityStyle.label(title, size: 13, weight: .bold)
+        stack.addArrangedSubview(heading); UtilityStyle.fillWidth(heading, in: stack)
+        let formatter = DateFormatter(); formatter.locale = Localizer.shared.locale; formatter.dateStyle = .medium
+        for (index, record) in section.entries.enumerated() {
+            let metric = section.kind == .scoreAttack ? AchievementText.format("records.metric.score", record.score) : String(format: "%.2f s", record.elapsedTime)
+            let label = UtilityStyle.label("\(index + 1).  \(metric)    \(formatter.string(from: Date(timeIntervalSince1970: record.createdAt)))", size: 12, color: HomeStyle.secondary)
+            stack.addArrangedSubview(label); UtilityStyle.fillWidth(label, in: stack)
+        }
+        return UtilityCard(stack, tint: NSColor(calibratedWhite: 0.975, alpha: 1), padding: 16)
     }
 }
 

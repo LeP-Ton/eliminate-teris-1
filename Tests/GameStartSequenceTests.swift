@@ -12,7 +12,7 @@ final class GameStartSequenceTests: AchievementTestCase {
     private var animationTime: TimeInterval = 0
     private var gameTime = Date(timeIntervalSince1970: 1_000_000)
 
-    private func fixture(mode: GameMode = .scoreAttack(duration: 60), columns: Int = 4) -> (GameBoardController, GameStartSequence, GameTouchBarView) {
+    private func fixture(mode: GameMode = .timed(duration: 60), columns: Int = 4) -> (GameBoardController, GameStartSequence, GameTouchBarView) {
         _ = NSApplication.shared
         // 使用交替补位保证结算不会因无限同色补位而无法结束。
         let a = PieceKind.orangeRicky, b = PieceKind.blueRicky, c = PieceKind.clevelandZ, d = PieceKind.rhodeIslandZ
@@ -82,7 +82,7 @@ final class GameStartSequenceTests: AchievementTestCase {
         gameTime = gameTime.addingTimeInterval(5)
         XCTAssertEqual(board.snapshot().remainingTime, 55)
         board.performSwap(from: 2, to: 3)
-        XCTAssertEqual(board.snapshot().score, 30)
+        XCTAssertEqual(board.snapshot().totalCleared, 3)
     }
 
     func testPartialDragAndCancellationReturnWithoutStarting() {
@@ -123,7 +123,7 @@ final class GameStartSequenceTests: AchievementTestCase {
         XCTAssertEqual(board.tiles(), initial)
         XCTAssertFalse(view.beginStartInteraction(pointer: "fresh", at: point(0.5, in: view)), "全部抬手后，新的触摸才交给棋盘")
         board.handleTap(at: 2); board.handleTap(at: 3)
-        XCTAssertEqual(board.snapshot().score, 30)
+        XCTAssertEqual(board.snapshot().totalCleared, 3)
     }
 
     func testOutsideTouchesDoNotStartAndButtonContinuesPartialDrag() {
@@ -159,7 +159,7 @@ final class GameStartSequenceTests: AchievementTestCase {
     func testModeChangeInvalidatesOldOpeningAndReducedMotionStartsImmediately() {
         let (board, sequence, _) = fixture()
         sequence.requestAutomaticStart()
-        sequence.reset(notify: false); board.configure(mode: .speedRun(targetScore: 300))
+        sequence.reset(notify: false); board.configure(mode: .moves(limit: 30))
         advance(sequence, by: 1)
         XCTAssertFalse(board.snapshot().isRunning)
         XCTAssertEqual(sequence.phase, .waiting)
@@ -171,7 +171,7 @@ final class GameStartSequenceTests: AchievementTestCase {
         XCTAssertEqual(board.snapshot().elapsedTime, 0)
     }
 
-    func testSpeedRunIgnoresOpeningTimeAndManualRestartSavesEachRound() throws {
+    func testMoveChallengeIgnoresOpeningTimeAndManualRestartSavesEachRound() throws {
         _ = NSApplication.shared
         let a = PieceKind.orangeRicky, b = PieceKind.blueRicky, c = PieceKind.clevelandZ, d = PieceKind.rhodeIslandZ
         let board = GameBoardController(columns: 4, achievements: manager, now: { self.gameTime }) { _ in
@@ -186,10 +186,10 @@ final class GameStartSequenceTests: AchievementTestCase {
         let controller = GameViewController(achievements: manager, records: records, board: board, audioEnabled: false,
                                             startClock: { self.animationTime })
         _ = controller.view
-        // 使用确定的连锁补位达到固定 300 分目标，不缩小正式规则阈值。
-        controller.selectMode(.speedRun)
+        // 使用确定补位序列，完整用完 30 次交换，验证正式限步规则。
+        controller.selectMode(.moves)
         controller.startSequence.reducesMotion = { false }
-        let baseline = Set(records.records(for: .speedRun, detailValue: 300).map(\.id))
+        let baseline = Set(records.records(for: .moves, detailValue: 30).map(\.id))
         for _ in 0..<2 {
             XCTAssertTrue(controller.startSequence.beginDrag())
             gameTime = gameTime.addingTimeInterval(20)
@@ -198,10 +198,11 @@ final class GameStartSequenceTests: AchievementTestCase {
             XCTAssertEqual(board.snapshot().elapsedTime, 0)
             gameTime = gameTime.addingTimeInterval(2)
             board.performSwap(from: 2, to: 3)
+            for _ in 0..<29 { board.performSwap(from: 0, to: 1) }
             XCTAssertTrue(board.snapshot().isFinished)
             XCTAssertEqual(board.snapshot().elapsedTime, 2)
         }
-        let newEntries = records.records(for: .speedRun, detailValue: 300).filter { !baseline.contains($0.id) }
+        let newEntries = records.records(for: .moves, detailValue: 30).filter { !baseline.contains($0.id) }
         XCTAssertEqual(newEntries.count, 2, "滑动再来一局也应正常保存新的结算记录")
         XCTAssertTrue(newEntries.allSatisfy { $0.elapsedTime == 2 })
     }
@@ -254,7 +255,7 @@ final class GameStartSequenceTests: AchievementTestCase {
         controller.view.addSubview(editor); window.makeFirstResponder(editor)
         XCTAssertFalse(controller.handleStartKeyEvent(try key()), "文字输入中的空格不能被开局快捷键截获")
         window.makeFirstResponder(nil); editor.removeFromSuperview()
-        controller.selectMode(.speedRun)
+        controller.selectMode(.moves)
         XCTAssertTrue(controller.startSequence.beginDrag())
         controller.startSequence.updateDrag(progress: 0.4)
         let partialPreview = board.tiles()

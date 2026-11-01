@@ -77,11 +77,11 @@
 // 成就定义、进度、筛选与解锁反馈。
 "panel.achievements" = "実績";
 "achievement.1.title" = "小さな一歩";
-"achievement.1.desc" = "いずれかのモードで、1 回のプレイ中に 100 点に到達する。";
+"achievement.1.desc" = "いずれかのモードで 1 回に 10 個以上消去。";
 "achievement.2.title" = "リズムをつかめ";
-"achievement.2.desc" = "1.6 秒以内の間隔で、得点する入れ替えを 3 回連続で行う。消去しない入れ替えで途切れる。";
+"achievement.2.desc" = "消去を伴う交換を 1.6 秒以内の間隔で 3 回連続。消えない交換で中断。";
 "achievement.3.title" = "最後まで";
-"achievement.3.desc" = "得点のあるスコアアタックかスピードランを最後まで完了する。";
+"achievement.3.desc" = "時間制または手数制を、1 個以上消去して完了。";
 "achievement.4.title" = "最初の火花";
 "achievement.4.desc" = "入れ替えで初めてブロックを消す。";
 "achievement.5.title" = "四つの調和";
@@ -95,19 +95,19 @@
 "achievement.9.title" = "一手ずつ確実に";
 "achievement.9.desc" = "1 回のプレイで、消去する入れ替えを 5 回連続で行う。操作間隔は問わない。";
 "achievement.10.title" = "1 分の準備運動";
-"achievement.10.desc" = "1 分のスコアアタックを 300 点以上で最後まで完了する。";
+"achievement.10.desc" = "60 秒の時間制で 30 個以上消去して完了。";
 "achievement.11.title" = "全力疾走";
-"achievement.11.desc" = "1 分のスコアアタックを 600 点以上で完了する。";
-"achievement.12.title" = "限界突破";
-"achievement.12.desc" = "1 分のスコアアタックを 900 点以上で完了する。";
-"achievement.13.title" = "初めてのゴール";
-"achievement.13.desc" = "300 点のスピードランを完了する。";
-"achievement.14.title" = "加速する指先";
-"achievement.14.desc" = "300 点のスピードランを 45 秒以内に完了する。";
-"achievement.15.title" = "電光石火";
-"achievement.15.desc" = "300 点のスピードランを 30 秒以内に完了する。";
-"achievement.16.title" = "一秒を争え";
-"achievement.16.desc" = "300 点のスピードランを 60 秒以内に完了する。";
+"achievement.11.desc" = "60 秒の時間制で 60 個以上消去して完了。";
+"achievement.12.title" = "消去の極み";
+"achievement.12.desc" = "60 秒の時間制で 90 個以上消去して完了。";
+"achievement.13.title" = "30 手の旅";
+"achievement.13.desc" = "30 回交換して手数制を完了。1 個以上の消去が必要。";
+"achievement.14.title" = "一手を大切に";
+"achievement.14.desc" = "30 回の手数制で 30 個以上消去して完了。";
+"achievement.15.title" = "読みの勝利";
+"achievement.15.desc" = "30 回の手数制で 60 個以上消去して完了。";
+"achievement.16.title" = "1 分間の挑戦";
+"achievement.16.desc" = "60 秒の時間制を、1 個以上消去して完了。";
 "achievement.17.title" = "百個からの一歩";
 "achievement.17.desc" = "すべてのモードで合計 100 個のブロックを消す。";
 "achievement.18.title" = "千個の熟練者";
@@ -115,7 +115,7 @@
 "achievement.19.title" = "万個の旅人";
 "achievement.19.desc" = "すべてのモードで合計 10,000 個のブロックを消す。";
 "achievement.20.title" = "挑戦の常連";
-"achievement.20.desc" = "スコアアタックかスピードランを合計 20 回完了する。0 点のスコアアタックは含まない。";
+"achievement.20.desc" = "時間制または手数制を、1 個以上消去して 20 回完了。";
 "achievement.summary" = "実績 · %d/%d 達成";
 "achievement.view_all" = "すべて見る";
 "achievement.filter.all" = "すべて";
@@ -137,7 +137,7 @@
 "achievement.empty" = "該当する実績はありません";
 "achievement.accessibility.locked" = "%@、未達成";
 "achievement.accessibility.unlocked" = "%@、達成済み";
-"achievement.progress.legacy" = "旧バージョンで達成済み。過去の進捗記録はありません";
+"achievement.progress.legacy" = "旧ルールで解除済み。新しい目標は未達成";
 
 // 按方块类型记录累计消除数量及百、千、万三档里程碑。
 "banner.total_cleared" = "累計消去";
@@ -175,25 +175,25 @@
 "home.brand" = "消去テトリス 1";
 "home.game_modes" = "ゲームモード";
 "home.hero.free" = "入れ替えて、\n楽しく消そう。";
-"home.hero.speed_run" = "一秒を争い、\nゴールへ。";
-"home.hero.score_attack" = "連鎖をつなぎ、\n最高得点へ。";
+"home.hero.timed" = "1 分間、\n消去に挑戦。";
+"home.hero.moves" = "30 手で、\n先を読もう。";
 "home.subtitle.free" = "時間を気にせず、自分のペースで。";
-"home.subtitle.speed_run" = "300 点まで、最速の一局に挑戦。";
-"home.subtitle.score_attack" = "60 秒で、最高得点を目指そう。";
+"home.subtitle.timed" = "1 分間でできるだけ多く消そう。";
+"home.subtitle.moves" = "時間を気にせず、一手を大切に。";
 "home.mode.free" = "フリーモード";
-"home.mode.speed_run" = "スピードラン";
-"home.mode.score_attack" = "スコアアタック";
-"home.mode_desc.free" = "時間・目標点数の制限なし。";
-"home.mode_desc.speed_run" = "300 点に到達すると終了。";
-"home.mode_desc.score_attack" = "制限時間 60 秒で高得点へ。";
+"home.mode.timed" = "時間制チャレンジ";
+"home.mode.moves" = "手数制チャレンジ";
+"home.mode_desc.free" = "時間・交換回数の制限なし。";
+"home.mode_desc.timed" = "制限時間 60 秒。たくさん消そう。";
+"home.mode_desc.moves" = "交換は 30 回。時間制限なし。";
 "home.operation_hint" = "ドラッグで入れ替え  ·  3 個以上で消去";
 "home.start" = "ゲーム開始";
 "home.play_again" = "もう一度";
 "home.session_stats" = "この一局の記録";
 "home.achievement_path" = "実績への道";
 "home.unlocked_count" = "達成 %d / %d";
-"home.rules.fixed" = "1 個消すと 10 点。スコアアタックは 60 秒、スピードランは 300 点で終了。モード変更や再開で一局の記録はリセットされ、実績の累計は保存されます。";
-"home.records.fixed" = "固定ルール：60 秒スコアアタック · 300 点スピードラン";
+"home.rules.fixed" = "時間制は 60 秒、手数制は 30 回交換。消去数で順位を決定。消えない交換も 1 回に数え、連鎖で手数は減りません。最後の交換も連鎖をすべて処理します。";
+"home.records.fixed" = "60 秒・30 回交換 · 消去数で順位決定";
 
 /* 辅助面板：设置、玩法说明与挑战记录。 */
 "utility.settings.subtitle" = "自分らしいペースで楽しもう。";
@@ -203,28 +203,40 @@
 "utility.settings.volume_hint" = "BGM とゲーム効果音をまとめて調整";
 "utility.settings.instant" = "変更はすぐに反映されます。";
 "utility.lesson.0.title" = "位置を交換";
-"utility.lesson.0.body" = "Touch Bar で隣り合うブロックをドラッグ。マルチタッチにも対応。";
+"utility.lesson.0.body" = "Touch Bar で隣接ブロックを交換。手数制では消えない交換も数えます。";
 "utility.lesson.1.title" = "3 個以上つなげよう";
-"utility.lesson.1.body" = "同じ種類を 3 個以上つなげると消去。1 個につき 10 点。";
+"utility.lesson.1.body" = "同じ種類を 3 個以上つなげて消去。実際に消えた数を記録します。";
 "utility.lesson.2.title" = "補充から連鎖へ";
-"utility.lesson.2.body" = "消去した場所にブロックを補充。再びそろうと自動で連鎖。";
+"utility.lesson.2.body" = "補充による連鎖は同じ一手。最後の交換の連鎖もすべて処理します。";
 "utility.rules.modes" = "選べる 3 つの遊び方";
 "utility.rules.current" = "選択中";
 "utility.rules.progress" = "やり直しやモード変更で今回の統計はリセット。実績と累計進捗は保持されます。";
 "utility.unit.points" = "点";
 "utility.unit.seconds" = "秒";
 "utility.records.best" = "自己ベスト";
-"utility.records.score_rule" = "制限時間 60 秒 · 高得点ほど上位";
-"utility.records.speed_rule" = "目標 300 点 · 短いタイムほど上位";
 "utility.records.rank" = "順位";
-"utility.records.result" = "記録";
+"utility.records.result" = "消去数";
 "utility.records.date" = "プレイ日";
 "utility.records.empty_hint" = "チャレンジを完了して最初の記録を残そう。";
 
 /* 滑动开局与主窗口快捷入口。 */
 "home.start_hint" = "クリック、スペース、または Touch Bar をスライドして開始";
 "home.starting" = "準備中…";
-"home.starting_hint" = "盤面が開いたら計測を開始します";
+"home.starting_hint" = "盤面が開いたらチャレンジ開始";
 "touchbar.slide_start" = "右にスライドして開始";
 "touchbar.slide_again" = "右にスライドしてもう一度";
 "touchbar.board" = "Touch Bar のゲーム盤面";
+
+/* 消除数量与新挑战规则。 */
+"home.cleared_title" = "今回の消去数";
+"home.hud.timed" = "%d 個消去 · 残り %@";
+"home.hud.moves" = "%d 個消去 · 残り %d 回";
+"home.result" = "終了 · 合計 %d 個消去";
+"utility.records.timed_rule" = "60 秒固定 · 消去数が多いほど上位";
+"utility.records.moves_rule" = "30 回交換 · 同じ消去数は同順位";
+"utility.unit.tiles" = "個";
+"records.metric.cleared" = "%d 個";
+"utility.records.show_history" = "旧ルールの記録を見る";
+"utility.records.hide_history" = "旧ルールの記録を閉じる";
+"utility.records.legacy_score" = "旧スコアアタック · %d 分";
+"utility.records.legacy_speed" = "旧スピードラン · 目標 %d 点";

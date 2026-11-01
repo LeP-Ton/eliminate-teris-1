@@ -12,8 +12,8 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
 
     private enum MusicTheme: Hashable {
         case free
-        case scoreAttack
-        case speedRun
+        case moves
+        case timed
     }
 
     private enum Waveform {
@@ -173,10 +173,10 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
         switch mode {
         case .free:
             return .free
-        case .scoreAttack:
-            return .scoreAttack
-        case .speedRun:
-            return .speedRun
+        case .timed:
+            return .timed
+        case .moves:
+            return .moves
         }
     }
 
@@ -184,9 +184,9 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
         switch theme {
         case .free:
             return 0.22
-        case .scoreAttack:
+        case .moves:
             return 0.25
-        case .speedRun:
+        case .timed:
             return 0.27
         }
     }
@@ -243,7 +243,7 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
                 ]
             )
 
-        case .scoreAttack:
+        case .moves:
             return synthesize(
                 tempo: 128,
                 tracks: [
@@ -262,7 +262,7 @@ final class GameAudioSystem: NSObject, AVAudioPlayerDelegate {
                 ]
             )
 
-        case .speedRun:
+        case .timed:
             return synthesize(
                 tempo: 146,
                 tracks: [

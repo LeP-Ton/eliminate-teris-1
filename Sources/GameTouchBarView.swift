@@ -2,19 +2,19 @@ import Cocoa
 
 enum GameMode: Equatable {
     case free
-    case scoreAttack(duration: TimeInterval)
-    case speedRun(targetScore: Int)
+    case timed(duration: TimeInterval)
+    case moves(limit: Int)
 }
 
 struct GameSnapshot {
     let mode: GameMode
-    let score: Int
     let elapsedTime: TimeInterval
     let remainingTime: TimeInterval?
-    let targetScore: Int?
+    let remainingSwaps: Int?
     let isRunning: Bool
     let isFinished: Bool
     var clearedByKind: [PieceKind: Int] = [:]
+    var swapsUsed: Int = 0
 
     var totalCleared: Int { clearedByKind.values.reduce(0, +) }
 }
@@ -37,6 +37,7 @@ final class GameBoardController {
     private var isRunningRound = false
     private var isFinished = false
     private var hasPreparedRound = false
+    private var swapsUsed = 0
     private var lastSwapPair: (Int, Int)?
 
     private var lockedIndices: Set<Int> = []
@@ -60,6 +61,8 @@ final class GameBoardController {
     }
 
     func configure(mode: GameMode) {
+        // 到期后立即切换或重开，也先广播旧局结算，避免 HUD 下次刷新前丢失记录。
+        if updateFinishedState(now: currentDate()) { notifyChange() }
         self.mode = mode
         hasPreparedRound = false
         resetBoard(startDate: currentDate())
@@ -76,6 +79,7 @@ final class GameBoardController {
 
     /// 生成可预览棋盘但不开计时、不接受交换；开场完成时沿用同一组 tile id。
     func prepareRound() {
+        if updateFinishedState(now: currentDate()) { notifyChange() }
         resetBoard(startDate: currentDate())
         stoppedElapsedTime = 0
         isRunningRound = false
@@ -116,16 +120,15 @@ final class GameBoardController {
         case .free:
             return GameSnapshot(
                 mode: mode,
-                score: state.score,
                 elapsedTime: elapsed,
                 remainingTime: nil,
-                targetScore: nil,
+                remainingSwaps: nil,
                 isRunning: isRunningRound,
                 isFinished: isFinished,
-                clearedByKind: state.clearedByKind
+                clearedByKind: state.clearedByKind, swapsUsed: swapsUsed
             )
 
-        case .scoreAttack(let duration):
+        case .timed(let duration):
             let remaining: TimeInterval
             if isRunningRound || isFinished {
                 remaining = max(0, duration - elapsed)
@@ -135,25 +138,23 @@ final class GameBoardController {
 
             return GameSnapshot(
                 mode: mode,
-                score: state.score,
                 elapsedTime: elapsed,
                 remainingTime: remaining,
-                targetScore: nil,
+                remainingSwaps: nil,
                 isRunning: isRunningRound,
                 isFinished: isFinished,
-                clearedByKind: state.clearedByKind
+                clearedByKind: state.clearedByKind, swapsUsed: swapsUsed
             )
 
-        case .speedRun(let targetScore):
+        case .moves(let limit):
             return GameSnapshot(
                 mode: mode,
-                score: state.score,
                 elapsedTime: elapsed,
                 remainingTime: nil,
-                targetScore: targetScore,
+                remainingSwaps: max(0, limit - swapsUsed),
                 isRunning: isRunningRound,
                 isFinished: isFinished,
-                clearedByKind: state.clearedByKind
+                clearedByKind: state.clearedByKind, swapsUsed: swapsUsed
             )
         }
     }
@@ -177,6 +178,7 @@ final class GameBoardController {
     @discardableResult
     func lock(_ index: Int) -> Bool {
         guard canInteract() else { return false }
+        guard (0..<columnsCount).contains(index) else { return false }
         guard !lockedIndices.contains(index) else { return false }
         lockedIndices.insert(index)
         notifyChange()
@@ -218,13 +220,15 @@ final class GameBoardController {
         lockedIndices.insert(leftIndex)
         lockedIndices.insert(rightIndex)
         _ = state.swapAndResolve(leftIndex, rightIndex)
+        // 每次实际完成的合法交换只扣一步；无消除也计次，所有自动连锁归入同一步。
+        swapsUsed += 1
         lockedIndices.remove(leftIndex)
         lockedIndices.remove(rightIndex)
         selectedIndex = nil
 
         // 最后一笔交换先入账，再发送达标结算，保证同一操作触发的成就全部生效。
         let now = currentDate()
-        achievements.recordSwap(roundID: roundID, swapID: UUID(), result: state.lastResolution, score: state.score, at: now)
+        achievements.recordSwap(roundID: roundID, swapID: UUID(), result: state.lastResolution, roundCleared: state.totalCleared, at: now)
         _ = updateFinishedState(now: now)
         notifyChange()
     }
@@ -259,6 +263,7 @@ final class GameBoardController {
         lockedIndices.removeAll()
         selectedIndex = nil
         lastSwapPair = nil
+        swapsUsed = 0
         roundStartDate = startDate
     }
 
@@ -288,10 +293,10 @@ final class GameBoardController {
         switch mode {
         case .free:
             isFinished = false
-        case .scoreAttack(let duration):
+        case .timed(let duration):
             isFinished = elapsed >= duration
-        case .speedRun(let targetScore):
-            isFinished = state.score >= targetScore
+        case .moves(let limit):
+            isFinished = swapsUsed >= limit
         }
 
         if isFinished {
@@ -299,7 +304,7 @@ final class GameBoardController {
             stoppedElapsedTime = elapsed
             lockedIndices.removeAll()
             selectedIndex = nil
-            achievements.finishRound(id: roundID, mode: mode, score: state.score, elapsed: elapsed, at: now)
+            achievements.finishRound(id: roundID, mode: mode, clearedCount: state.totalCleared, swapsUsed: swapsUsed, elapsed: elapsed, at: now)
         }
 
         return previousFinished != isFinished

@@ -16,11 +16,11 @@ final class GameStateTests: XCTestCase {
         }
     }
 
-    func testSingleTripleAndScore() {
+    func testSingleTripleAndCount() {
         let game = state([a, a, b, a], refill: [c, d, c])
         XCTAssertTrue(game.swapAndResolve(2, 3))
         XCTAssertEqual(game.lastResolution, SwapResolution(isValidSwap: true, clearedCount: 3, cascadeCount: 1, longestRun: 3, clearedByKind: [a: 3]))
-        XCTAssertEqual(game.score, 30)
+        XCTAssertEqual(game.totalCleared, 3)
         XCTAssertEqual(game.tiles.map(\.kind), [c, d, c, b])
     }
 
@@ -40,14 +40,14 @@ final class GameStateTests: XCTestCase {
         XCTAssertEqual(game.lastResolution.clearedByKind, [a: 3, c: 5])
         XCTAssertEqual(game.lastResolution.cascadeCount, 2)
         XCTAssertEqual(game.lastResolution.longestRun, 5)
-        XCTAssertEqual(game.score, 80)
+        XCTAssertEqual(game.totalCleared, 8)
     }
 
     func testThreeCascadesIncludeTheInitialWave() {
         let game = state([a, a, b, a], refill: [b, b, b, c, c, c, d, a, b, a])
         XCTAssertTrue(game.swapAndResolve(2, 3))
         XCTAssertEqual(game.lastResolution, SwapResolution(isValidSwap: true, clearedCount: 10, cascadeCount: 3, longestRun: 4, clearedByKind: [a: 3, b: 4, c: 3]))
-        XCTAssertEqual(game.score, 100)
+        XCTAssertEqual(game.totalCleared, 10)
     }
 
     func testNonClearingSwapRemainsOnBoardWhileAttemptSwapRollsBack() {
