@@ -61,12 +61,16 @@ final class HomeDashboardTests: AchievementTestCase {
         _ = NSApplication.shared
         let board = board(now: { self.date })
         let records = ModeRecordStore(defaults: defaults)
-        let controller = GameViewController(achievements: manager, records: records, board: board, audioEnabled: false)
+        var animationTime: TimeInterval = 0
+        let controller = GameViewController(achievements: manager, records: records, board: board, audioEnabled: false, startClock: { animationTime })
+        controller.startSequence.reducesMotion = { false }
         let view = controller.view
         let start = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeButton }.first { $0.primary })
         let stats = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeSessionStatsView }.first)
         XCTAssertFalse(board.snapshot().isRunning)
         start.performClick(nil)
+        XCTAssertFalse(board.snapshot().isRunning, "开场动画不应消耗游戏时间")
+        animationTime += 1; controller.startSequence.advanceAnimation()
         XCTAssertTrue(board.snapshot().isRunning)
         board.performSwap(from: 2, to: 3)
         XCTAssertEqual(stats.snapshot?.totalCleared, 30)
@@ -78,6 +82,7 @@ final class HomeDashboardTests: AchievementTestCase {
         XCTAssertEqual(board.snapshot().targetScore, 300)
         XCTAssertEqual(stats.snapshot?.totalCleared, 0)
         start.performClick(nil)
+        animationTime += 1; controller.startSequence.advanceAnimation()
         board.performSwap(from: 2, to: 3)
         XCTAssertTrue(board.snapshot().isFinished)
         XCTAssertEqual(stats.snapshot?.totalCleared, 30)

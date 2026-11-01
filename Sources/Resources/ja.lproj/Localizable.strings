@@ -220,3 +220,11 @@
 "utility.records.result" = "記録";
 "utility.records.date" = "プレイ日";
 "utility.records.empty_hint" = "チャレンジを完了して最初の記録を残そう。";
+
+/* 滑动开局与主窗口快捷入口。 */
+"home.start_hint" = "クリック、スペース、または Touch Bar をスライドして開始";
+"home.starting" = "準備中…";
+"home.starting_hint" = "盤面が開いたら計測を開始します";
+"touchbar.slide_start" = "右にスライドして開始";
+"touchbar.slide_again" = "右にスライドしてもう一度";
+"touchbar.board" = "Touch Bar のゲーム盤面";

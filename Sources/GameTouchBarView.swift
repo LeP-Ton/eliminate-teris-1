@@ -36,6 +36,7 @@ final class GameBoardController {
     private var stoppedElapsedTime: TimeInterval = 0
     private var isRunningRound = false
     private var isFinished = false
+    private var hasPreparedRound = false
     private var lastSwapPair: (Int, Int)?
 
     private var lockedIndices: Set<Int> = []
@@ -60,6 +61,7 @@ final class GameBoardController {
 
     func configure(mode: GameMode) {
         self.mode = mode
+        hasPreparedRound = false
         resetBoard(startDate: currentDate())
         stoppedElapsedTime = 0
         isRunningRound = false
@@ -68,10 +70,26 @@ final class GameBoardController {
     }
 
     func startRound() {
+        prepareRound()
+        beginPreparedRound()
+    }
+
+    /// 生成可预览棋盘但不开计时、不接受交换；开场完成时沿用同一组 tile id。
+    func prepareRound() {
         resetBoard(startDate: currentDate())
         stoppedElapsedTime = 0
-        isRunningRound = true
+        isRunningRound = false
         isFinished = false
+        hasPreparedRound = true
+        notifyChange()
+    }
+
+    func beginPreparedRound() {
+        guard hasPreparedRound, !isRunningRound else { return }
+        hasPreparedRound = false
+        roundStartDate = currentDate()
+        stoppedElapsedTime = 0
+        isRunningRound = true
         notifyChange()
     }
 
@@ -342,6 +360,11 @@ final class GameTouchBarView: NSView {
     }
 
     private let controller: GameBoardController
+    private let startSequence: GameStartSequence
+    private var startObserverToken: UUID?
+    private var consumedStartPointers: Set<AnyHashable> = []
+    private var startPointer: AnyHashable?
+    private var startGrabOffset: CGFloat = 0
     private let audioSystem = GameAudioSystem.shared
     private let columnRange: Range<Int>
     private let columnCount: Int
@@ -367,18 +390,19 @@ final class GameTouchBarView: NSView {
     private var lastKnownBoundsSize: CGSize = .zero
     // 当 prepareForDisplay 发生在零尺寸阶段时，先挂起刷新，等真正拿到尺寸后再补绘。
     private var pendingDisplayRefresh = false
-    // 仅在实际完成格子/方块绘制后才置为 true，避免把“纯黑底首帧”误判成成功渲染。
+    // 仅在实际绘制棋盘或开局滑轨后置为 true，避免把“纯黑底首帧”误判成成功渲染。
     private(set) var hasDrawnVisibleContent = false
     private(set) var displayGeneration = 0
     private var lastLoggedRenderState = ""
     private var lastLoggedVisibleGeneration = -1
 
-    init(columnRange: Range<Int>, controller: GameBoardController, leadingCompensationX: CGFloat = 0) {
+    init(columnRange: Range<Int>, controller: GameBoardController, startSequence: GameStartSequence, leadingCompensationX: CGFloat = 0) {
         precondition(!columnRange.isEmpty, "columnRange must contain at least one column")
 
         self.columnRange = columnRange
         self.columnCount = columnRange.count
         self.controller = controller
+        self.startSequence = startSequence
         self.leadingCompensationX = max(0, leadingCompensationX)
         self.renderedTiles = controller.tiles()
 
@@ -397,6 +421,9 @@ final class GameTouchBarView: NSView {
         observerToken = controller.addObserver(owner: self) { [weak self] in
             self?.handleControllerChange()
         }
+        startObserverToken = startSequence.addObserver(owner: self) { [weak self] in self?.handleStartSequenceChange() }
+        startSequence.synchronize(with: controller.snapshot())
+        handleStartSequenceChange()
     }
 
     required init?(coder: NSCoder) {
@@ -405,6 +432,7 @@ final class GameTouchBarView: NSView {
 
     deinit {
         transitionTimer?.invalidate()
+        if let startObserverToken { startSequence.removeObserver(startObserverToken) }
         if let observerToken {
             controller.removeObserver(observerToken)
         }
@@ -447,6 +475,13 @@ final class GameTouchBarView: NSView {
                 lastLoggedRenderState = renderState
                 logDiagnostics("跳过有效内容绘制，原因=尺寸不足，bounds=\(TouchBarDiagnostics.describe(rect: bounds))")
             }
+            return
+        }
+
+        if startSequence.phase != .playing {
+            drawStartPresentation()
+            hasDrawnVisibleContent = true
+            logVisibleContentIfNeeded(reason: "开局滑轨")
             return
         }
 
@@ -494,11 +529,12 @@ final class GameTouchBarView: NSView {
         let touches = event.touches(matching: .began, in: self)
         for touch in touches {
             let point = touch.location(in: self)
+            let id = ObjectIdentifier(touch.identity as AnyObject)
+            if beginStartInteraction(pointer: id, at: point) { continue }
             let index = indexForPoint(point)
             guard isValidIndex(index) else { continue }
             guard controller.lock(index) else { continue }
 
-            let id = ObjectIdentifier(touch.identity as AnyObject)
             activeTouches[id] = TouchState(startIndex: index, currentIndex: index)
         }
     }
@@ -507,6 +543,7 @@ final class GameTouchBarView: NSView {
         let touches = event.touches(matching: .touching, in: self)
         for touch in touches {
             let id = ObjectIdentifier(touch.identity as AnyObject)
+            if moveStartInteraction(pointer: id, to: touch.location(in: self)) { continue }
             guard var state = activeTouches[id] else { continue }
 
             let point = touch.location(in: self)
@@ -531,6 +568,7 @@ final class GameTouchBarView: NSView {
     private func handleTouchesEnded(_ touches: Set<NSTouch>) {
         for touch in touches {
             let id = ObjectIdentifier(touch.identity as AnyObject)
+            if endStartInteraction(pointer: id, at: touch.location(in: self)) { continue }
             guard let state = activeTouches[id] else { continue }
 
             let point = touch.location(in: self)
@@ -555,6 +593,7 @@ final class GameTouchBarView: NSView {
     private func handleTouchesCancelled(_ touches: Set<NSTouch>) {
         for touch in touches {
             let id = ObjectIdentifier(touch.identity as AnyObject)
+            if endStartInteraction(pointer: id, at: touch.location(in: self), cancelled: true) { continue }
             guard let state = activeTouches[id] else { continue }
 
             controller.unlock(state.startIndex)
@@ -564,9 +603,116 @@ final class GameTouchBarView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        if beginStartInteraction(pointer: "mouse", at: point) { return }
         let index = indexForPoint(point)
         guard isValidIndex(index) else { return }
         controller.handleTap(at: index)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        _ = moveStartInteraction(pointer: "mouse", to: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        _ = endStartInteraction(pointer: "mouse", at: convert(event.locationInWindow, from: nil))
+    }
+
+    /// 触摸与鼠标共用同一条输入路径；开局手指在抬起前始终不会进入棋盘操作。
+    @discardableResult
+    func beginStartInteraction(pointer: AnyHashable, at point: NSPoint) -> Bool {
+        guard startSequence.phase != .playing || !consumedStartPointers.isEmpty else { return false }
+        consumedStartPointers.insert(pointer)
+        let thumb = startThumbRect
+        if startPointer == nil, thumb.insetBy(dx: -4, dy: -4).contains(point), startSequence.beginDrag() {
+            startPointer = pointer
+            startGrabOffset = point.x - thumb.minX
+        }
+        return true
+    }
+
+    @discardableResult
+    func moveStartInteraction(pointer: AnyHashable, to point: NSPoint) -> Bool {
+        guard consumedStartPointers.contains(pointer) else { return false }
+        if startPointer == pointer { updateStartProgress(at: point) }
+        return true
+    }
+
+    @discardableResult
+    func endStartInteraction(pointer: AnyHashable, at point: NSPoint, cancelled: Bool = false) -> Bool {
+        guard consumedStartPointers.contains(pointer) else { return false }
+        if startPointer == pointer {
+            if !cancelled { updateStartProgress(at: point) }
+            startSequence.endDrag()
+            startPointer = nil
+        }
+        consumedStartPointers.remove(pointer)
+        return true
+    }
+
+    func cancelInteractions() {
+        startSequence.cancelPendingStart()
+        consumedStartPointers.removeAll(); startPointer = nil
+        let previous = activeTouches; activeTouches.removeAll()
+        for state in previous.values { controller.unlock(state.startIndex) }
+    }
+
+    func refreshLanguage() { handleStartSequenceChange() }
+
+    private func updateStartProgress(at point: NSPoint) {
+        let travel = max(1, bounds.width - 8 - startThumbRect.width)
+        startSequence.updateDrag(progress: Double((point.x - startGrabOffset - 4) / travel))
+    }
+
+    var startThumbRect: NSRect {
+        let width = min(44, max(0, bounds.width - 8))
+        return NSRect(x: 4 + CGFloat(startSequence.progress) * max(0, bounds.width - 8 - width),
+                      y: bounds.midY - 13, width: width, height: 26)
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard startSequence.phase != .playing else { return false }
+        return startSequence.requestAutomaticStart()
+    }
+
+    private func handleStartSequenceChange() {
+        if startSequence.phase != .playing {
+            let previous = activeTouches; activeTouches.removeAll()
+            consumedStartPointers.formUnion(previous.keys.map { AnyHashable($0) })
+            for state in previous.values { controller.unlock(state.startIndex) }
+        }
+        setAccessibilityElement(true)
+        setAccessibilityRole(startSequence.phase == .playing ? .group : .button)
+        setAccessibilityLabel(Localizer.shared.string(startSequence.phase == .playing ? "touchbar.board" : "touchbar.slide_start"))
+        requestDisplayRefresh()
+    }
+
+    private func drawStartPresentation() {
+        let track = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
+        NSColor(calibratedWhite: 0.11, alpha: 1).setFill(); track.fill()
+        NSColor.white.withAlphaComponent(0.12).setStroke(); track.lineWidth = 0.5; track.stroke()
+        let progress = CGFloat(startSequence.progress)
+        if progress > 0 {
+            NSGraphicsContext.saveGraphicsState()
+            NSBezierPath(rect: NSRect(x: bounds.minX, y: bounds.minY, width: bounds.width * progress, height: bounds.height)).addClip()
+            for localIndex in 0..<columnCount {
+                let rect = cellRect(forLocalIndex: localIndex)
+                drawCellBackground(in: rect, globalIndex: columnRange.lowerBound + localIndex, highlighted: false)
+                drawPiece(controller.tile(at: columnRange.lowerBound + localIndex), in: rect, highlighted: false, alpha: 1, scale: 1)
+            }
+            NSGraphicsContext.restoreGraphicsState()
+        }
+        let title = Localizer.shared.string(controller.snapshot().isFinished ? "touchbar.slide_again" : "touchbar.slide_start")
+        let font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        let titleSize = (title as NSString).size(withAttributes: [.font: font])
+        let alpha = max(0, 1 - progress * 4)
+        if bounds.width > 180 {
+            (title as NSString).draw(at: NSPoint(x: bounds.midX - titleSize.width / 2, y: bounds.midY - titleSize.height / 2),
+                                     withAttributes: [.font: font, .foregroundColor: NSColor.white.withAlphaComponent(0.75 * alpha)])
+        }
+        let thumb = NSBezierPath(roundedRect: startThumbRect, xRadius: 7, yRadius: 7)
+        NSGradient(colors: [NSColor(calibratedRed: 1, green: 0.9, blue: 0.42, alpha: 1), HomeStyle.yellow])?.draw(in: thumb, angle: 90)
+        NSColor.white.withAlphaComponent(0.45).setStroke(); thumb.lineWidth = 0.5; thumb.stroke()
+        HomeStyle.symbol("chevron.right", in: startThumbRect.insetBy(dx: 15, dy: 6), color: HomeStyle.ink)
     }
 
     @discardableResult
@@ -589,8 +735,16 @@ final class GameTouchBarView: NSView {
     }
 
     private func handleControllerChange() {
+        startSequence.synchronize(with: controller.snapshot())
         let latestTiles = controller.tiles()
         let swapPair = controller.consumeLastSwapPair()
+        if startSequence.phase != .playing {
+            transitionTimer?.invalidate(); transitionTimer = nil
+            pieceTransitions = []; transitionPhases = []; transitionProgress = 1
+            renderedTiles = latestTiles
+            handleStartSequenceChange()
+            return
+        }
         if latestTiles == renderedTiles {
             requestDisplayRefresh()
             return

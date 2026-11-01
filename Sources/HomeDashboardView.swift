@@ -217,12 +217,14 @@ final class HomeDashboardView: NSView {
     }
     required init?(coder: NSCoder) { nil }
 
-    func refresh(snapshot: GameSnapshot, mode: HomeGameMode, manager: AchievementsManager) {
+    func refresh(snapshot: GameSnapshot, mode: HomeGameMode, manager: AchievementsManager, isStarting: Bool = false) {
         selectedMode = mode
         stats.snapshot = snapshot
         heading.stringValue = AchievementText.string("home.hero.\(mode.key)")
         subtitle.stringValue = AchievementText.string("home.subtitle.\(mode.key)")
-        if snapshot.isFinished {
+        if isStarting {
+            hint.stringValue = AchievementText.string("home.starting_hint")
+        } else if snapshot.isFinished {
             hint.stringValue = mode == .speedRun
                 ? AchievementText.format("result.speed_run_finished", Self.clock(snapshot.elapsedTime))
                 : AchievementText.format("result.score_attack_finished", snapshot.score)
@@ -230,8 +232,9 @@ final class HomeDashboardView: NSView {
             hint.stringValue = mode == .scoreAttack
                 ? AchievementText.format("hud.score_attack", snapshot.score, Self.clock(snapshot.remainingTime ?? 0))
                 : AchievementText.format("hud.speed_run", snapshot.score, HomeGameMode.speedRunTarget, Self.clock(snapshot.elapsedTime))
-        } else { hint.stringValue = AchievementText.string("home.operation_hint") }
-        startButton.title = AchievementText.string(snapshot.isFinished ? "home.play_again" : snapshot.isRunning ? "start.action_restart" : "home.start")
+        } else { hint.stringValue = AchievementText.string(snapshot.isRunning ? "home.operation_hint" : "home.start_hint") }
+        startButton.title = AchievementText.string(isStarting ? "home.starting" : snapshot.isFinished ? "home.play_again" : snapshot.isRunning ? "start.action_restart" : "home.start")
+        startButton.isEnabled = !isStarting
         startButton.setAccessibilityLabel(startButton.title)
         records.title = AchievementText.string("panel.records")
         rules.title = AchievementText.string("panel.rules")

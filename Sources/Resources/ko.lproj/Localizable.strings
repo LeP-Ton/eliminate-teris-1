@@ -220,3 +220,11 @@
 "utility.records.result" = "기록";
 "utility.records.date" = "도전 날짜";
 "utility.records.empty_hint" = "도전을 완료하고 첫 기록을 남겨 보세요.";
+
+/* 滑动开局与主窗口快捷入口。 */
+"home.start_hint" = "클릭, 스페이스 또는 Touch Bar 슬라이드로 시작";
+"home.starting" = "준비 중…";
+"home.starting_hint" = "보드가 모두 나타나면 시간이 시작됩니다";
+"touchbar.slide_start" = "오른쪽으로 밀어서 시작";
+"touchbar.slide_again" = "오른쪽으로 밀어서 다시 시작";
+"touchbar.board" = "Touch Bar 게임 보드";

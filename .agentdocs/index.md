@@ -1,6 +1,7 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261101151458-touchbar-slide-to-start.md` - 会话-130 起实现会话-126 的方案 1：待机开局滑块、拖动显现/回弹、按钮与空格自动开场；统一准备/计时边界，隔离开局触摸，含全部增量 diff、真实预览、72 项完整回归及最后 18 项专项。
 `workflow/20261101000207-center-achievement-content-without-status.md` - 会话-119 起更正居中范围：完成/锁定状态固定左侧，仅成就图案与名称按卡片中心对齐；含全部增量 diff、更新预览及 12 项回归，取代上一轮三者合并居中的设计。
 `workflow/20261031235319-center-fullscreen-achievement-labels.md` - 会话-113 起修复首页成就标签全屏时图文偏左：按状态图标、成就图案与最终可见文字整体居中，兼容长名称省略和宽度恢复；含全部增量 diff、真实标签图及 12 项回归。
 `workflow/20261031233928-polish-game-utility-panels.md` - 会话-106 起统一重构游戏设置、玩法说明与挑战记录：主题卡片、金色音量滑杆、三步图文教学、动画模式切换、个人最佳及金银铜排行；含全部增量 diff、五语言/小窗口截图与 60 项完整回归。
@@ -81,6 +82,7 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要了解滑动/按钮/空格开局、预览与正式计时的边界、触摸抬起隔离、开场取消或 Touch Bar 待机健康检查时，读取 `20261101151458-touchbar-slide-to-start.md`。
 - 需要确认成就标签居中范围、状态标记固定左侧及图案与名称单独居中的布局时，优先读取 `20261101000207-center-achievement-content-without-status.md`。
 - 需要修复首页成就标签全屏/宽窗口的图文居中、长名称截短或尺寸恢复时，读取 `20261031235319-center-fullscreen-achievement-labels.md`。
 - 需要调整设置控件、玩法教学卡片、挑战排行榜/空状态、辅助面板滚动与定位，或查看实际测试图时，读取 `20261031233928-polish-game-utility-panels.md`。
@@ -162,12 +164,13 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
+- 开局由 `GameStartSequence` 统一管理；`prepareRound` 仅生成预览，`beginPreparedRound` 在开场结束后启用同一棋盘并开始计时。待机 Touch Bar 显示滑轨，开局指针全部抬起后才接受交换；私有 modal 刷新保持开场进度。
 - 成就筛选由 `AchievementFilterControl` 统一绘制一体式滑轨与数量，沿用 `NSSegmentedControl` 的真实选择值；黄色滑块由 Core Animation 移动，刷新列表不重置动画，减少动态效果时即时定位。测试动画及页面图位于 `docs/previews/achievement-filter.gif` 和 `achievement-panel.png`，正式应用无测试预览入口。
 - `GameIconRenderer` 保留模式图标的等比绘制与奖杯兼容；成就使用 `AchievementIconCatalog` 和 `AchievementBadgeArtwork` 的透明背景彩色游戏图案，不绘制徽章外框或底板。正式应用没有测试预览入口；`Tests/AchievementIconContactSheet.swift` 仅在 XCTest 导出全部图标，静态测试图位于 `docs/previews/`。
 - 首页主插画使用从原始设计稿直接提取的 `home-design-*.png`，包含四种方块、投影、短线与交换箭头；按原稿坐标整体等比缩放，方块独立浮动。`GameResourceLocator` 共用于语言和图片；小尺寸统计图标仍使用 `HomeStyle.piece`。
 - `experiment/ui-refactor` 探索分支使用暖白首页：左侧标题/方块插画/开始按钮，右侧模式卡片与本局实时统计，底部五枚成就及完成度；设置、玩法说明与挑战记录从顶部导航打开。
 - 本局分类数量来自 `GameState`/`GameSnapshot`，重开或实际切换模式清零；点击已选模式不清零。跨局成就继续由 `AchievementsManager` 持久化。
-- 探索分支三种模式均需点击开始；竞分固定 60 秒，竞速固定 300 分，设置只提供语言与总音量。原长时限/高目标成就已适配固定规则，保留历史解锁和存档。
+- 探索分支三种模式通过按钮、空格或滑动触控栏显式开局；竞分固定 60 秒，竞速固定 300 分，设置只提供语言与总音量。原长时限/高目标成就已适配固定规则，保留历史解锁和存档。
 - 顶部统计卡片使用统一“累计消除”标题，七段数字按方块高度绘制，长数量只横向压缩；图案和数字共用浮动位置，只有数量增长时数字额外跳动，首次加载/同值刷新不触发。
 - 成就现为 32 枚，新增编号 21—32 对应橙/蓝/绿/红四类方块的百/千/万累计里程碑；原编号 1—20 保持不变。
 - 类型累计值跨局、跨模式及重启保存；旧存档没有类型明细时从 0 开始，保留既有总数和解锁状态，不推测历史分布。顶部横幅与类型成就读取同一数据源。

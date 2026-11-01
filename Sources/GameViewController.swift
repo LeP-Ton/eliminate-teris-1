@@ -8,6 +8,9 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private let achievements: AchievementsManager
     private let audioEnabled: Bool
     private let controller: GameBoardController
+    let startSequence: GameStartSequence
+    private var startObserverToken: UUID?
+    private var startKeyMonitor: Any?
     private var selection: HomeGameMode = .free
     private var hasConfiguredMode = false
     private var hasSavedFinishedRecord = false
@@ -20,7 +23,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private var achievementToasts: AchievementToastPresenter?
     private var hudTimer: Timer?
     private lazy var dashboard = HomeDashboardView(frame: NSRect(x: 0, y: 0, width: 1180, height: 800))
-    private lazy var gameTouchBarView = GameTouchBarView(columnRange: 0..<columns, controller: controller)
+    private lazy var gameTouchBarView = GameTouchBarView(columnRange: 0..<columns, controller: controller, startSequence: startSequence)
     private let touchBarSecondaryRefreshDelay: TimeInterval = 0.12
     private let touchBarTertiaryRefreshDelay: TimeInterval = 0.26
     private let touchBarHealthCheckDelay: TimeInterval = 0.18
@@ -38,9 +41,12 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     private weak var observedTouchBarWindow: NSWindow?
 
     init(achievements: AchievementsManager = .shared, records: ModeRecordStore = .shared,
-         board: GameBoardController? = nil, audioEnabled: Bool = true) {
+         board: GameBoardController? = nil, audioEnabled: Bool = true,
+         startClock: @escaping () -> TimeInterval = { Date.timeIntervalSinceReferenceDate }) {
         self.achievements = achievements; self.recordStore = records; self.audioEnabled = audioEnabled
-        self.controller = board ?? GameBoardController(columns: 16, achievements: achievements)
+        let resolvedBoard = board ?? GameBoardController(columns: 16, achievements: achievements)
+        self.controller = resolvedBoard
+        self.startSequence = GameStartSequence(board: resolvedBoard, clock: startClock)
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { nil }
@@ -65,6 +71,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         dashboard.onNavigate = { [weak self] page in self?.presentUtility(page) }
         dashboard.onAchievement = { [weak self] id in self?.presentAchievements(detailID: id) }
         observerToken = controller.addObserver(owner: self) { [weak self] in self?.refresh() }
+        startObserverToken = startSequence.addObserver(owner: self) { [weak self] in self?.refresh() }
         achievementsChangeObserver = NotificationCenter.default.addObserver(forName: AchievementsManager.didChangeNotification, object: achievements, queue: .main) { [weak self] _ in self?.refreshAchievements() }
         achievementsUnlockObserver = NotificationCenter.default.addObserver(forName: AchievementsManager.didUnlockNotification, object: achievements, queue: .main) { [weak self] note in
             if let ids = note.userInfo?["ids"] as? [Int] { self?.achievementToasts?.enqueue(ids) }
@@ -77,6 +84,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
         guard !hasConfiguredMode || mode != selection else { return }
         hasConfiguredMode = true
         selection = mode; hasSavedFinishedRecord = false
+        startSequence.reset(notify: false)
         controller.configure(mode: mode.gameMode)
         if audioEnabled { audioSystem.updateBackgroundMusic(for: mode.gameMode) }
         refresh()
@@ -84,20 +92,23 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     func startRound() {
+        guard !startSequence.isOpening else { return }
         hasSavedFinishedRecord = false
-        controller.startRound()
+        startSequence.requestAutomaticStart()
         refresh()
     }
 
     private func refreshAchievements() {
-        dashboard.refresh(snapshot: controller.snapshot(), mode: selection, manager: achievements)
+        dashboard.refresh(snapshot: controller.snapshot(), mode: selection, manager: achievements, isStarting: startSequence.isOpening)
         if achievementsPanel?.window?.isVisible == true { achievementsPanel?.refresh() }
         achievementToasts?.refreshLanguage()
     }
 
     private func refresh() {
         let snapshot = controller.snapshot()
-        dashboard.refresh(snapshot: snapshot, mode: selection, manager: achievements)
+        startSequence.synchronize(with: snapshot)
+        dashboard.refresh(snapshot: snapshot, mode: selection, manager: achievements, isStarting: startSequence.isOpening)
+        if !snapshot.isFinished { hasSavedFinishedRecord = false }
         if snapshot.isFinished, !hasSavedFinishedRecord {
             hasSavedFinishedRecord = true
             if snapshot.score > 0 {
@@ -131,6 +142,7 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
             panel.onLanguage = { [weak self] language in
                 self?.localizer.setLanguage(language)
                 self?.refresh(); self?.refreshAchievements()
+                self?.gameTouchBarView.refreshLanguage()
             }
             panel.onVolume = { [weak self] volume in self?.audioSystem.setMasterVolume(volume) }
             utilityPanels[page] = panel
@@ -141,6 +153,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
     deinit {
         if let observerToken { controller.removeObserver(observerToken) }
+        if let startObserverToken { startSequence.removeObserver(startObserverToken) }
+        if let startKeyMonitor { NSEvent.removeMonitor(startKeyMonitor) }
         for observer in [achievementsChangeObserver, achievementsUnlockObserver].compactMap({ $0 }) { NotificationCenter.default.removeObserver(observer) }
         achievementsPanel?.close(); utilityPanels.values.forEach { $0.close() }
         removeTouchBarLifecycleObservers()
@@ -153,15 +167,40 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     override func viewDidAppear() {
         super.viewDidAppear()
         if let window = view.window { installTouchBarLifecycleObservers(for: window) }
+        if startKeyMonitor == nil {
+            startKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                self?.handleStartKeyEvent(event) == true ? nil : event
+            }
+        }
         synchronizeSystemModalTouchBarPresentation(trigger: "viewDidAppear")
         view.window?.makeFirstResponder(self)
         view.window?.contentMinSize = NSSize(width: 960, height: 720)
         refresh()
     }
     override func viewDidDisappear() {
+        startSequence.cancelPendingStart()
+        if let startKeyMonitor { NSEvent.removeMonitor(startKeyMonitor); self.startKeyMonitor = nil }
         invalidateSystemModalTouchBarPresentation(reason: "viewDidDisappear")
         removeTouchBarLifecycleObservers()
         super.viewDidDisappear()
+    }
+
+    /// 仅主窗口的无修饰空格用于开局；辅助面板、菜单与文本输入保留原生键盘语义。
+    @discardableResult
+    func handleStartKeyEvent(_ event: NSEvent) -> Bool {
+        guard event.keyCode == 49,
+              event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
+              let window = view.window, window.isKeyWindow, event.window === window,
+              window.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
+        if window.childWindows?.contains(where: { $0.isVisible }) == true {
+            return window.firstResponder === dashboard.startButton
+        }
+        if window.firstResponder is NSTextView || window.firstResponder is NSPopUpButton || window.firstResponder is NSSlider { return false }
+        if let button = window.firstResponder as? NSButton, button !== dashboard.startButton { return false }
+        // 游戏中也消费空格，避免焦点恰在“重新开始”按钮时被原生按钮意外激活。
+        if event.isARepeat || controller.snapshot().isRunning || startSequence.isOpening { return true }
+        startRound()
+        return true
     }
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
@@ -271,6 +310,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private func handleApplicationDidResignActive() {
+        startSequence.cancelPendingStart()
+        gameTouchBarView.cancelInteractions()
         logTouchBarDiagnostics("应用失活，准备关闭私有 modal Touch Bar")
         invalidateSystemModalTouchBarPresentation(reason: "applicationDidResignActive")
     }
@@ -281,6 +322,8 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
     }
 
     private func handleWindowDidResignKey() {
+        startSequence.cancelPendingStart()
+        gameTouchBarView.cancelInteractions()
         logTouchBarDiagnostics("窗口失去 key，准备关闭私有 modal Touch Bar")
         invalidateSystemModalTouchBarPresentation(reason: "windowDidResignKey")
     }

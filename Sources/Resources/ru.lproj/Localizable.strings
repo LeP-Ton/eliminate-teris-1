@@ -220,3 +220,11 @@
 "utility.records.result" = "Результат";
 "utility.records.date" = "Дата игры";
 "utility.records.empty_hint" = "Завершите испытание, чтобы установить первый рекорд.";
+
+/* 滑动开局与主窗口快捷入口。 */
+"home.start_hint" = "Нажмите кнопку, пробел или проведите по Touch Bar";
+"home.starting" = "Подготовка…";
+"home.starting_hint" = "Открываем поле. Отсчёт начнётся после анимации.";
+"touchbar.slide_start" = "Сдвиньте вправо для старта";
+"touchbar.slide_again" = "Сдвиньте вправо, чтобы сыграть ещё";
+"touchbar.board" = "Игровое поле Touch Bar";

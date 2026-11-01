@@ -227,3 +227,11 @@
 "utility.records.result" = "Result";
 "utility.records.date" = "Played on";
 "utility.records.empty_hint" = "Finish a challenge to set your first record.";
+
+/* 滑动开局与主窗口快捷入口。 */
+"home.start_hint" = "Click, press Space, or slide the Touch Bar to start";
+"home.starting" = "Getting ready…";
+"home.starting_hint" = "Revealing the board. Timing begins when ready.";
+"touchbar.slide_start" = "Slide right to start";
+"touchbar.slide_again" = "Slide right to play again";
+"touchbar.board" = "Touch Bar game board";

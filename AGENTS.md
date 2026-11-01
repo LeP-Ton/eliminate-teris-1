@@ -5,6 +5,11 @@
 - 本地启动使用 `./run.sh`，打包使用 `./package.sh`；自动化验证使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`，测试使用系统自带 XCTest。
 - 检索项目时先读取 `.agentdocs/index.md`，再按索引中的读取场景查阅具体文档；不要直接全量检索 `.agentdocs/workflow/`。
 
+## 2026-11-01（统一开局生命周期）
+- `GameStartSequence` 协调主窗口按钮、空格和 Touch Bar 滑动三个入口；开局过渡与真实游戏计时独立，未完成的手势可取消。
+- `GameBoardController.prepareRound` 生成可预览但不可交互的棋盘，`beginPreparedRound` 在开场完成后启用同一盘方块并开始计时；既有直接开局接口保留供逻辑调用。
+- Touch Bar 待机展示开局滑轨，已绘制的滑轨同样计入私有 modal 健康检查；挂载刷新不重置开局进度。开局触摸在抬起前由独立输入路径消费，避免进入棋盘交换。
+
 ## 2026-10-30（experiment/ui-refactor 探索分支）
 - 桌面首页由 `HomeDashboardView` 负责展示，`GameViewController` 负责事件协调、记录结算与既有 Touch Bar 展示生命周期；共用规则和浅色绘制位于 `GamePresentation`。
 - 本局数据由 `GameState` 持有并通过 `GameSnapshot` 提供，成就累计由 `AchievementsManager` 单独持久化；两种生命周期互不混用。

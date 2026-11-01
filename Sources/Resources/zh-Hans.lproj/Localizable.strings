@@ -227,3 +227,11 @@
 "utility.records.result" = "成绩";
 "utility.records.date" = "挑战日期";
 "utility.records.empty_hint" = "完成一局挑战，写下你的第一条记录。";
+
+/* 滑动开局与主窗口快捷入口。 */
+"home.start_hint" = "点击、按空格，或滑动触控栏开始";
+"home.starting" = "准备开始…";
+"home.starting_hint" = "正在展开触控栏，完成后开始计时";
+"touchbar.slide_start" = "向右滑动开始游戏";
+"touchbar.slide_again" = "向右滑动再来一局";
+"touchbar.board" = "触控栏游戏棋盘";

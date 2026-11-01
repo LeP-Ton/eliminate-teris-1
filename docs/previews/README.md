@@ -2,6 +2,17 @@
 
 这些文件仅用于开发测试与评审，正式应用中没有图标预览按钮或图标预览页面。
 
+## 触控栏滑动开局
+
+- [查看开局动画](touchbar-start.gif)：待机滑轨与按钮触发的从左到右自动显现，使用真实 `GameTouchBarView` 导出。
+- [查看三种状态](touchbar-start-states.png)：等待开始、滑动半程、正式 16 格棋盘。
+- 开局动画结束后才计时；未完成松手回弹，开局手指抬起后才接受交换。减少动态效果开启时跳过自动过渡。
+- 测试使用独立存档和可控时钟，不挂载玩家的真实 Touch Bar。
+
+重新生成：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter GameStartSequenceTests`。
+
+将临时目录中的 `eliminate-touchbar-start.gif` 与 `eliminate-touchbar-start-states.png` 分别复制为本目录对应文件。
+
 ## 游戏设置、玩法说明与挑战记录
 
 三个辅助面板共用首页的暖白背景、圆角卡片、蓝色信息色和黄色强调色。
