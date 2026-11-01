@@ -201,3 +201,29 @@
 "home.unlocked_count" = "已解锁 %d / %d";
 "home.rules.fixed" = "每个消除方块计 10 分。竞分固定 60 秒，竞速固定 300 分；达到条件后自动结束。切换模式或重新开始会清零本局统计，成就累计进度会保留。";
 "home.records.fixed" = "固定规则：竞分 60 秒 · 竞速 300 分";
+
+/* 辅助面板：设置、玩法说明与挑战记录。 */
+"utility.settings.subtitle" = "让游戏，更合你的节奏。";
+"utility.rules.subtitle" = "交换、相连、连锁，快乐就这么简单。";
+"utility.records.subtitle" = "记录每次突破，向个人最佳再进一步。";
+"utility.settings.language_hint" = "选择你熟悉的界面语言";
+"utility.settings.volume_hint" = "统一调节背景音乐与游戏音效";
+"utility.settings.instant" = "调整即时生效，无需额外保存。";
+"utility.lesson.0.title" = "交换位置";
+"utility.lesson.0.body" = "在触控栏上拖动相邻方块，支持多点触控。";
+"utility.lesson.1.title" = "连成三个，轻松消除";
+"utility.lesson.1.body" = "三个或更多同类方块相连即可消除，每个计 10 分。";
+"utility.lesson.2.title" = "补位接力，连锁得分";
+"utility.lesson.2.body" = "消除后自动补位；再次连成同类方块可继续消除。";
+"utility.rules.modes" = "三种玩法，随心挑战";
+"utility.rules.current" = "当前模式";
+"utility.rules.progress" = "重新开始或切换模式会清空本局统计；已获得成就与累计进度会保留。";
+"utility.unit.points" = "分";
+"utility.unit.seconds" = "秒";
+"utility.records.best" = "个人最佳";
+"utility.records.score_rule" = "固定 60 秒 · 分数越高，排名越前";
+"utility.records.speed_rule" = "目标 300 分 · 用时越短，排名越前";
+"utility.records.rank" = "名次";
+"utility.records.result" = "成绩";
+"utility.records.date" = "挑战日期";
+"utility.records.empty_hint" = "完成一局挑战，写下你的第一条记录。";

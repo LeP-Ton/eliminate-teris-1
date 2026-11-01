@@ -194,3 +194,29 @@
 "home.unlocked_count" = "Открыто %d / %d";
 "home.rules.fixed" = "Каждый удалённый блок даёт 10 очков. Игра на очки длится 60 секунд; игра на скорость завершается при 300 очках. Смена режима или перезапуск обнуляет статистику игры, но сохраняет общий прогресс достижений.";
 "home.records.fixed" = "Правила: 60 секунд на очки · 300 очков на скорость";
+
+/* 辅助面板：设置、玩法说明与挑战记录。 */
+"utility.settings.subtitle" = "Играйте в своём ритме.";
+"utility.rules.subtitle" = "Меняйте, собирайте, запускайте цепочки.";
+"utility.records.subtitle" = "Сохраняйте успехи и улучшайте личный рекорд.";
+"utility.settings.language_hint" = "Выберите удобный язык интерфейса";
+"utility.settings.volume_hint" = "Общая громкость музыки и звуков игры";
+"utility.settings.instant" = "Изменения применяются сразу.";
+"utility.lesson.0.title" = "Меняйте местами";
+"utility.lesson.0.body" = "Перетаскивайте соседние фигуры на Touch Bar. Поддерживается мультитач.";
+"utility.lesson.1.title" = "Соберите три или больше";
+"utility.lesson.1.body" = "Три и более фигуры одного вида исчезают. Каждая приносит 10 очков.";
+"utility.lesson.2.title" = "Продолжайте цепочку";
+"utility.lesson.2.body" = "Пустоты заполняются новыми фигурами. Новые совпадения исчезают автоматически.";
+"utility.rules.modes" = "Три режима игры";
+"utility.rules.current" = "Текущий режим";
+"utility.rules.progress" = "Перезапуск или смена режима обнуляет статистику раунда. Достижения и общий прогресс сохраняются.";
+"utility.unit.points" = "очк.";
+"utility.unit.seconds" = "сек.";
+"utility.records.best" = "Личный рекорд";
+"utility.records.score_rule" = "60 секунд · Больше очков — выше место";
+"utility.records.speed_rule" = "Цель: 300 очков · Меньше время — выше место";
+"utility.records.rank" = "Место";
+"utility.records.result" = "Результат";
+"utility.records.date" = "Дата игры";
+"utility.records.empty_hint" = "Завершите испытание, чтобы установить первый рекорд.";

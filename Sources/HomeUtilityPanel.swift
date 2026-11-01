@@ -1,113 +1,137 @@
 import Cocoa
 
-private final class HomeUtilityBackgroundView: NSView {
-    override func draw(_ dirtyRect: NSRect) { HomeStyle.background.setFill(); bounds.fill() }
-}
-
 private final class HomeAuxiliaryWindow: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
 
-/// 顶部导航的辅助面板，不覆盖主窗口的游戏状态与 Touch Bar 焦点。
+/// 控制事件与真实数据留在控制器，主题组件负责辅助页面布局。
 final class HomeUtilityPanel: NSWindowController {
     let page: String
     var onLanguage: ((AppLanguage) -> Void)?
     var onVolume: ((Float) -> Void)?
-    private let titleLabel = NSTextField(labelWithString: "")
-    private let body = NSTextView()
-    private let languageLabel = NSTextField(labelWithString: "")
-    private let language = NSPopUpButton(frame: .zero, pullsDown: false)
-    private let volumeLabel = NSTextField(labelWithString: "")
+    private let content: UtilityPageView
+    private let language = UtilityLanguagePopup(frame: .zero, pullsDown: false)
     private let volume = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
-    private let percent = NSTextField(labelWithString: "")
+    private let percent = UtilityStyle.label("", size: 18, weight: .bold)
+    private let recordTabs = AchievementFilterControl(frame: .zero)
+    private let recordBody = UtilityStyle.stack([])
     private let store: ModeRecordStore
+    // 快照高频刷新时不重建卡片，保留滚动位置和控件操作状态。
+    private var renderedLanguage: AppLanguage?
+    private var renderedMode: HomeGameMode?
+    private var renderedRecordIDs: [String] = []
 
     init(page: String, store: ModeRecordStore = .shared) {
-        self.page = page; self.store = store
-        let panel = HomeAuxiliaryWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: page == "settings" ? 270 : 480),
+        self.page = page; self.store = store; content = UtilityPageView(page: page)
+        let size = NSSize(width: page == "settings" ? 540 : 600, height: page == "settings" ? 430 : 740)
+        let panel = HomeAuxiliaryWindow(contentRect: NSRect(origin: .zero, size: size),
                                         styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.isReleasedWhenClosed = false
-        panel.appearance = NSAppearance(named: .aqua)
-        panel.backgroundColor = HomeStyle.background
-        panel.hidesOnDeactivate = true
-        panel.contentView = HomeUtilityBackgroundView(frame: NSRect(origin: .zero, size: panel.contentLayoutRect.size))
+        panel.isReleasedWhenClosed = false; panel.appearance = NSAppearance(named: .aqua)
+        panel.backgroundColor = HomeStyle.background; panel.hidesOnDeactivate = true
+        content.frame = NSRect(origin: .zero, size: size); content.autoresizingMask = [.width, .height]
+        panel.contentView = content
         super.init(window: panel)
-        guard let content = panel.contentView else { return }
-        titleLabel.frame = NSRect(x: 24, y: content.bounds.height - 65, width: 452, height: 38)
-        titleLabel.font = .systemFont(ofSize: 25, weight: .bold); titleLabel.textColor = HomeStyle.ink
-        content.addSubview(titleLabel)
-        if page == "settings" {
-            for label in [languageLabel, volumeLabel, percent] { label.font = .systemFont(ofSize: 15); label.textColor = HomeStyle.ink; content.addSubview(label) }
-            languageLabel.frame = NSRect(x: 26, y: 141, width: 90, height: 26)
-            language.frame = NSRect(x: 135, y: 136, width: 325, height: 34)
-            language.font = .systemFont(ofSize: 15); language.target = self; language.action = #selector(languageChanged)
-            volumeLabel.frame = NSRect(x: 26, y: 75, width: 90, height: 26)
-            volume.frame = NSRect(x: 135, y: 74, width: 245, height: 28)
-            percent.frame = NSRect(x: 398, y: 74, width: 68, height: 28)
-            volume.target = self; volume.action = #selector(volumeChanged)
-            content.addSubview(language); content.addSubview(volume)
-        } else {
-            let scroll = NSScrollView(frame: NSRect(x: 22, y: 24, width: 456, height: content.bounds.height - 105))
-            scroll.hasVerticalScroller = true; scroll.drawsBackground = false
-            body.isEditable = false; body.isSelectable = true; body.drawsBackground = false
-            body.font = .systemFont(ofSize: 15); body.textColor = HomeStyle.ink
-            body.isVerticallyResizable = true; body.isHorizontallyResizable = false
-            body.autoresizingMask = [.width]; body.textContainer?.widthTracksTextView = true
-            body.frame = scroll.bounds; scroll.documentView = body
-            content.addSubview(scroll)
-        }
+        language.font = .systemFont(ofSize: 14, weight: .semibold); language.isBordered = false
+        language.focusRingType = .exterior; language.target = self; language.action = #selector(languageChanged)
+        volume.cell = UtilityVolumeSliderCell(); volume.minValue = 0; volume.maxValue = 1
+        volume.isContinuous = true; volume.target = self; volume.action = #selector(volumeChanged)
+        percent.font = .monospacedDigitSystemFont(ofSize: 18, weight: .bold); percent.alignment = .right
+        recordTabs.segmentCount = 2; recordTabs.segmentSymbols = ["trophy", "stopwatch"]
+        recordTabs.selectedSegment = 0; recordTabs.target = self; recordTabs.action = #selector(recordModeChanged)
+        // 固定尺寸只注册一次，语言切换时仅重建排版与文案。
+        NSLayoutConstraint.activate([
+            language.heightAnchor.constraint(equalToConstant: 44), volume.heightAnchor.constraint(equalToConstant: 34),
+            percent.widthAnchor.constraint(equalToConstant: 56), recordTabs.heightAnchor.constraint(equalToConstant: 44)
+        ])
     }
     required init?(coder: NSCoder) { nil }
 
     func refresh(mode: HomeGameMode, volume value: Float) {
-        let key = "panel.\(page)"
-        titleLabel.stringValue = AchievementText.string(key); window?.title = titleLabel.stringValue
+        let languageChanged = renderedLanguage != Localizer.shared.language
+        content.refreshHeader(page: page); window?.title = UtilityStyle.text("panel.\(page)")
         if page == "settings" {
-            languageLabel.stringValue = AchievementText.string("language.label")
-            volumeLabel.stringValue = AchievementText.string("volume.label")
-            language.removeAllItems()
-            language.addItems(withTitles: AppLanguage.allCases.map { AchievementText.string($0.titleKey) })
-            language.selectItem(at: AppLanguage.allCases.firstIndex(of: Localizer.shared.language) ?? 0)
-            volume.doubleValue = Double(value); percent.stringValue = "\(Int(value * 100))%"
-        } else if page == "rules" {
-            body.string = "• " + AchievementText.string("rules.core.line1") + "\n\n• " + AchievementText.string("rules.core.line2")
-                + "\n\n• " + AchievementText.string("home.mode_desc.\(mode.key)") + "\n\n• " + AchievementText.string("home.rules.fixed")
-        } else {
-            var lines = [AchievementText.string("home.records.fixed"), ""]
-            let formatter = DateFormatter(); formatter.locale = Localizer.shared.locale; formatter.dateStyle = .medium
-            for (recordMode, detail, titleKey) in [(ModeRecordKey.scoreAttack, 1, "home.mode.score_attack"), (.speedRun, 300, "home.mode.speed_run")] {
-                lines.append(AchievementText.string(titleKey))
-                let entries = store.records(for: recordMode, detailValue: detail)
-                if entries.isEmpty { lines.append(AchievementText.string("records.empty")) }
-                for (index, entry) in entries.enumerated() {
-                    let metric = recordMode == .scoreAttack ? AchievementText.format("records.metric.score", entry.score) : String(format: "%.2f s", entry.elapsedTime)
-                    lines.append("\(index + 1).  \(metric)    \(formatter.string(from: Date(timeIntervalSince1970: entry.createdAt)))")
-                }
-                lines.append("")
+            if languageChanged { buildSettings() }
+            if languageChanged {
+                language.removeAllItems()
+                language.addItems(withTitles: AppLanguage.allCases.map { UtilityStyle.text($0.titleKey) })
             }
-            body.string = lines.joined(separator: "\n")
+            language.selectItem(at: AppLanguage.allCases.firstIndex(of: Localizer.shared.language) ?? 0)
+            volume.doubleValue = Double(value); updateVolumeLabel()
+        } else if page == "rules" {
+            if languageChanged || renderedMode != mode { UtilityRulesContent.populate(content, mode: mode) }
+        } else {
+            let ids = recordEntries(.scoreAttack).map(\.id) + recordEntries(.speedRun).map(\.id)
+            if languageChanged {
+                content.removeSections(); content.addSection(recordTabs)
+                content.addSection(recordBody)
+                recordTabs.setLabel(UtilityStyle.text("home.mode.score_attack"), forSegment: 0)
+                recordTabs.setLabel(UtilityStyle.text("home.mode.speed_run"), forSegment: 1)
+            }
+            recordTabs.updateCounts([recordEntries(.scoreAttack).count, recordEntries(.speedRun).count]); recordTabs.refreshMetrics()
+            if languageChanged || ids != renderedRecordIDs { refreshRecords() }
+            renderedRecordIDs = ids
         }
-        // 文本视图只在竖直方向扩展，让较多历史记录可正常滚动。
-        if page != "settings" { body.sizeToFit() }
+        renderedLanguage = Localizer.shared.language; renderedMode = mode
+        content.layoutSubtreeIfNeeded()
+    }
+
+    private func buildSettings() {
+        content.removeSections()
+        let languageStack = UtilityStyle.stack([settingHeading("globe", title: "language.label", detail: "utility.settings.language_hint"), language], spacing: 16)
+        UtilityStyle.fillWidth(language, in: languageStack)
+        content.addSection(UtilityCard(languageStack))
+        let sliderRow = UtilityStyle.stack([UtilityStyle.icon("speaker.fill", color: HomeStyle.secondary, size: 16), volume, percent], vertical: false, spacing: 14)
+        volume.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let volumeStack = UtilityStyle.stack([settingHeading("speaker.wave.2.fill", title: "volume.label", detail: "utility.settings.volume_hint"), sliderRow], spacing: 14)
+        UtilityStyle.fillWidth(sliderRow, in: volumeStack)
+        content.addSection(UtilityCard(volumeStack))
+        let footnote = UtilityStyle.stack([UtilityStyle.icon("checkmark.circle.fill", color: HomeStyle.green, size: 16),
+                                          UtilityStyle.label(UtilityStyle.text("utility.settings.instant"), size: 11, color: HomeStyle.secondary)], vertical: false, spacing: 7)
+        content.addSection(footnote)
+        language.setAccessibilityLabel(UtilityStyle.text("language.label")); volume.setAccessibilityLabel(UtilityStyle.text("volume.label"))
+    }
+
+    private func settingHeading(_ symbol: String, title: String, detail: String) -> NSView {
+        let copy = UtilityStyle.stack([UtilityStyle.label(UtilityStyle.text(title), size: 15, weight: .bold),
+                                       UtilityStyle.label(UtilityStyle.text(detail), size: 12, color: HomeStyle.secondary)], spacing: 4)
+        return UtilityStyle.stack([UtilityStyle.icon(symbol, color: HomeStyle.blue, size: 26), copy], vertical: false, spacing: 13)
+    }
+    private func recordEntries(_ mode: ModeRecordKey) -> [ModeRecord] { store.records(for: mode, detailValue: mode == .scoreAttack ? 1 : 300) }
+
+    private func refreshRecords() {
+        for view in recordBody.arrangedSubviews { recordBody.removeArrangedSubview(view); view.removeFromSuperview() }
+        let mode: ModeRecordKey = recordTabs.selectedSegment == 0 ? .scoreAttack : .speedRun
+        let entries = recordEntries(mode)
+        for view in [UtilityRecordBestView(mode: mode, entry: entries.first), UtilityRecordContent.table(mode: mode, entries: entries)] {
+            recordBody.addArrangedSubview(view); UtilityStyle.fillWidth(view, in: recordBody)
+        }
     }
 
     func present(from parent: NSWindow?) {
         guard let window else { return }
         if let parent {
             let available = (parent.screen ?? NSScreen.main)?.visibleFrame ?? parent.frame
-            let x = min(max(parent.frame.midX - window.frame.width / 2, available.minX + 8), available.maxX - window.frame.width - 8)
-            let y = min(max(parent.frame.midY - window.frame.height / 2, available.minY + 8), available.maxY - window.frame.height - 8)
-            window.setFrameOrigin(NSPoint(x: x, y: y))
+            // 小屏幕先收敛尺寸，再按主窗口居中，正文滚动区承载剩余内容。
+            var frame = window.frame
+            frame.size.width = min(frame.width, available.width - 16); frame.size.height = min(frame.height, available.height - 16)
+            frame.origin.x = min(max(parent.frame.midX - frame.width / 2, available.minX + 8), available.maxX - frame.width - 8)
+            frame.origin.y = min(max(parent.frame.midY - frame.height / 2, available.minY + 8), available.maxY - frame.height - 8)
+            window.setFrame(frame, display: false)
             if window.parent !== parent { window.parent?.removeChildWindow(window); parent.addChildWindow(window, ordered: .above) }
         } else { window.center() }
-        window.orderFront(nil)
+        content.layoutSubtreeIfNeeded(); window.orderFront(nil)
     }
+
     @objc private func languageChanged() {
-        onLanguage?(AppLanguage.allCases[max(0, language.indexOfSelectedItem)])
+        guard AppLanguage.allCases.indices.contains(language.indexOfSelectedItem) else { return }
+        onLanguage?(AppLanguage.allCases[language.indexOfSelectedItem])
     }
-    @objc private func volumeChanged() {
-        percent.stringValue = "\(Int(volume.doubleValue * 100))%"
-        onVolume?(Float(volume.doubleValue))
+    private func updateVolumeLabel() {
+        percent.stringValue = "\(Int((volume.doubleValue * 100).rounded()))%"; volume.setAccessibilityValue(percent.stringValue)
+    }
+    @objc private func volumeChanged() { updateVolumeLabel(); onVolume?(Float(volume.doubleValue)) }
+    @objc private func recordModeChanged() {
+        refreshRecords(); content.layoutSubtreeIfNeeded(); content.scroll.documentView?.scroll(.zero)
     }
 }

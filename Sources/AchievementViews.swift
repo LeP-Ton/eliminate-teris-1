@@ -98,9 +98,8 @@ final class AchievementBadgeButton: NSButton {
         let color = unlocked ? NSColor.systemGreen : NSColor(calibratedRed: 1, green: 0.82, blue: 0.82, alpha: 0.9)
         nameLabel.stringValue = AchievementText.string(definition.titleKey)
         nameLabel.textColor = color
-        iconView.image = NSImage(systemSymbolName: unlocked ? "checkmark.seal.fill" : "lock.fill", accessibilityDescription: nil)
-        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
-        iconView.contentTintColor = color
+        iconView.image = AchievementIconCatalog.image(for: definition, muted: !unlocked)
+        iconView.contentTintColor = nil
         layer?.borderColor = (unlocked ? NSColor.systemGreen : NSColor(calibratedRed: 1, green: 0.53, blue: 0.5, alpha: 0.96)).cgColor
         toolTip = AchievementText.string(definition.titleKey) + "\n" + AchievementText.string(definition.descriptionKey) + "\n" + AchievementText.progress(definition, manager: manager)
         setAccessibilityLabel(AchievementText.title(definition, manager: manager))
@@ -185,6 +184,35 @@ private enum AchievementPanelStyle {
     static let muted = HomeStyle.secondary
     static let controlFont = NSFont.systemFont(ofSize: 12, weight: .semibold)
 
+    /// 标题使用独立的彩色奖章，保持原有奖章语义，不受系统模板染色影响。
+    static let headingIcon: NSImage = {
+        let image = NSImage(size: NSSize(width: 48, height: 48), flipped: true) { _ in
+            for (points, color) in [
+                ([NSPoint(x: 11, y: 24), NSPoint(x: 24, y: 27), NSPoint(x: 20, y: 44), NSPoint(x: 15, y: 39), NSPoint(x: 9, y: 42)], HomeStyle.blue),
+                ([NSPoint(x: 24, y: 27), NSPoint(x: 37, y: 24), NSPoint(x: 39, y: 42), NSPoint(x: 32, y: 39), NSPoint(x: 28, y: 44)], NSColor.systemRed)
+            ] {
+                let ribbon = NSBezierPath(); ribbon.move(to: points[0])
+                points.dropFirst().forEach { ribbon.line(to: $0) }; ribbon.close()
+                color.setFill(); ribbon.fill()
+            }
+            let medal = NSBezierPath(ovalIn: NSRect(x: 8, y: 4, width: 32, height: 32))
+            NSGradient(colors: [NSColor(calibratedRed: 1, green: 0.92, blue: 0.57, alpha: 1),
+                                HomeStyle.yellow, NSColor(calibratedRed: 0.93, green: 0.62, blue: 0.08, alpha: 1)])?.draw(in: medal, angle: -90)
+            let star = NSBezierPath()
+            for index in 0..<10 {
+                let angle = CGFloat(index) * .pi / 5 - .pi / 2
+                let radius: CGFloat = index.isMultiple(of: 2) ? 8.5 : 4
+                let point = NSPoint(x: 24 + cos(angle) * radius, y: 20 + sin(angle) * radius)
+                if index == 0 { star.move(to: point) } else { star.line(to: point) }
+            }
+            star.close()
+            NSColor(calibratedRed: 0.77, green: 0.43, blue: 0.05, alpha: 1).setFill(); star.fill()
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }()
+
     static func drawControl(_ rect: NSRect, title: String, selected: Bool) {
         let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
         (selected ? NSColor(calibratedRed: 0.9, green: 0.96, blue: 1, alpha: 1) : NSColor.white).setFill()
@@ -199,43 +227,6 @@ private enum AchievementPanelStyle {
         let size = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2),
                                  withAttributes: attributes)
-    }
-}
-
-/// 保留原生分段控件的选择状态和辅助功能，以主题绘制代替系统浅色胶囊。
-private final class AchievementFilterControl: NSSegmentedControl {
-    override var intrinsicContentSize: NSSize {
-        NSSize(width: (0..<segmentCount).reduce(0) { $0 + segmentWidth($1) } + CGFloat(max(0, segmentCount - 1)) * 8,
-               height: 32)
-    }
-
-    func refreshMetrics() {
-        for index in 0..<segmentCount { setWidth(segmentWidth(index), forSegment: index) }
-        invalidateIntrinsicContentSize()
-        needsDisplay = true
-    }
-
-    private func segmentWidth(_ index: Int) -> CGFloat {
-        max(70, ceil(((label(forSegment: index) ?? "") as NSString).size(withAttributes: [.font: AchievementPanelStyle.controlFont]).width) + 24)
-    }
-
-    private func segmentRect(_ index: Int) -> NSRect {
-        let x = (0..<index).reduce(CGFloat(0)) { $0 + segmentWidth($1) + 8 }
-        return NSRect(x: x, y: 0, width: segmentWidth(index), height: bounds.height)
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        for index in 0..<segmentCount {
-            AchievementPanelStyle.drawControl(segmentRect(index), title: label(forSegment: index) ?? "", selected: selectedSegment == index)
-        }
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        guard isEnabled, let index = (0..<segmentCount).first(where: { segmentRect($0).contains(point) }) else { return }
-        selectedSegment = index
-        needsDisplay = true
-        sendAction(action, to: target)
     }
 }
 
@@ -342,7 +333,7 @@ final class AchievementsWindowController: NSWindowController {
 
     func refresh() {
         window?.title = AchievementText.string("panel.achievements")
-        heading.stringValue = AchievementText.format("achievement.summary", manager.unlockedIDs().count, AchievementDefinition.all.count)
+        heading.stringValue = AchievementText.string("panel.achievements")
         backButton.title = AchievementText.string("achievement.view_all")
         backButton.invalidateIntrinsicContentSize()
         backButton.isHidden = detailID == nil
@@ -350,6 +341,8 @@ final class AchievementsWindowController: NSWindowController {
         for (index, key) in ["all", "locked", "unlocked"].enumerated() {
             filter.setLabel(AchievementText.string("achievement.filter.\(key)"), forSegment: index)
         }
+        let unlocked = manager.unlockedIDs().count
+        filter.updateCounts([AchievementDefinition.all.count, AchievementDefinition.all.count - unlocked, unlocked])
         filter.refreshMetrics()
         list.arrangedSubviews.forEach { view in
             list.removeArrangedSubview(view)
@@ -401,8 +394,8 @@ final class AchievementsWindowController: NSWindowController {
         backButton.action = #selector(showAll)
         let actions = NSStackView(views: [filter, backButton])
         actions.orientation = .horizontal
-        let icon = NSImageView(image: NSImage(systemSymbolName: "rosette", accessibilityDescription: nil) ?? NSImage())
-        icon.contentTintColor = AchievementPanelStyle.accent
+        let icon = NSImageView(image: AchievementPanelStyle.headingIcon)
+        icon.imageScaling = .scaleProportionallyUpOrDown
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 20).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 20).isActive = true
@@ -442,7 +435,9 @@ final class AchievementsWindowController: NSWindowController {
             toolbar.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -16),
             toolbar.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -16),
             titleRow.widthAnchor.constraint(equalTo: toolbar.widthAnchor),
-            filter.heightAnchor.constraint(equalToConstant: 32),
+            actions.widthAnchor.constraint(equalTo: toolbar.widthAnchor),
+            filter.widthAnchor.constraint(equalTo: toolbar.widthAnchor),
+            filter.heightAnchor.constraint(equalToConstant: 44),
             backButton.heightAnchor.constraint(equalToConstant: 32),
             scroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 4),
             scroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
@@ -465,13 +460,14 @@ final class AchievementsWindowController: NSWindowController {
         name.font = .systemFont(ofSize: 13, weight: .semibold)
         name.textColor = accent
         name.setAccessibilityLabel(AchievementText.title(definition, manager: manager))
-        let icon = NSImageView(image: NSImage(systemSymbolName: unlocked ? "checkmark.seal.fill" : "lock.fill", accessibilityDescription: nil) ?? NSImage())
-        icon.contentTintColor = accent
+        let icon = NSImageView(image: AchievementIconCatalog.image(for: definition, muted: !unlocked))
+        icon.imageScaling = .scaleProportionallyUpOrDown
         icon.translatesAutoresizingMaskIntoConstraints = false
-        icon.widthAnchor.constraint(equalToConstant: 16).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 16).isActive = true
+        icon.widthAnchor.constraint(equalToConstant: 30).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 30).isActive = true
         let titleRow = NSStackView(views: [icon, name])
         titleRow.orientation = .horizontal
+        titleRow.alignment = .centerY
         titleRow.spacing = 6
         let condition = NSTextField(wrappingLabelWithString: AchievementText.string(definition.descriptionKey))
         condition.font = .systemFont(ofSize: 12, weight: .regular)
@@ -510,7 +506,12 @@ final class AchievementsWindowController: NSWindowController {
         return row
     }
 
-    @objc private func filterChanged() { refresh() }
+    @objc private func filterChanged() {
+        refresh()
+        window?.contentView?.layoutSubtreeIfNeeded()
+        scroll.contentView.scroll(to: .zero)
+        scroll.reflectScrolledClipView(scroll.contentView)
+    }
     @objc private func showAll() { detailID = nil; refresh() }
 }
 

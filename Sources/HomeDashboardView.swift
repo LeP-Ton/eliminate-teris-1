@@ -143,11 +143,27 @@ private final class HomeAchievementButton: HomeButton {
     override func draw(_ dirtyRect: NSRect) {
         guard let definition else { return }
         HomeStyle.card(bounds)
+        let title = AchievementText.string(definition.titleKey)
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]
+        // 仅成就图案与文字作为一组居中；完成/锁定状态独立固定在左侧。
+        // 窄窗口先按完整字符截短，再测量包含省略号的可见文字，避免空余字槽使整体偏左。
+        let fixedWidth: CGFloat = 38 + 9
+        // 左侧状态占据 13...33 点，居中内容两侧对称预留 34 点，避免窄窗口重叠。
+        let availableWidth = max(0, floor(bounds.width - 34 * 2 - fixedWidth))
+        var characters = Array(title), displayedTitle = title
+        while (displayedTitle as NSString).size(withAttributes: attributes).width > availableWidth, !characters.isEmpty {
+            characters.removeLast()
+            displayedTitle = String(characters) + "…"
+        }
+        if (displayedTitle as NSString).size(withAttributes: attributes).width > availableWidth { displayedTitle = "" }
+        let titleSize = (displayedTitle as NSString).size(withAttributes: attributes)
+        let titleWidth = ceil(titleSize.width)
+        let startX = bounds.midX - (fixedWidth + titleWidth) / 2
         let status = unlocked ? "checkmark.circle.fill" : "lock.fill"
         HomeStyle.symbol(status, in: NSRect(x: 13, y: bounds.midY - 10, width: 20, height: 20), color: unlocked ? HomeStyle.green : HomeStyle.muted)
-        let names = [1: "hand.tap", 2: "music.note", 3: "flag", 4: "sparkles", 7: "link"]
-        HomeStyle.symbol(names[definition.id] ?? "rosette", in: NSRect(x: 45, y: bounds.midY - 15, width: 30, height: 30), color: unlocked ? HomeStyle.ink : HomeStyle.muted)
-        HomeStyle.text(AchievementText.string(definition.titleKey), in: NSRect(x: 89, y: bounds.midY - 9, width: bounds.width - 98, height: 22), size: 13, weight: .semibold,
+        AchievementIconCatalog.image(for: definition, muted: !unlocked).draw(in: NSRect(x: startX, y: bounds.midY - 19, width: 38, height: 38),
+                                                                           from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        HomeStyle.text(displayedTitle, in: NSRect(x: startX + fixedWidth, y: bounds.midY - titleSize.height / 2, width: titleWidth, height: titleSize.height), size: 13, weight: .semibold,
                        color: unlocked ? HomeStyle.ink : HomeStyle.muted)
     }
 }

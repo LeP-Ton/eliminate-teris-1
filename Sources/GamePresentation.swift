@@ -53,14 +53,7 @@ enum HomeStyle {
     }
 
     static func symbol(_ name: String, in rect: NSRect, color: NSColor = ink) {
-        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return }
-        let tinted = NSImage(size: rect.size, flipped: true) { target in
-            image.draw(in: target)
-            color.setFill()
-            target.fill(using: .sourceAtop)
-            return true
-        }
-        tinted.draw(in: rect)
+        GameIconRenderer.drawSymbol(name, in: rect, color: color)
     }
 
     static func card(_ rect: NSRect, fill: NSColor = NSColor.white.withAlphaComponent(0.7), border: NSColor = border, radius: CGFloat = 10) {

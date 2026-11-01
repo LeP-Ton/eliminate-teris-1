@@ -194,3 +194,29 @@
 "home.unlocked_count" = "달성 %d / %d";
 "home.rules.fixed" = "블록 하나당 10점입니다. 점수 도전은 60초, 스피드런은 300점에 도달하면 끝납니다. 모드 변경이나 재시작 시 현재 판의 통계는 초기화되며 업적의 누적 진행은 유지됩니다.";
 "home.records.fixed" = "고정 규칙: 60초 점수 도전 · 300점 스피드런";
+
+/* 辅助面板：设置、玩法说明与挑战记录。 */
+"utility.settings.subtitle" = "나만의 리듬으로 즐겨 보세요.";
+"utility.rules.subtitle" = "교환하고, 연결하고, 연쇄로 즐기세요.";
+"utility.records.subtitle" = "매번 도전하며 나의 최고 기록을 넘어서세요.";
+"utility.settings.language_hint" = "익숙한 화면 언어를 선택하세요";
+"utility.settings.volume_hint" = "배경 음악과 게임 효과음을 함께 조절합니다";
+"utility.settings.instant" = "변경 사항은 즉시 적용됩니다.";
+"utility.lesson.0.title" = "위치 교환";
+"utility.lesson.0.body" = "Touch Bar에서 이웃한 블록을 드래그하세요. 멀티 터치도 지원합니다.";
+"utility.lesson.1.title" = "3개 이상 연결";
+"utility.lesson.1.body" = "같은 종류를 3개 이상 연결하면 제거됩니다. 블록당 10점입니다.";
+"utility.lesson.2.title" = "계속되는 연쇄";
+"utility.lesson.2.body" = "제거한 자리에 새 블록이 채워집니다. 다시 연결되면 자동으로 제거됩니다.";
+"utility.rules.modes" = "세 가지 플레이 방식";
+"utility.rules.current" = "현재 모드";
+"utility.rules.progress" = "다시 시작하거나 모드를 바꾸면 이번 게임 통계가 초기화됩니다. 업적과 누적 진행도는 유지됩니다.";
+"utility.unit.points" = "점";
+"utility.unit.seconds" = "초";
+"utility.records.best" = "개인 최고 기록";
+"utility.records.score_rule" = "제한 시간 60초 · 점수가 높을수록 높은 순위";
+"utility.records.speed_rule" = "목표 300점 · 시간이 짧을수록 높은 순위";
+"utility.records.rank" = "순위";
+"utility.records.result" = "기록";
+"utility.records.date" = "도전 날짜";
+"utility.records.empty_hint" = "도전을 완료하고 첫 기록을 남겨 보세요.";

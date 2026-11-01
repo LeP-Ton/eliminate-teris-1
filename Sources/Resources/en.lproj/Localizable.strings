@@ -201,3 +201,29 @@
 "home.unlocked_count" = "Unlocked %d / %d";
 "home.rules.fixed" = "Each cleared tile earns 10 points. Score Attack lasts 60 seconds; Speed Run ends at 300 points. Switching modes or restarting clears this round’s counters. Lifetime achievement progress is saved.";
 "home.records.fixed" = "Fixed rules: 60-second Score Attack · 300-point Speed Run";
+
+/* 辅助面板：设置、玩法说明与挑战记录。 */
+"utility.settings.subtitle" = "Make the game feel like you.";
+"utility.rules.subtitle" = "Swap, match, and let the chain begin.";
+"utility.records.subtitle" = "Keep your best. Chase your next breakthrough.";
+"utility.settings.language_hint" = "Choose your preferred interface language";
+"utility.settings.volume_hint" = "Adjust music and game effects together";
+"utility.settings.instant" = "Changes take effect immediately.";
+"utility.lesson.0.title" = "Swap positions";
+"utility.lesson.0.body" = "Drag neighboring tiles on the Touch Bar. Multi-touch is supported.";
+"utility.lesson.1.title" = "Match three or more";
+"utility.lesson.1.body" = "Connect at least three tiles of the same kind. Each cleared tile earns 10 points.";
+"utility.lesson.2.title" = "Keep the chain going";
+"utility.lesson.2.body" = "New tiles fill the gaps. Further matches clear automatically.";
+"utility.rules.modes" = "Three ways to play";
+"utility.rules.current" = "Current mode";
+"utility.rules.progress" = "Restarting or changing mode resets this round. Achievements and lifetime progress stay with you.";
+"utility.unit.points" = "pts";
+"utility.unit.seconds" = "sec";
+"utility.records.best" = "Personal best";
+"utility.records.score_rule" = "Fixed 60 seconds · Higher scores rank first";
+"utility.records.speed_rule" = "Target 300 points · Faster times rank first";
+"utility.records.rank" = "Rank";
+"utility.records.result" = "Result";
+"utility.records.date" = "Played on";
+"utility.records.empty_hint" = "Finish a challenge to set your first record.";

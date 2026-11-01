@@ -194,3 +194,29 @@
 "home.unlocked_count" = "達成 %d / %d";
 "home.rules.fixed" = "1 個消すと 10 点。スコアアタックは 60 秒、スピードランは 300 点で終了。モード変更や再開で一局の記録はリセットされ、実績の累計は保存されます。";
 "home.records.fixed" = "固定ルール：60 秒スコアアタック · 300 点スピードラン";
+
+/* 辅助面板：设置、玩法说明与挑战记录。 */
+"utility.settings.subtitle" = "自分らしいペースで楽しもう。";
+"utility.rules.subtitle" = "交換、マッチ、連鎖。楽しさはシンプル。";
+"utility.records.subtitle" = "自己ベストの先へ、もう一度。";
+"utility.settings.language_hint" = "使いやすい表示言語を選択";
+"utility.settings.volume_hint" = "BGM とゲーム効果音をまとめて調整";
+"utility.settings.instant" = "変更はすぐに反映されます。";
+"utility.lesson.0.title" = "位置を交換";
+"utility.lesson.0.body" = "Touch Bar で隣り合うブロックをドラッグ。マルチタッチにも対応。";
+"utility.lesson.1.title" = "3 個以上つなげよう";
+"utility.lesson.1.body" = "同じ種類を 3 個以上つなげると消去。1 個につき 10 点。";
+"utility.lesson.2.title" = "補充から連鎖へ";
+"utility.lesson.2.body" = "消去した場所にブロックを補充。再びそろうと自動で連鎖。";
+"utility.rules.modes" = "選べる 3 つの遊び方";
+"utility.rules.current" = "選択中";
+"utility.rules.progress" = "やり直しやモード変更で今回の統計はリセット。実績と累計進捗は保持されます。";
+"utility.unit.points" = "点";
+"utility.unit.seconds" = "秒";
+"utility.records.best" = "自己ベスト";
+"utility.records.score_rule" = "制限時間 60 秒 · 高得点ほど上位";
+"utility.records.speed_rule" = "目標 300 点 · 短いタイムほど上位";
+"utility.records.rank" = "順位";
+"utility.records.result" = "記録";
+"utility.records.date" = "プレイ日";
+"utility.records.empty_hint" = "チャレンジを完了して最初の記録を残そう。";
