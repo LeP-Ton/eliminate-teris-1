@@ -61,34 +61,44 @@ final class HomeDashboardTests: AchievementTestCase {
 
     func testHomeButtonsUseFixedRulesAndLiveStats() throws {
         _ = NSApplication.shared
-        let board = board(now: { self.date })
+        var gameTime = date
+        let board = board(now: { gameTime })
         let records = ModeRecordStore(defaults: defaults)
         var animationTime: TimeInterval = 0
         let controller = GameViewController(achievements: manager, records: records, board: board, audioEnabled: false, startClock: { animationTime })
         controller.startSequence.reducesMotion = { false }
         let view = controller.view
         let start = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeButton }.first { $0.primary })
-        let stats = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeSessionStatsView }.first)
+        let home = try XCTUnwrap(view as? HomeDashboardView)
+        let puzzle = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == nil })
+        XCTAssertFalse(board.snapshot().isRunning)
+        XCTAssertFalse(puzzle.isEnabled)
+        puzzle.performClick(nil)
         XCTAssertFalse(board.snapshot().isRunning)
         start.performClick(nil)
         XCTAssertFalse(board.snapshot().isRunning, "开场动画不应消耗游戏时间")
         animationTime += 1; controller.startSequence.advanceAnimation()
         XCTAssertTrue(board.snapshot().isRunning)
         board.performSwap(from: 2, to: 3)
-        XCTAssertEqual(stats.snapshot?.totalCleared, 30)
+        XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, 30)
+        puzzle.performClick(nil)
+        XCTAssertTrue(board.snapshot().isRunning, "解谜入口不能切换或重置正在进行的游戏")
+        XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, 30)
         let free = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .free })
         free.performClick(nil)
-        XCTAssertEqual(stats.snapshot?.totalCleared, 30, "点击已选模式不应重置本局")
+        XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, 30, "点击已选模式不应重置本局")
         let speed = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .moves })
         speed.performClick(nil)
         XCTAssertEqual(board.snapshot().remainingSwaps, 30)
-        XCTAssertEqual(stats.snapshot?.totalCleared, 0)
+        XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, 0)
+        XCTAssertFalse(home.challengeHUD.isHidden)
+        XCTAssertFalse(board.snapshot().isRunning)
         start.performClick(nil)
         animationTime += 1; controller.startSequence.advanceAnimation()
         board.performSwap(from: 2, to: 3)
         for _ in 0..<29 { board.performSwap(from: 0, to: 1) }
         XCTAssertTrue(board.snapshot().isFinished)
-        XCTAssertEqual(stats.snapshot?.totalCleared, 30)
+        XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, 30)
         let finished = try XCTUnwrap(records.records(for: .moves, detailValue: 30).first)
         XCTAssertEqual(finished.elapsedTime, 0)
         for _ in 0..<3 { board.tick() }
@@ -97,7 +107,74 @@ final class HomeDashboardTests: AchievementTestCase {
         let score = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == .timed })
         score.performClick(nil)
         XCTAssertEqual(board.snapshot().remainingTime, 60)
-        XCTAssertEqual(stats.snapshot?.totalCleared, 0)
+        XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, 0)
+        XCTAssertFalse(home.challengeHUD.isHidden)
+        XCTAssertEqual(home.challengeHUD.budgetText, "01:00")
+        gameTime = gameTime.addingTimeInterval(90)
+        board.tick()
+        XCTAssertFalse(board.snapshot().isRunning)
+        XCTAssertFalse(board.snapshot().isFinished)
+        XCTAssertEqual(home.challengeHUD.budgetText, "01:00", "等待开局期间保持完整时间限制")
+    }
+
+    func testAchievementRowSpansBothColumnsAndStartAlignsWithContact() throws {
+        _ = NSApplication.shared
+        let original = Localizer.shared.language
+        defer { Localizer.shared.setLanguage(original) }
+        Localizer.shared.setLanguage(.chineseSimplified)
+        defaults.set(["version": 1, "unlocked": [1, 3, 4, 7, 17, 18], "metrics": [:]], forKey: AchievementsManager.storageKey)
+        let progress = AchievementsManager(defaults: defaults)
+        let home = HomeDashboardView(frame: NSRect(x: 0, y: 0, width: 960, height: 720))
+        let snapshot = GameSnapshot(mode: .moves(limit: 30), elapsedTime: 0, remainingTime: nil, remainingSwaps: 30,
+                                    isRunning: false, isFinished: false)
+        home.refresh(snapshot: snapshot, mode: .moves, manager: progress)
+        let buttons = home.achievementPath.subviews.compactMap { $0 as? HomeButton }
+        let badges = buttons.filter { $0.toolTip != nil }
+        XCTAssertEqual(badges.count, AchievementDefinition.all.count)
+        for (width, height, count) in [(960, 720, 5), (1180, 800, 5), (1440, 720, 7),
+                                       (960, 1000, 5), (1600, 1000, 8), (1920, 1250, 9), (960, 720, 5)] {
+            home.setFrameSize(NSSize(width: width, height: height))
+            home.layoutSubtreeIfNeeded()
+            let mode = home.modePanel.frame
+            let path = home.achievementPath.frame
+            let contact = home.contactPanel.frame
+            XCTAssertEqual(home.startButton.frame.maxY, contact.maxY, accuracy: 0.1)
+            XCTAssertEqual(contact.minY - mode.maxY, 24, accuracy: 0.1)
+            XCTAssertEqual(contact.minX, mode.minX, accuracy: 0.1)
+            XCTAssertEqual(contact.width, mode.width, accuracy: 0.1)
+            XCTAssertEqual(contact.height, 156)
+            XCTAssertEqual(path.minY - contact.maxY, 24, accuracy: 0.1)
+            XCTAssertEqual(path.minX, home.bounds.maxX - path.maxX, accuracy: 0.1)
+            XCTAssertEqual(path.maxX, contact.maxX, accuracy: 0.1)
+            XCTAssertTrue(home.bounds.contains(path))
+
+            let visible = badges.filter { !$0.isHidden }
+            XCTAssertEqual(visible.count, count)
+            XCTAssertEqual(Set(visible.map { $0.frame.minY }).count, 1)
+            XCTAssertTrue(visible.allSatisfy { home.achievementPath.bounds.contains($0.frame) })
+            XCTAssertEqual(try XCTUnwrap(visible.first).frame.minX, 0, accuracy: 0.1)
+            XCTAssertEqual(try XCTUnwrap(visible.last).frame.maxX, path.width, accuracy: 0.1)
+            if width == 1600 {
+                let rep = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: home.bounds))
+                home.cacheDisplay(in: home.bounds, to: rep)
+                try XCTUnwrap(rep.representation(using: .png, properties: [:]))
+                    .write(to: FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-home-achievement-grid.png"))
+            }
+        }
+
+        var openedAchievements: [Int?] = []
+        home.onAchievement = { openedAchievements.append($0) }
+        let badge = try XCTUnwrap(badges.first { !$0.isHidden })
+        badge.performClick(nil)
+        let all = try XCTUnwrap(buttons.first { $0.title.hasPrefix(AchievementText.string("achievement.view_all")) })
+        all.performClick(nil)
+        XCTAssertEqual(openedAchievements, [1, nil])
+        var feedbackURL: URL?
+        home.contactPanel.openURL = { feedbackURL = $0 }
+        let feedback = try XCTUnwrap(home.contactPanel.subviews.compactMap { $0 as? HomeButton }.first)
+        feedback.performClick(nil)
+        XCTAssertEqual(feedback.title, "在 GitHub 反馈")
+        XCTAssertEqual(feedbackURL?.absoluteString, "https://github.com/LeP-Ton/eliminate-teris-1/issues")
     }
 
     func testHomeRendersAllModesLanguagesAndWindowSizes() throws {
@@ -117,8 +194,11 @@ final class HomeDashboardTests: AchievementTestCase {
                     home.setFrameSize(size)
                     home.refresh(snapshot: snapshot, mode: mode, manager: progress)
                     home.layoutSubtreeIfNeeded()
-                    XCTAssertEqual(home.stats.snapshot?.totalCleared, 21)
-                    for button in home.subviews.compactMap({ $0 as? HomeButton }) {
+                    XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, 21)
+                    let feedback = try XCTUnwrap(home.contactPanel.subviews.compactMap { $0 as? HomeButton }.first)
+                    XCTAssertEqual(feedback.title, AchievementText.string("home.contact.action"))
+                    XCTAssertTrue(home.contactPanel.bounds.contains(feedback.frame))
+                    for button in home.subviews.compactMap({ $0 as? HomeButton }) where !button.isHidden {
                         XCTAssertTrue(home.bounds.contains(button.frame), "\(language.rawValue): \(button.frame)")
                         XCTAssertGreaterThan(button.frame.height, 30)
                     }

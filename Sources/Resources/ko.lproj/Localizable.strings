@@ -181,15 +181,19 @@
 "home.subtitle.timed" = "1분 안에 최대한 많은 블록을 제거하세요.";
 "home.subtitle.moves" = "시간에 쫓기지 말고 매번 신중하게 교환하세요.";
 "home.mode.free" = "자유 모드";
+"home.mode.puzzle" = "퍼즐 모드";
 "home.mode.timed" = "시간 도전";
 "home.mode.moves" = "교환 횟수 도전";
 "home.mode_desc.free" = "시간과 교환 횟수 제한 없음.";
+"home.mode_desc.puzzle" = "플레이 방식 미정";
 "home.mode_desc.timed" = "제한 시간 60초. 최대한 많이 제거하세요.";
 "home.mode_desc.moves" = "교환 30회. 시간 제한 없음.";
 "home.operation_hint" = "드래그로 교환  ·  3개 이상 연결하면 제거";
 "home.start" = "게임 시작";
 "home.play_again" = "다시 한 판";
-"home.session_stats" = "현재 판 실시간 통계";
+"home.contact.title" = "문의하기";
+"home.contact.description" = "오류를 신고하거나 개선 의견을 남겨 주세요.";
+"home.contact.action" = "GitHub에 의견 남기기";
 "home.achievement_path" = "업적의 여정";
 "home.unlocked_count" = "달성 %d / %d";
 "home.rules.fixed" = "시간 도전은 60초, 횟수 도전은 교환 30회입니다. 제거 수로 순위를 정합니다. 제거되지 않은 교환도 횟수를 쓰며 연쇄 제거는 추가 횟수를 쓰지 않습니다. 마지막 교환도 모두 처리됩니다.";
@@ -231,7 +235,7 @@
 "home.cleared_title" = "이번 게임 제거 수";
 "home.hud.timed" = "%d개 제거 · 남은 시간 %@";
 "home.hud.moves" = "%d개 제거 · 남은 교환 %d회";
-"home.result" = "게임 종료 · 총 %d개 제거";
+"home.round_finished" = "라운드 종료";
 "utility.records.timed_rule" = "60초 고정 · 제거 수가 많을수록 높은 순위";
 "utility.records.moves_rule" = "교환 30회 · 제거 수가 같으면 공동 순위";
 "utility.unit.tiles" = "개";
@@ -243,3 +247,5 @@
 
 "home.challenge.time_left" = "남은 시간";
 "home.challenge.moves_left" = "남은 교환 횟수";
+"home.challenge.time_limit" = "제한 시간";
+"home.challenge.move_limit" = "최대 교환 횟수";

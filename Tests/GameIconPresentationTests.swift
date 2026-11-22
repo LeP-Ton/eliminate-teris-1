@@ -119,15 +119,17 @@ final class GameIconPresentationTests: AchievementTestCase {
         home.refresh(snapshot: GameSnapshot(mode: .free, elapsedTime: 0, remainingTime: nil,
                                            remainingSwaps: nil, isRunning: false, isFinished: false), mode: .free, manager: progress)
         home.layoutSubtreeIfNeeded()
+        let badges = home.achievementPath.subviews.compactMap { $0 as? HomeButton }.filter { !$0.isHidden && $0.toolTip != nil }
         var selected: Int?
         home.onAchievement = { selected = $0 }
         for id in [17, 18, 19] {
             let description = AchievementText.string(AchievementDefinition.all[id - 1].descriptionKey)
-            let button = try XCTUnwrap(home.subviews.compactMap { $0 as? HomeButton }.first { $0.toolTip?.contains(description) == true })
+            let button = try XCTUnwrap(badges.first { $0.toolTip?.contains(description) == true })
             button.performClick(nil)
             XCTAssertEqual(selected, id)
         }
-        let strip = NSRect(x: 44, y: 708, width: 1092, height: 54)
+        let rect = try XCTUnwrap(badges.map(\.frame).reduce(nil as NSRect?) { $0?.union($1) ?? $1 })
+        let strip = home.achievementPath.convert(rect, to: home)
         let bitmap = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: strip))
         home.cacheDisplay(in: strip, to: bitmap)
         try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-game-badge-labels.png"))
@@ -149,16 +151,18 @@ final class GameIconPresentationTests: AchievementTestCase {
                     home.setFrameSize(NSSize(width: width, height: width > 1440 ? 1080 : 800))
                     home.refresh(snapshot: snapshot, mode: .free, manager: progress)
                     home.layoutSubtreeIfNeeded()
-                    let badges = home.subviews.compactMap { $0 as? HomeButton }.filter { $0.toolTip != nil }
-                    XCTAssertEqual(badges.count, 5)
+                    let badges = home.achievementPath.subviews.compactMap { $0 as? HomeButton }.filter { !$0.isHidden && $0.toolTip != nil }
+                    XCTAssertGreaterThanOrEqual(badges.count, 5)
                     for badge in badges {
+                        let name = badge.accessibilityLabel() ?? "成就"
                         let pixels = try XCTUnwrap(badge.bitmapImageRepForCachingDisplay(in: badge.bounds))
                         badge.cacheDisplay(in: badge.bounds, to: pixels)
                         let scale = CGFloat(pixels.pixelsWide) / badge.bounds.width
+                        let verticalScale = CGFloat(pixels.pixelsHigh) / badge.bounds.height
                         var minX = pixels.pixelsWide, minY = pixels.pixelsHigh, maxX = -1, maxY = -1
                         var statusMinX = pixels.pixelsWide, statusMaxX = -1
                         // 状态标记单独检查；居中测量仅包含成就图案与文字，忽略浅色卡片和边框。
-                        let insetX = Int(8 * scale), insetY = Int(4 * scale)
+                        let insetX = Int(8 * scale), insetY = Int(4 * verticalScale)
                         for y in stride(from: insetY, to: pixels.pixelsHigh - insetY, by: 2) {
                             for x in stride(from: insetX, to: pixels.pixelsWide - insetX, by: 2) {
                                 guard let color = pixels.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
@@ -177,13 +181,14 @@ final class GameIconPresentationTests: AchievementTestCase {
                         XCTAssertEqual(CGFloat(statusMinX + statusMaxX + 1) / (2 * scale), 23, accuracy: 2,
                                        "状态标记位置不应随名称或窗口宽度改变")
                         let centerX = CGFloat(minX + maxX + 1) / (2 * scale)
-                        let centerY = CGFloat(minY + maxY + 1) / (2 * scale)
-                        // 成就图案透明画布的左右留白可不同，像素外沿容许 5 点光学差异。
-                        XCTAssertEqual(centerX, badge.bounds.midX, accuracy: 5, "\(language.rawValue) / \(width)：仅成就图案与文字水平居中")
-                        XCTAssertEqual(centerY, badge.bounds.midY, accuracy: 3, "\(language.rawValue) / \(width)：标签图文应垂直居中")
+                        let centerY = CGFloat(minY + maxY + 1) / (2 * verticalScale)
+                        // 与实际绘制相比，隔点取样及浅色边缘过滤会略微改变测得的轮廓。
+                        XCTAssertEqual(centerX, badge.bounds.midX, accuracy: 5, "\(language.rawValue) / \(width) / \(name)：仅成就图案与文字水平居中")
+                        XCTAssertEqual(centerY, badge.bounds.midY, accuracy: 4, "\(language.rawValue) / \(width) / \(name)：标签图文应垂直居中")
                     }
                     if language == .chineseSimplified, width == 1920, !unlocked.isEmpty {
-                        let strip = try XCTUnwrap(badges.map(\.frame).reduce(nil as NSRect?) { $0?.union($1) ?? $1 })
+                        let rect = try XCTUnwrap(badges.map(\.frame).reduce(nil as NSRect?) { $0?.union($1) ?? $1 })
+                        let strip = home.achievementPath.convert(rect, to: home)
                         let image = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: strip))
                         home.cacheDisplay(in: strip, to: image)
                         try XCTUnwrap(image.representation(using: .png, properties: [:])).write(to: FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-fullscreen-badge-labels.png"))

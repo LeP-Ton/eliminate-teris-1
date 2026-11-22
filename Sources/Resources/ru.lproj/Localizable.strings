@@ -181,15 +181,19 @@
 "home.subtitle.timed" = "Уберите как можно больше фигур за минуту.";
 "home.subtitle.moves" = "Без спешки. Пусть каждый обмен будет полезным.";
 "home.mode.free" = "Свободная игра";
+"home.mode.puzzle" = "Головоломка";
 "home.mode.timed" = "На время";
 "home.mode.moves" = "На ходы";
 "home.mode_desc.free" = "Без ограничений времени и обменов.";
+"home.mode_desc.puzzle" = "Правила пока не определены";
 "home.mode_desc.timed" = "60 секунд. Уберите как можно больше фигур.";
 "home.mode_desc.moves" = "30 обменов. Время не ограничено.";
 "home.operation_hint" = "Перетаскивай блоки  ·  Три в ряд — и готово";
 "home.start" = "Начать игру";
 "home.play_again" = "Играть ещё";
-"home.session_stats" = "Текущая игра";
+"home.contact.title" = "Связаться с нами";
+"home.contact.description" = "Сообщите об ошибке или поделитесь идеей.";
+"home.contact.action" = "Оставить отзыв на GitHub";
 "home.achievement_path" = "Путь достижений";
 "home.unlocked_count" = "Открыто %d / %d";
 "home.rules.fixed" = "Испытание на время длится 60 секунд, на ходы — 30 обменов. Рейтинг зависит от числа убранных фигур. Обмен без совпадения тоже расходует ход. Цепочки не тратят ходы; последний обмен обрабатывается полностью.";
@@ -231,7 +235,7 @@
 "home.cleared_title" = "Убрано за раунд";
 "home.hud.timed" = "Убрано: %d · Осталось: %@";
 "home.hud.moves" = "Убрано: %d · Обменов осталось: %d";
-"home.result" = "Раунд завершён · Убрано фигур: %d";
+"home.round_finished" = "Раунд завершён";
 "utility.records.timed_rule" = "60 секунд · Больше фигур — выше место";
 "utility.records.moves_rule" = "30 обменов · Одинаковое число фигур — общее место";
 "utility.unit.tiles" = "фигур";
@@ -243,3 +247,5 @@
 
 "home.challenge.time_left" = "ОСТАЛОСЬ ВРЕМЕНИ";
 "home.challenge.moves_left" = "ОСТАЛОСЬ ОБМЕНОВ";
+"home.challenge.time_limit" = "ЛИМИТ ВРЕМЕНИ";
+"home.challenge.move_limit" = "ЛИМИТ ОБМЕНОВ";

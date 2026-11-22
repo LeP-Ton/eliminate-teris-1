@@ -181,15 +181,19 @@
 "home.subtitle.timed" = "1 分間でできるだけ多く消そう。";
 "home.subtitle.moves" = "時間を気にせず、一手を大切に。";
 "home.mode.free" = "フリーモード";
+"home.mode.puzzle" = "パズルモード";
 "home.mode.timed" = "時間制チャレンジ";
 "home.mode.moves" = "手数制チャレンジ";
 "home.mode_desc.free" = "時間・交換回数の制限なし。";
+"home.mode_desc.puzzle" = "ルールは未定";
 "home.mode_desc.timed" = "制限時間 60 秒。たくさん消そう。";
 "home.mode_desc.moves" = "交換は 30 回。時間制限なし。";
 "home.operation_hint" = "ドラッグで入れ替え  ·  3 個以上で消去";
 "home.start" = "ゲーム開始";
 "home.play_again" = "もう一度";
-"home.session_stats" = "この一局の記録";
+"home.contact.title" = "お問い合わせ";
+"home.contact.description" = "不具合の報告やご提案をお寄せください。";
+"home.contact.action" = "GitHubでフィードバック";
 "home.achievement_path" = "実績への道";
 "home.unlocked_count" = "達成 %d / %d";
 "home.rules.fixed" = "時間制は 60 秒、手数制は 30 回交換。消去数で順位を決定。消えない交換も 1 回に数え、連鎖で手数は減りません。最後の交換も連鎖をすべて処理します。";
@@ -231,7 +235,7 @@
 "home.cleared_title" = "今回の消去数";
 "home.hud.timed" = "%d 個消去 · 残り %@";
 "home.hud.moves" = "%d 個消去 · 残り %d 回";
-"home.result" = "終了 · 合計 %d 個消去";
+"home.round_finished" = "ラウンド終了";
 "utility.records.timed_rule" = "60 秒固定 · 消去数が多いほど上位";
 "utility.records.moves_rule" = "30 回交換 · 同じ消去数は同順位";
 "utility.unit.tiles" = "個";
@@ -243,3 +247,5 @@
 
 "home.challenge.time_left" = "残り時間";
 "home.challenge.moves_left" = "残り交換回数";
+"home.challenge.time_limit" = "制限時間";
+"home.challenge.move_limit" = "交換回数の上限";

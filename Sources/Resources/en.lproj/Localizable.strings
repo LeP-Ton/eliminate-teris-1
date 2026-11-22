@@ -188,15 +188,19 @@
 "home.subtitle.timed" = "Clear as many tiles as you can in one minute.";
 "home.subtitle.moves" = "Take your time. Make every swap worthwhile.";
 "home.mode.free" = "Free play";
+"home.mode.puzzle" = "Puzzle Mode";
 "home.mode.timed" = "Timed Challenge";
 "home.mode.moves" = "Swap Challenge";
 "home.mode_desc.free" = "No time or swap limits.";
+"home.mode_desc.puzzle" = "Rules to be announced";
 "home.mode_desc.timed" = "60 seconds. Clear as many tiles as possible.";
 "home.mode_desc.moves" = "30 swaps. No time limit.";
 "home.operation_hint" = "Drag to swap  ·  Match three or more to clear";
 "home.start" = "Start playing";
 "home.play_again" = "Play again";
-"home.session_stats" = "This round, live";
+"home.contact.title" = "Contact us";
+"home.contact.description" = "Report a bug or suggest an improvement.";
+"home.contact.action" = "Give feedback on GitHub";
 "home.achievement_path" = "Achievement journey";
 "home.unlocked_count" = "Unlocked %d / %d";
 "home.rules.fixed" = "Timed Challenge lasts 60 seconds. Swap Challenge allows 30 swaps. Both rank by tiles cleared. Every legal swap counts, even without a match. Cascades cost no extra swaps; the final swap resolves fully.";
@@ -238,7 +242,7 @@
 "home.cleared_title" = "Tiles cleared";
 "home.hud.timed" = "%d cleared · %@ remaining";
 "home.hud.moves" = "%d cleared · %d swaps left";
-"home.result" = "Round complete · %d tiles cleared";
+"home.round_finished" = "Round complete";
 "utility.records.timed_rule" = "Fixed 60 seconds · More clears rank higher";
 "utility.records.moves_rule" = "Fixed 30 swaps · Equal clears share a rank";
 "utility.unit.tiles" = "tiles";
@@ -250,3 +254,5 @@
 
 "home.challenge.time_left" = "TIME LEFT";
 "home.challenge.moves_left" = "SWAPS LEFT";
+"home.challenge.time_limit" = "TIME LIMIT";
+"home.challenge.move_limit" = "SWAP LIMIT";

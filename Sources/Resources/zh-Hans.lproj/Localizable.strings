@@ -188,15 +188,19 @@
 "home.subtitle.timed" = "和时间赛跑，迅速消除更多方块。";
 "home.subtitle.moves" = "不必赶时间，让每一步更有价值。";
 "home.mode.free" = "自由模式";
+"home.mode.puzzle" = "解谜模式";
 "home.mode.timed" = "限时挑战";
 "home.mode.moves" = "限步挑战";
 "home.mode_desc.free" = "无时间与目标限制。";
+"home.mode_desc.puzzle" = "玩法待定";
 "home.mode_desc.timed" = "限时 60 秒，消除越多越好。";
 "home.mode_desc.moves" = "30 次交换，不限思考时间。";
 "home.operation_hint" = "拖动交换  ·  三个及以上相连即可消除";
 "home.start" = "开始游戏";
 "home.play_again" = "再来一局";
-"home.session_stats" = "本局实时统计";
+"home.contact.title" = "联系我们";
+"home.contact.description" = "欢迎报告问题或分享玩法建议。";
+"home.contact.action" = "在 GitHub 反馈";
 "home.achievement_path" = "成就之路";
 "home.unlocked_count" = "已解锁 %d / %d";
 "home.rules.fixed" = "限时挑战固定 60 秒，限步挑战固定 30 次交换，均统计消除数量。无消除的合法交换也计次，自动连消不额外扣次，最后一次交换完整结算后结束。";
@@ -238,7 +242,7 @@
 "home.cleared_title" = "本局消除";
 "home.hud.timed" = "已消除 %d 个 · 剩余 %@";
 "home.hud.moves" = "已消除 %d 个 · 剩余 %d 次交换";
-"home.result" = "本局结束 · 共消除 %d 个方块";
+"home.round_finished" = "本局结束";
 "utility.records.timed_rule" = "固定 60 秒 · 消除越多，排名越前";
 "utility.records.moves_rule" = "固定 30 次交换 · 同数量并列，不比较用时";
 "utility.unit.tiles" = "个方块";
@@ -250,3 +254,5 @@
 
 "home.challenge.time_left" = "剩余时间";
 "home.challenge.moves_left" = "剩余交换次数";
+"home.challenge.time_limit" = "时间限制";
+"home.challenge.move_limit" = "交换上限";

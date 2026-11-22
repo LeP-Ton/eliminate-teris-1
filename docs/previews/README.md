@@ -4,10 +4,11 @@
 
 ## 游戏大厅美术与交互反馈
 
-- [待机首页](lobby-idle.png)：暖白环境光、设计稿方块、柔和立体卡片与金色主按钮。
+- [待机首页](lobby-idle.png)展示开局按钮与联系我们卡片的底边对齐，成就之路横跨下方两栏。
 - [三种模式新图案](mode-artwork.png)：自由悬浮方块、橙金冲刺秒表、蓝色 30 次行动计数器；展示大图和 24 点小图。
 - [实际交互动画](lobby-feedback.gif)：使用真实控件导出的选中辉光、悬停提亮与按压下沉。
-- [限时局内](challenge-timed.png)、[限步局内](challenge-moves.png)：大号剩余预算、消除数量与时间/行动条。
+- [挑战卡选中动画](challenge-preview.gif)展示限时卡片在一秒内从右侧模式面板后方滑出。卡片从较小、偏窄的形态逐渐放大，侧缘和阴影随转场收拢，最终与模式面板顶边齐平。限步沿用同样动效。
+- [限时局内](challenge-timed.png)与[限步局内](challenge-moves.png)在左侧集中显示剩余时间或次数、进度条和消除总数。四类方块等分消除统计右侧区域，每个图标从列左侧起排，数字紧随图标。
 - [最后三次行动](lobby-last-moves.png)、[本局结束](lobby-finished.png)：紧张阶段改用红色提示，结束后保留本局结果。
 - 模式入口图案不读取本局剩余次数；其中 30 表示固定模式规则。
 - 减少动态效果开启时交互立即定位；测试在独立存档和可控时间下生成预览。
@@ -15,6 +16,8 @@
 重新生成：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter GameLobbyPresentationTests`。
 
 临时目录中的 `eliminate-lobby-idle-free.png` 对应 `lobby-idle.png`，`eliminate-lobby-timed.png` / `eliminate-lobby-moves.png` 对应两张 `challenge-*.png`；其余 `eliminate-mode-artwork.png`、`eliminate-lobby-feedback.gif`、`eliminate-lobby-last-moves.png`、`eliminate-lobby-finished.png` 去掉 `eliminate-` 前缀后归档。
+
+挑战卡动图为 `eliminate-challenge-preview.gif`，去掉 `eliminate-` 前缀后归档。
 
 ## 消除数量、限时与限步
 
@@ -68,7 +71,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter Hom
 ![成就标签实际效果](achievement-labels.png)
 
 - 使用首页真实标签组件渲染，重点展示“百格起步”“千格熟手”和“万格旅人”的尺寸与居中效果。
-- [全屏尺寸标签效果](achievement-labels-fullscreen.png)：1920 宽度下每枚标签的状态标记固定左侧，成就图案与名称单独在卡片中心对齐；缩回窄窗口时长名称按最终省略文本重新居中。
+- [全屏尺寸标签效果](achievement-labels-fullscreen.png)展示 1920 点宽度下的单行布局。每枚标签的状态标记固定左侧，成就图案与名称单独居中。
+- [大窗口成就栏](achievement-grid.png)展示 1600 点宽度下跨越左右两栏的 8 枚成就。窗口更宽时一行可容纳更多徽章，通过「查看全部」浏览完整清单。
 - 截图中的解锁状态来自独立的测试存档，不修改玩家存档。
 
 ## 全部 32 枚徽章
@@ -88,6 +92,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter Gam
 ```
 
 将系统临时目录中的 `eliminate-all-achievement-icons.png` 和 `eliminate-game-badge-labels.png` 分别复制为本目录中的 `achievement-icons.png` 和 `achievement-labels.png`；`eliminate-fullscreen-badge-labels.png` 复制为 `achievement-labels-fullscreen.png`。
+
+运行 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter HomeDashboardTests` 可生成 `eliminate-home-achievement-grid.png`，复制为 `achievement-grid.png`。
 
 更新筛选条动画与完整成就页截图：
 

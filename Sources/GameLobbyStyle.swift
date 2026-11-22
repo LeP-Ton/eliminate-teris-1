@@ -44,7 +44,8 @@ enum GameLobbyStyle {
     }
 
     static func primaryButton(_ bounds: NSRect, hover: CGFloat, press: CGFloat) {
-        let face = bounds.insetBy(dx: 4, dy: 5).offsetBy(dx: 0, dy: press * 2 - hover)
+        // 静止时按钮的立体底边贴齐控件底边，与右侧卡片共用一条基线。
+        let face = bounds.insetBy(dx: 4, dy: 5).offsetBy(dx: 0, dy: 2 + press * 2 - hover)
         NSGraphicsContext.saveGraphicsState()
         let shadow = NSShadow()
         shadow.shadowColor = amber.withAlphaComponent(0.22 + hover * 0.12)

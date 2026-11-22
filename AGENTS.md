@@ -5,6 +5,9 @@
 - 本地启动使用 `./run.sh`，打包使用 `./package.sh`；自动化验证使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`，测试使用系统自带 XCTest。
 - 检索项目时先读取 `.agentdocs/index.md`，再按索引中的读取场景查阅具体文档；不要直接全量检索 `.agentdocs/workflow/`。
 
+## 2026-11-22（首页双栏与跨栏成就）
+- `HomeDashboardView` 管理左侧开局区、右侧信息栏及下方跨栏成就。`HomeAchievementPathView` 按窗口宽度提供单行预览，完整列表由成就窗口展示。挑战卡转场由 `HomeModeHeaderView` 独立绘制。
+
 ## 2026-11-01（游戏大厅美术与局内信息）
 - 模式使用 `GameModeArtwork` 的本地彩色矢量图案，首页、玩法说明和排行榜通过 `GameIconRenderer` 共用入口等比绘制；模式图案与系统操作符号分开维护。
 - 大厅材质位于 `GameLobbyStyle`；`GameControlFeedback` 只在交互变化期间驱动短动画，支持快速反向和减少动态效果，不参与开局、计时或游戏规则。

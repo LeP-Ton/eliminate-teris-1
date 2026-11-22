@@ -1,6 +1,17 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261122165517-full-width-achievement-row.md` - 会话-207 起恢复跨栏单行成就，并让开始按钮与联系我们卡片底边对齐。含宽窄窗口回归、实际预览与完整 diff。
+`workflow/20261122163532-even-piece-stat-spacing.md` - 会话-205 起将四组方块放在等宽列的同一侧，首组贴齐明细区左边缘，图标保持等距。含不同位数的像素回归、预览与完整 diff。
+`workflow/20261122161432-left-align-first-piece-stat.md` - 会话-203 起把首组方块明细贴齐左边缘，缩短与消除总数的视觉距离。含宽窄窗口像素回归、预览与完整 diff。
+`workflow/20261122154723-proportional-piece-stat-columns.md` - 会话-200 起将消除统计按总数三分之一、方块明细三分之二分配，四类方块随窗口宽度等分。含宽窄窗口像素回归、预览与完整 diff。
+`workflow/20261122151441-split-lobby-achievements-and-contact.md` - 会话-196 起将大厅分成双栏，固定开局按钮与模式卡底边，左栏成就可滚动，右栏新增反馈卡。含完整增量 diff、预览和回归结果。
+`workflow/20261122143206-adaptive-achievement-grid.md` - 会话-190 起在统计卡右侧对齐方块明细，并让成就之路按窗口宽高增加列和行。含模式面板间距回归、实际预览与完整 diff。
+`workflow/20261122142138-single-row-piece-statistics.md` - 会话-188 起把规则与统计卡中的四类方块明细排成一行，移除本局消除与明细之间的分隔线。含实际预览、测试结果与完整 diff。
+`workflow/20261122134514-shorten-challenge-preview-with-depth.md` - 会话-184 起把挑战卡入场改为一秒，以透视缩放、侧缘和阴影表现立体感，并限制起始右端。含回归、动图与完整 diff。
+`workflow/20261122133300-align-challenge-card-and-layer-mode-panel.md` - 会话-180 起对齐统计卡与右侧模式面板顶边，放宽横向转场区域并让右侧面板遮挡重叠部分。含实际像素回归、动图和本轮完整 diff。
+`workflow/20261122131153-animate-challenge-preview-entry.md` - 会话-175 起让限时和限步选中即显示挑战卡，卡片在 2 秒内从右向左浮现并推开文案。含动图、开局计时边界、五语言与逐行 diff。
+`workflow/20261122123708-consolidate-session-stats-and-puzzle-entry.md` - 会话-171 起合并左侧局内预算、消除总数和四类方块统计，移除重复文案，在自由模式下方加入玩法待定的解谜入口。含完整增量 diff、界面预览与回归结果。
 `workflow/20261101203337-game-lobby-art-and-feedback.md` - 会话-162 起落实会话-157/158：重绘自由方块/冲刺秒表/30 次行动计数器，统一大厅光影、选中/按压反馈与局内预算面板；含完整增量 diff、真实界面/动画预览及回归结果。
 `workflow/20261101200623-start-hint-copy.md` - 会话-152 起将中文开局提示替换为“点击按钮/按空格键，或滑动触控栏开始游戏”；含本轮完整增量 diff 与语言表检查结果。
 `workflow/20261101194609-home-mode-copy.md` - 会话-150 起按指定文字更新中文首页三种模式主标题及限时提示；保留两行标题排版，含本轮全部增量 diff 与首页回归结果。
@@ -86,6 +97,17 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要调整当前首页的跨栏成就预览、开始按钮与联系卡的底边或小窗口布局时，读取 `20261122165517-full-width-achievement-row.md`。
+- 需要调整当前方块图标的等距布局，或核对数字位数变化时图标的位置，读取 `20261122163532-even-piece-stat-spacing.md`。
+- 需要调整方块明细首列左对齐或与消除总数的留白时，读取 `20261122161432-left-align-first-piece-stat.md`。
+- 需要调整本局消除总数与四类方块的宽度比例、等宽列或长数字显示时，读取 `20261122154723-proportional-piece-stat-columns.md`。
+- 需要追溯左栏成就滚动版和右栏联系我们卡片的初版时，读取 `20261122151441-split-lobby-achievements-and-contact.md`。
+- 需要调整首页成就网格的行列数量、与模式面板的间距，或统计卡明细的右对齐时，读取 `20261122143206-adaptive-achievement-grid.md`。
+- 需要调整规则与统计卡的一行方块明细、数字列宽或分隔线时，读取 `20261122142138-single-row-piece-statistics.md`。
+- 需要调整当前的一秒挑战卡入场、小卡放大、立体侧缘或窗口与屏幕右边界时，读取 `20261122134514-shorten-challenge-preview-with-depth.md`。
+- 需要调整挑战卡与模式面板的顶边对齐、转场遮挡和左栏溢出显示时，读取 `20261122133300-align-challenge-card-and-layer-mode-panel.md`。
+- 需要调整挑战选中后的两秒滑入、文案推出、预览与开局的边界，或查看动图时，读取 `20261122131153-animate-challenge-preview-entry.md`。
+- 需要调整左侧局内统计、查看右栏四张模式卡片的布局，或确认解谜占位入口与可玩模式的边界时，读取 `20261122123708-consolidate-session-stats-and-puzzle-entry.md`。
 - 需要调整游戏大厅的模式美术、柔和投影/高光、悬停按压/选中过渡、局内倒计时/行动条或查看本轮真实预览时，读取 `20261101203337-game-lobby-art-and-feedback.md`。
 - 需要确认中文待机开局提示的按钮、空格键与滑动触控栏表述时，读取 `20261101200623-start-hint-copy.md`。
 - 需要确认中文首页“没有限制，自由消除”“一分钟内，挑战高分”“三十步内，挑战高分”和限时灰色提示的指定文案时，读取 `20261101194609-home-mode-copy.md`。
