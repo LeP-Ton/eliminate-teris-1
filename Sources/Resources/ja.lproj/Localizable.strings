@@ -240,3 +240,6 @@
 "utility.records.hide_history" = "旧ルールの記録を閉じる";
 "utility.records.legacy_score" = "旧スコアアタック · %d 分";
 "utility.records.legacy_speed" = "旧スピードラン · 目標 %d 点";
+
+"home.challenge.time_left" = "残り時間";
+"home.challenge.moves_left" = "残り交換回数";

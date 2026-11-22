@@ -1,6 +1,7 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261101203337-game-lobby-art-and-feedback.md` - 会话-162 起落实会话-157/158：重绘自由方块/冲刺秒表/30 次行动计数器，统一大厅光影、选中/按压反馈与局内预算面板；含完整增量 diff、真实界面/动画预览及回归结果。
 `workflow/20261101200623-start-hint-copy.md` - 会话-152 起将中文开局提示替换为“点击按钮/按空格键，或滑动触控栏开始游戏”；含本轮完整增量 diff 与语言表检查结果。
 `workflow/20261101194609-home-mode-copy.md` - 会话-150 起按指定文字更新中文首页三种模式主标题及限时提示；保留两行标题排版，含本轮全部增量 diff 与首页回归结果。
 `workflow/20261101181421-count-based-timed-move-challenges.md` - 本轮按新方案取消得分，改为自由/60 秒限时/30 次交换限步；真实交换计次、末步完整连锁、数量并列榜单、旧记录只读分区、成就版本 2 兼容；含全部增量 diff、真实预览与 81 项完整回归。
@@ -85,6 +86,7 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要调整游戏大厅的模式美术、柔和投影/高光、悬停按压/选中过渡、局内倒计时/行动条或查看本轮真实预览时，读取 `20261101203337-game-lobby-art-and-feedback.md`。
 - 需要确认中文待机开局提示的按钮、空格键与滑动触控栏表述时，读取 `20261101200623-start-hint-copy.md`。
 - 需要确认中文首页“没有限制，自由消除”“一分钟内，挑战高分”“三十步内，挑战高分”和限时灰色提示的指定文案时，读取 `20261101194609-home-mode-copy.md`。
 - 需要了解当前消除数量计数、60 秒限时/30 次限步规则、合法交换扣次、末步连锁、并列名次、旧记录分区或成就版本 2 迁移时，优先读取 `20261101181421-count-based-timed-move-challenges.md`。
@@ -170,6 +172,8 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
+- 模式图案由 `GameModeArtwork` 独立绘制，自由是悬浮方块、限时是冲刺秒表、限步是 30 次行动计数器；`game.mode.*` 经统一图标入口供首页和辅助页使用，不能再按系统符号名称处理。
+- 大厅材质由 `GameLobbyStyle` 提供；`GameControlFeedback` 的 0.18 秒反馈只在交互变化时刷新，重复界面刷新不重新计时，减少动态效果立即到位。局内预算面板只消费快照，原开局及结算规则仍由控制器执行。
 - 开局由 `GameStartSequence` 统一管理；`prepareRound` 仅生成预览，`beginPreparedRound` 在开场结束后启用同一棋盘并开始计时。待机 Touch Bar 显示滑轨，开局指针全部抬起后才接受交换；私有 modal 刷新保持开场进度。
 - 成就筛选由 `AchievementFilterControl` 统一绘制一体式滑轨与数量，沿用 `NSSegmentedControl` 的真实选择值；黄色滑块由 Core Animation 移动，刷新列表不重置动画，减少动态效果时即时定位。测试动画及页面图位于 `docs/previews/achievement-filter.gif` 和 `achievement-panel.png`，正式应用无测试预览入口。
 - `GameIconRenderer` 保留模式图标的等比绘制与奖杯兼容；成就使用 `AchievementIconCatalog` 和 `AchievementBadgeArtwork` 的透明背景彩色游戏图案，不绘制徽章外框或底板。正式应用没有测试预览入口；`Tests/AchievementIconContactSheet.swift` 仅在 XCTest 导出全部图标，静态测试图位于 `docs/previews/`。

@@ -2,6 +2,20 @@
 
 这些文件仅用于开发测试与评审，正式应用中没有图标预览按钮或图标预览页面。
 
+## 游戏大厅美术与交互反馈
+
+- [待机首页](lobby-idle.png)：暖白环境光、设计稿方块、柔和立体卡片与金色主按钮。
+- [三种模式新图案](mode-artwork.png)：自由悬浮方块、橙金冲刺秒表、蓝色 30 次行动计数器；展示大图和 24 点小图。
+- [实际交互动画](lobby-feedback.gif)：使用真实控件导出的选中辉光、悬停提亮与按压下沉。
+- [限时局内](challenge-timed.png)、[限步局内](challenge-moves.png)：大号剩余预算、消除数量与时间/行动条。
+- [最后三次行动](lobby-last-moves.png)、[本局结束](lobby-finished.png)：紧张阶段改用红色提示，结束后保留本局结果。
+- 模式入口图案不读取本局剩余次数；其中 30 表示固定模式规则。
+- 减少动态效果开启时交互立即定位；测试在独立存档和可控时间下生成预览。
+
+重新生成：`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter GameLobbyPresentationTests`。
+
+临时目录中的 `eliminate-lobby-idle-free.png` 对应 `lobby-idle.png`，`eliminate-lobby-timed.png` / `eliminate-lobby-moves.png` 对应两张 `challenge-*.png`；其余 `eliminate-mode-artwork.png`、`eliminate-lobby-feedback.gif`、`eliminate-lobby-last-moves.png`、`eliminate-lobby-finished.png` 去掉 `eliminate-` 前缀后归档。
+
 ## 消除数量、限时与限步
 
 - [限时挑战首页](challenge-timed.png)：固定 60 秒，显示已消除数量与剩余时间。

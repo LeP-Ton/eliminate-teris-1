@@ -247,3 +247,6 @@
 "utility.records.hide_history" = "收起旧规则记录";
 "utility.records.legacy_score" = "历史竞分 · %d 分钟（旧规则）";
 "utility.records.legacy_speed" = "历史竞速 · 目标 %d 分（旧规则）";
+
+"home.challenge.time_left" = "剩余时间";
+"home.challenge.moves_left" = "剩余交换次数";

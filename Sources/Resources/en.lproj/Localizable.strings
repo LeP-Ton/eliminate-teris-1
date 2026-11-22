@@ -247,3 +247,6 @@
 "utility.records.hide_history" = "Hide previous rules records";
 "utility.records.legacy_score" = "Previous Score Attack · %d min";
 "utility.records.legacy_speed" = "Previous Speed Run · %d-point target";
+
+"home.challenge.time_left" = "TIME LEFT";
+"home.challenge.moves_left" = "SWAPS LEFT";

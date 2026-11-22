@@ -11,6 +11,10 @@ enum GameIconRenderer {
     }
 
     static func drawSymbol(_ name: String, in bounds: NSRect, color: NSColor, fallbacks: [String] = []) {
+        // 模式图案是游戏美术，颜色由自身定义；所有入口共用同一资源，保持等比。
+        if let mode = HomeGameMode.allCases.first(where: { $0.symbol == name }) {
+            GameModeArtwork.draw(mode, in: bounds); return
+        }
         if name == "trophy" { drawTrophy(in: bounds, color: color); return }
         if name == "flag.checkered" { drawFinishFlag(in: bounds, color: color); return }
         let key = ([name] + fallbacks).joined(separator: ".") + color.description

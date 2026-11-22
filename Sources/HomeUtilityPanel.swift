@@ -38,7 +38,7 @@ final class HomeUtilityPanel: NSWindowController {
         volume.cell = UtilityVolumeSliderCell(); volume.minValue = 0; volume.maxValue = 1
         volume.isContinuous = true; volume.target = self; volume.action = #selector(volumeChanged)
         percent.font = .monospacedDigitSystemFont(ofSize: 18, weight: .bold); percent.alignment = .right
-        recordTabs.segmentCount = 2; recordTabs.segmentSymbols = ["stopwatch", "arrow.left.arrow.right"]
+        recordTabs.segmentCount = 2; recordTabs.segmentSymbols = [HomeGameMode.timed.symbol, HomeGameMode.moves.symbol]
         recordTabs.selectedSegment = 0; recordTabs.target = self; recordTabs.action = #selector(recordModeChanged)
         // 固定尺寸只注册一次，语言切换时仅重建排版与文案。
         NSLayoutConstraint.activate([

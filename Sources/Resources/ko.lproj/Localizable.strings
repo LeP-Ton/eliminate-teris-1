@@ -240,3 +240,6 @@
 "utility.records.hide_history" = "이전 규칙 기록 접기";
 "utility.records.legacy_score" = "이전 점수 도전 · %d분";
 "utility.records.legacy_speed" = "이전 속도 도전 · 목표 %d점";
+
+"home.challenge.time_left" = "남은 시간";
+"home.challenge.moves_left" = "남은 교환 횟수";

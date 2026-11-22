@@ -240,3 +240,6 @@
 "utility.records.hide_history" = "Скрыть прежние рекорды";
 "utility.records.legacy_score" = "Прежний режим очков · %d мин";
 "utility.records.legacy_speed" = "Прежний режим скорости · Цель: %d очков";
+
+"home.challenge.time_left" = "ОСТАЛОСЬ ВРЕМЕНИ";
+"home.challenge.moves_left" = "ОСТАЛОСЬ ОБМЕНОВ";

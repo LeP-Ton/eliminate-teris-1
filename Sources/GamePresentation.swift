@@ -25,9 +25,9 @@ enum HomeGameMode: Int, CaseIterable {
 
     var symbol: String {
         switch self {
-        case .free: return "infinity"
-        case .timed: return "stopwatch"
-        case .moves: return "arrow.left.arrow.right"
+        case .free: return "game.mode.free"
+        case .timed: return "game.mode.timed"
+        case .moves: return "game.mode.moves"
         }
     }
 }

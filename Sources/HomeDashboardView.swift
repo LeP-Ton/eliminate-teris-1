@@ -7,6 +7,7 @@ class HomeButton: NSButton {
     var onClick: (() -> Void)?
     private var tracking: NSTrackingArea?
     private(set) var hovering = false
+    let feedback = GameControlFeedback()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -14,10 +15,11 @@ class HomeButton: NSButton {
         setButtonType(.momentaryPushIn)
         target = self
         action = #selector(clicked)
+        feedback.onUpdate = { [weak self] in self?.needsDisplay = true }
     }
     required init?(coder: NSCoder) { nil }
     override var isFlipped: Bool { true }
-    override var isHighlighted: Bool { didSet { needsDisplay = true } }
+    override var isHighlighted: Bool { didSet { refreshFeedback() } }
     override var focusRingMaskBounds: NSRect { bounds }
     override func drawFocusRingMask() { NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8).fill() }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .pointingHand) }
@@ -29,23 +31,30 @@ class HomeButton: NSButton {
         addTrackingArea(area)
         tracking = area
     }
-    override func mouseEntered(with event: NSEvent) { hovering = true; needsDisplay = true }
-    override func mouseExited(with event: NSEvent) { hovering = false; needsDisplay = true }
+    override func mouseEntered(with event: NSEvent) { hovering = true; refreshFeedback() }
+    override func mouseExited(with event: NSEvent) { hovering = false; refreshFeedback() }
+    var selectedForFeedback: Bool { false }
+    func refreshFeedback() {
+        feedback.update(hover: hovering && isEnabled, press: isHighlighted && isEnabled,
+                        selected: selectedForFeedback, animated: window != nil)
+        needsDisplay = true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         if primary {
-            let color = isHighlighted ? (HomeStyle.yellow.shadow(withLevel: 0.08) ?? HomeStyle.yellow) : HomeStyle.yellow
-            HomeStyle.card(bounds, fill: color, border: color, radius: 9)
+            GameLobbyStyle.primaryButton(bounds, hover: feedback.values.hover, press: feedback.values.press)
         } else if hovering || isHighlighted {
             HomeStyle.card(bounds, fill: NSColor.white.withAlphaComponent(0.6), border: HomeStyle.border.withAlphaComponent(0.4), radius: 7)
         }
-        let size: CGFloat = primary ? 23 : 14
+        let preferred: CGFloat = primary ? 22 : 14
+        let size = GameLobbyStyle.fittedSize(title, width: bounds.width - (primary ? 60 : 24), preferred: preferred, minimum: 11, weight: primary ? .heavy : .semibold)
         let font = NSFont.systemFont(ofSize: size, weight: primary ? .heavy : .semibold)
         let width = (title as NSString).size(withAttributes: [.font: font]).width
         let icon: CGFloat = symbolName == nil ? 0 : (primary ? 24 : 16)
         let x = (bounds.width - width - (icon > 0 ? icon + 10 : 0)) / 2
-        if let symbolName { HomeStyle.symbol(symbolName, in: NSRect(x: x, y: bounds.midY - icon / 2, width: icon, height: icon)) }
-        HomeStyle.text(title, in: NSRect(x: x + (icon > 0 ? icon + 10 : 0), y: bounds.midY - size * 0.65, width: width + 2, height: size * 1.5),
+        let offset = primary ? feedback.values.press * 2 - feedback.values.hover : 0
+        if let symbolName { HomeStyle.symbol(symbolName, in: NSRect(x: x, y: bounds.midY - icon / 2 + offset, width: icon, height: icon)) }
+        HomeStyle.text(title, in: NSRect(x: x + (icon > 0 ? icon + 10 : 0), y: bounds.midY - size * 0.65 + offset, width: width + 2, height: size * 1.5),
                        size: size, weight: primary ? .heavy : .semibold)
     }
     @objc private func clicked() { onClick?() }
@@ -53,27 +62,41 @@ class HomeButton: NSButton {
 
 final class HomeModeButton: HomeButton {
     let mode: HomeGameMode
-    var selected = false { didSet { needsDisplay = true; setAccessibilityValue(selected ? 1 : 0) } }
+    var selected = false { didSet { if oldValue != selected { refreshFeedback(); setAccessibilityValue(selected ? 1 : 0) } } }
+    override var selectedForFeedback: Bool { selected }
     init(mode: HomeGameMode) {
         self.mode = mode
         super.init(frame: .zero)
         setAccessibilityRole(.radioButton)
+        setAccessibilityValue(0)
     }
     required init?(coder: NSCoder) { nil }
     override func draw(_ dirtyRect: NSRect) {
-        HomeStyle.card(bounds, fill: selected ? NSColor(calibratedRed: 0.91, green: 0.96, blue: 1, alpha: 1) : .white.withAlphaComponent(0.75),
-                       border: selected ? HomeStyle.blue : hovering ? HomeStyle.blue.withAlphaComponent(0.4) : HomeStyle.border)
-        let check = NSRect(x: 18, y: bounds.midY - 15, width: 30, height: 30)
-        if selected {
-            HomeStyle.symbol("checkmark.circle.fill", in: check, color: HomeStyle.blue)
-        } else {
-            HomeStyle.muted.withAlphaComponent(0.65).setStroke()
-            let circle = NSBezierPath(ovalIn: check.insetBy(dx: 1, dy: 1)); circle.lineWidth = 2; circle.stroke()
+        let effect = feedback.values
+        let face = bounds.insetBy(dx: 4, dy: 5).offsetBy(dx: 0, dy: effect.press * 1.5 - effect.hover)
+        GameLobbyStyle.surface(face, tint: NSColor(calibratedRed: 0.98, green: 0.985, blue: 0.99, alpha: 1), strength: 0.045 + effect.hover * 0.05)
+        if effect.selection > 0 {
+            GameLobbyStyle.gradient(face, colors: [.white.withAlphaComponent(effect.selection),
+                NSColor(calibratedRed: 0.86, green: 0.95, blue: 1, alpha: effect.selection)], radius: 15)
+            GameLobbyStyle.glow(NSRect(x: face.minX, y: face.minY, width: 100, height: face.height), color: HomeStyle.blue.withAlphaComponent(0.09 * effect.selection))
         }
-        HomeStyle.symbol(mode.symbol, in: NSRect(x: 66, y: bounds.midY - 19, width: 38, height: 38))
-        let y = max(9, (bounds.height - 48) / 2)
-        HomeStyle.text(AchievementText.string("home.mode.\(mode.key)"), in: NSRect(x: 117, y: y, width: bounds.width - 130, height: 27), size: 20, weight: .bold)
-        HomeStyle.text(AchievementText.string("home.mode_desc.\(mode.key)"), in: NSRect(x: 117, y: y + 29, width: bounds.width - 130, height: 20), size: 13, color: HomeStyle.secondary)
+        let outline = NSBezierPath(roundedRect: face, xRadius: 15, yRadius: 15)
+        HomeStyle.blue.withAlphaComponent(effect.selection * 0.8 + effect.hover * 0.15).setStroke()
+        outline.lineWidth = 1.25; outline.stroke()
+        let iconSize = min(57, face.height - 9)
+        GameModeArtwork.draw(mode, in: NSRect(x: face.minX + 12, y: face.midY - iconSize / 2, width: iconSize, height: iconSize))
+        let textX = face.minX + 81, textWidth = face.width - 108
+        let title = AchievementText.string("home.mode.\(mode.key)")
+        let compact = face.height < 65
+        let titleSize = GameLobbyStyle.fittedSize(title, width: textWidth, preferred: compact ? 17 : 20, minimum: 13, weight: .bold)
+        let textY = compact ? face.minY + 4 : face.midY - 24
+        HomeStyle.text(title, in: NSRect(x: textX, y: textY, width: textWidth, height: 26), size: titleSize, weight: .bold)
+        GameLobbyStyle.wrappedText(AchievementText.string("home.mode_desc.\(mode.key)"),
+            in: NSRect(x: textX, y: textY + (compact ? 21 : 27), width: face.width - 98, height: face.maxY - textY - (compact ? 25 : 31)),
+            size: compact ? 11 : 12, color: HomeStyle.secondary)
+        if effect.selection > 0 {
+            HomeStyle.symbol("checkmark.circle.fill", in: NSRect(x: face.maxX - 24, y: face.minY + 12, width: 15, height: 15), color: HomeStyle.blue.withAlphaComponent(effect.selection))
+        }
     }
 }
 
@@ -113,9 +136,11 @@ final class HomeSessionStatsView: NSView {
         setAccessibilityLabel(([AchievementText.string("home.session_stats") + ": \(total)"] + pieces).joined(separator: "; "))
     }
     override func draw(_ dirtyRect: NSRect) {
-        HomeStyle.card(bounds)
+        GameLobbyStyle.surface(bounds.insetBy(dx: 3, dy: 4), radius: 16, tint: NSColor(calibratedRed: 1, green: 0.995, blue: 0.98, alpha: 1))
         let dividerX = bounds.width * 0.38
-        HomeStyle.text(AchievementText.string("home.cleared_title"), in: NSRect(x: 22, y: 17, width: dividerX - 30, height: 26), size: 20, weight: .bold)
+        let title = AchievementText.string("home.cleared_title")
+        let titleSize = GameLobbyStyle.fittedSize(title, width: dividerX - 30, preferred: 20, minimum: 11, weight: .bold)
+        HomeStyle.text(title, in: NSRect(x: 22, y: 17, width: dividerX - 30, height: 26), size: titleSize, weight: .bold)
         let totalText = "\(snapshot?.totalCleared ?? 0)"
         var totalSize: CGFloat = 58
         while (totalText as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: totalSize, weight: .heavy)]).width > dividerX - 27, totalSize > 24 { totalSize -= 2 }
@@ -142,7 +167,11 @@ private final class HomeAchievementButton: HomeButton {
     var unlocked = false
     override func draw(_ dirtyRect: NSRect) {
         guard let definition else { return }
-        HomeStyle.card(bounds)
+        GameLobbyStyle.surface(bounds.insetBy(dx: 1, dy: 1), radius: 12,
+                               tint: NSColor(calibratedRed: 1, green: 0.998, blue: 0.985, alpha: 1), strength: 0.025)
+        if hovering {
+            GameLobbyStyle.glow(bounds, color: GameLobbyStyle.amber.withAlphaComponent(0.07 * feedback.values.hover))
+        }
         let title = AchievementText.string(definition.titleKey)
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]
         // 仅成就图案与文字作为一组居中；完成/锁定状态独立固定在左侧。
@@ -160,7 +189,7 @@ private final class HomeAchievementButton: HomeButton {
         let titleWidth = ceil(titleSize.width)
         let startX = bounds.midX - (fixedWidth + titleWidth) / 2
         let status = unlocked ? "checkmark.circle.fill" : "lock.fill"
-        HomeStyle.symbol(status, in: NSRect(x: 13, y: bounds.midY - 10, width: 20, height: 20), color: unlocked ? HomeStyle.green : HomeStyle.muted)
+        HomeStyle.symbol(status, in: NSRect(x: 14, y: bounds.midY - 9, width: 18, height: 18), color: unlocked ? HomeStyle.green.withAlphaComponent(0.80) : HomeStyle.muted)
         AchievementIconCatalog.image(for: definition, muted: !unlocked).draw(in: NSRect(x: startX, y: bounds.midY - 19, width: 38, height: 38),
                                                                            from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         HomeStyle.text(displayedTitle, in: NSRect(x: startX + fixedWidth, y: bounds.midY - titleSize.height / 2, width: titleWidth, height: titleSize.height), size: 13, weight: .semibold,
@@ -175,6 +204,7 @@ final class HomeDashboardView: NSView {
     var onAchievement: ((Int?) -> Void)?
     let stats = HomeSessionStatsView(frame: .zero)
     let startButton = HomeButton(frame: .zero)
+    let challengeHUD = HomeChallengeHUDView(frame: .zero)
     private let heading = NSTextField(wrappingLabelWithString: "")
     private let subtitle = NSTextField(wrappingLabelWithString: "")
     private let hint = NSTextField(wrappingLabelWithString: "")
@@ -185,6 +215,7 @@ final class HomeDashboardView: NSView {
     private var badges: [HomeAchievementButton] = []
     private var selectedMode: HomeGameMode = .free
     private var unlockedCount = 0
+    private var showsChallenge = false
 
     override var isFlipped: Bool { true }
     override init(frame: NSRect) {
@@ -192,12 +223,13 @@ final class HomeDashboardView: NSView {
         appearance = NSAppearance(named: .aqua)
         for label in [heading, subtitle, hint] { label.isSelectable = false; label.drawsBackground = false }
         heading.textColor = HomeStyle.ink
-        subtitle.textColor = HomeStyle.muted
-        subtitle.font = .systemFont(ofSize: 21, weight: .semibold)
+        subtitle.textColor = HomeStyle.secondary.withAlphaComponent(0.82)
+        subtitle.font = .systemFont(ofSize: 19, weight: .medium)
         hint.textColor = HomeStyle.secondary
         hint.font = .systemFont(ofSize: 14, weight: .medium)
         hint.alignment = .center
-        [heading, subtitle, hint, hero, stats, startButton, records, rules, settings, all].forEach { addSubview($0) }
+        [heading, subtitle, hint, hero, stats, challengeHUD, startButton, records, rules, settings, all].forEach { addSubview($0) }
+        challengeHUD.isHidden = true
         startButton.primary = true; startButton.symbolName = "play.fill"
         startButton.onClick = { [weak self] in self?.onStart?() }
         for (button, key) in [(records, "records"), (rules, "rules"), (settings, "settings")] {
@@ -220,16 +252,16 @@ final class HomeDashboardView: NSView {
     func refresh(snapshot: GameSnapshot, mode: HomeGameMode, manager: AchievementsManager, isStarting: Bool = false) {
         selectedMode = mode
         stats.snapshot = snapshot
-        heading.stringValue = AchievementText.string("home.hero.\(mode.key)")
-        subtitle.stringValue = AchievementText.string("home.subtitle.\(mode.key)")
+        showsChallenge = mode != .free && (snapshot.isRunning || snapshot.isFinished)
+        challengeHUD.isHidden = !showsChallenge
+        challengeHUD.refresh(snapshot: snapshot, mode: mode)
+        heading.stringValue = AchievementText.string(showsChallenge ? "home.mode.\(mode.key)" : "home.hero.\(mode.key)")
+        subtitle.stringValue = AchievementText.string(showsChallenge ? "home.mode_desc.\(mode.key)" : "home.subtitle.\(mode.key)")
+        subtitle.font = .systemFont(ofSize: showsChallenge ? 14 : 19, weight: .medium)
         if isStarting {
             hint.stringValue = AchievementText.string("home.starting_hint")
         } else if snapshot.isFinished {
             hint.stringValue = AchievementText.format("home.result", snapshot.totalCleared)
-        } else if snapshot.isRunning, mode != .free {
-            hint.stringValue = mode == .timed
-                ? AchievementText.format("home.hud.timed", snapshot.totalCleared, Self.clock(snapshot.remainingTime ?? 0))
-                : AchievementText.format("home.hud.moves", snapshot.totalCleared, snapshot.remainingSwaps ?? 0)
         } else { hint.stringValue = AchievementText.string(snapshot.isRunning ? "home.operation_hint" : "home.start_hint") }
         startButton.title = AchievementText.string(isStarting ? "home.starting" : snapshot.isFinished ? "home.play_again" : snapshot.isRunning ? "start.action_restart" : "home.start")
         startButton.isEnabled = !isStarting
@@ -267,18 +299,19 @@ final class HomeDashboardView: NSView {
         let top: CGFloat = 96
         let bodyHeight = footerY - top - 24
         let modeHeight = bodyHeight - 172
-        heading.font = .systemFont(ofSize: min(68, max(48, leftWidth * 0.1)), weight: .heavy)
+        heading.font = .systemFont(ofSize: showsChallenge ? 24 : min(60, max(44, leftWidth * 0.092)), weight: .heavy)
         heading.preferredMaxLayoutWidth = leftWidth
-        heading.frame = NSRect(x: margin, y: top + 30, width: leftWidth, height: bodyHeight * 0.33)
+        heading.frame = NSRect(x: margin, y: top + (showsChallenge ? 10 : 26), width: leftWidth, height: showsChallenge ? 36 : bodyHeight * 0.32)
         subtitle.preferredMaxLayoutWidth = leftWidth
-        subtitle.frame = NSRect(x: margin, y: top + bodyHeight * 0.34, width: leftWidth, height: 56)
-        hero.frame = NSRect(x: margin + 12, y: top + bodyHeight * 0.47, width: leftWidth - 24, height: 125)
-        startButton.frame = NSRect(x: margin + (leftWidth - 280) / 2, y: footerY - 82, width: 280, height: 54)
+        subtitle.frame = NSRect(x: margin, y: showsChallenge ? top + 49 : top + bodyHeight * 0.33, width: leftWidth, height: showsChallenge ? 32 : 56)
+        challengeHUD.frame = NSRect(x: margin, y: top + 83, width: leftWidth, height: min(128, bodyHeight * 0.27))
+        hero.frame = NSRect(x: margin + 12, y: top + bodyHeight * 0.45, width: leftWidth - 24, height: 138)
+        startButton.frame = NSRect(x: margin + (leftWidth - 294) / 2, y: footerY - 89, width: 294, height: 62)
         hint.preferredMaxLayoutWidth = leftWidth
         hint.frame = NSRect(x: margin, y: startButton.frame.minY - 43, width: leftWidth, height: 38)
-        let rowHeight = (modeHeight - 104) / 3
+        let rowHeight = (modeHeight - 86) / 3
         for (index, button) in modes.enumerated() {
-            button.frame = NSRect(x: rightX + 20, y: top + 68 + CGFloat(index) * (rowHeight + 12), width: rightWidth - 40, height: rowHeight)
+            button.frame = NSRect(x: rightX + 20, y: top + 60 + CGFloat(index) * (rowHeight + 8), width: rightWidth - 40, height: rowHeight)
         }
         stats.frame = NSRect(x: rightX, y: top + modeHeight + 16, width: rightWidth, height: 156)
         var navX = bounds.width - margin
@@ -300,7 +333,10 @@ final class HomeDashboardView: NSView {
         let rightX = bounds.width - margin - rightWidth
         let footerY = bounds.height - 144
         let bodyHeight = footerY - 120
-        HomeStyle.card(NSRect(x: rightX, y: 96, width: rightWidth, height: bodyHeight - 172))
+        GameLobbyStyle.surface(NSRect(x: rightX, y: 96, width: rightWidth, height: bodyHeight - 172), radius: 20,
+                               tint: NSColor(calibratedRed: 0.985, green: 0.983, blue: 0.974, alpha: 1), strength: 0.025)
+        // 暖色环境光承接原设计稿插画；静态绘制，不添加常驻粒子计时器。
+        GameLobbyStyle.glow(NSRect(x: margin - 20, y: 245, width: rightX - margin, height: 265), color: GameLobbyStyle.amber.withAlphaComponent(0.045))
         // 低透明度装饰方块呼应四种颜色，避免盖住正文和交互区域。
         for (x, y, color) in [(bounds.width * 0.42, CGFloat(166), HomeStyle.yellow), (bounds.width * 0.57, CGFloat(138), HomeStyle.blue), (CGFloat(48), footerY - 60, HomeStyle.yellow)] {
             color.withAlphaComponent(0.10).setFill()
@@ -316,17 +352,18 @@ final class HomeDashboardView: NSView {
         for y in [CGFloat(70), footerY] {
             let line = NSBezierPath(); line.move(to: NSPoint(x: y == 70 ? 0 : margin, y: y)); line.line(to: NSPoint(x: y == 70 ? bounds.width : bounds.width - margin, y: y)); line.stroke()
         }
-        HomeStyle.text(AchievementText.string("home.achievement_path"), in: NSRect(x: margin, y: footerY + 15, width: 140, height: 30), size: 21, weight: .bold)
+        let achievementTitle = AchievementText.string("home.achievement_path")
+        let achievementSize = GameLobbyStyle.fittedSize(achievementTitle, width: 140, preferred: 21, minimum: 13, weight: .bold)
+        HomeStyle.text(achievementTitle, in: NSRect(x: margin, y: footerY + 15, width: 140, height: 30), size: achievementSize, weight: .bold)
         HomeStyle.text(AchievementText.format("home.unlocked_count", unlockedCount, AchievementDefinition.all.count), in: NSRect(x: margin + 145, y: footerY + 20, width: 140, height: 23), size: 14, weight: .semibold)
         let meter = NSRect(x: margin + 292, y: footerY + 23, width: min(230, max(100, bounds.width - 850)), height: 12)
         NSColor(calibratedWhite: 0.9, alpha: 1).setFill(); NSBezierPath(roundedRect: meter, xRadius: 6, yRadius: 6).fill()
         let ratio = CGFloat(unlockedCount) / CGFloat(AchievementDefinition.all.count)
-        HomeStyle.yellow.setFill(); NSBezierPath(roundedRect: NSRect(x: meter.minX, y: meter.minY, width: max(0, meter.width * ratio), height: meter.height), xRadius: 6, yRadius: 6).fill()
+        if ratio > 0 {
+            GameLobbyStyle.gradient(NSRect(x: meter.minX, y: meter.minY, width: meter.width * ratio, height: meter.height),
+                                    colors: [NSColor(calibratedRed: 1, green: 0.87, blue: 0.24, alpha: 1), HomeStyle.yellow], radius: 6)
+        }
         HomeStyle.text(String(format: "%.1f%%", Double(ratio * 100)), in: NSRect(x: meter.maxX + 10, y: footerY + 20, width: 60, height: 22), size: 11, color: HomeStyle.secondary)
     }
 
-    private static func clock(_ interval: TimeInterval) -> String {
-        let value = max(0, Int(interval))
-        return String(format: "%02d:%02d", value / 60, value % 60)
-    }
 }

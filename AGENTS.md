@@ -5,6 +5,11 @@
 - 本地启动使用 `./run.sh`，打包使用 `./package.sh`；自动化验证使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`，测试使用系统自带 XCTest。
 - 检索项目时先读取 `.agentdocs/index.md`，再按索引中的读取场景查阅具体文档；不要直接全量检索 `.agentdocs/workflow/`。
 
+## 2026-11-01（游戏大厅美术与局内信息）
+- 模式使用 `GameModeArtwork` 的本地彩色矢量图案，首页、玩法说明和排行榜通过 `GameIconRenderer` 共用入口等比绘制；模式图案与系统操作符号分开维护。
+- 大厅材质位于 `GameLobbyStyle`；`GameControlFeedback` 只在交互变化期间驱动短动画，支持快速反向和减少动态效果，不参与开局、计时或游戏规则。
+- 首页按待机/局内/结束状态组织信息；`HomeChallengeHUDView` 只读取 `GameSnapshot` 展示剩余预算和消除数，真实规则仍由棋盘控制器统一执行。原设计稿方块资源与 Touch Bar 生命周期沿用原实现。
+
 ## 2026-11-01（按消除数量结算的新规则）
 - 当前模式为自由、60 秒限时挑战、30 次交换限步挑战；运行时不再统计分数，数量统一来自 `GameState` 的分类消除计数。历史段落中的竞分/竞速规则仅作为旧版记录。
 - 合法相邻交换在完整连锁结算后累计一次，无消除也计次；选中、取消、非法或受锁定阻止的操作不计次。`GameSnapshot` 提供已用/剩余交换次数，限步不受时间影响。

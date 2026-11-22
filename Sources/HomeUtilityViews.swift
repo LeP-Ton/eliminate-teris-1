@@ -251,7 +251,7 @@ final class UtilityRecordBestView: NSView {
             UtilityStyle.stack([value, unit], vertical: false, spacing: 8),
             UtilityStyle.label(UtilityStyle.text(mode == .timed ? "utility.records.timed_rule" : "utility.records.moves_rule"), size: 11, color: HomeStyle.secondary)
         ], spacing: 4)
-        let icon = UtilityStyle.icon(mode == .timed ? "stopwatch" : "arrow.left.arrow.right", color: .systemOrange, size: 56)
+        let icon = UtilityStyle.icon(mode == .timed ? HomeGameMode.timed.symbol : HomeGameMode.moves.symbol, color: .systemOrange, size: 56)
         let row = UtilityStyle.stack([copy, icon], vertical: false, spacing: 16)
         copy.setContentHuggingPriority(.defaultLow, for: .horizontal)
         row.translatesAutoresizingMaskIntoConstraints = false; addSubview(row)
