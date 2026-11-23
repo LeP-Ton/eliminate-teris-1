@@ -1,4 +1,4 @@
-"window.title" = "Устранение Терис 1";
+"window.title" = "Тетрис на Touch Bar";
 "window.subtitle" = "Пиксельный вызов Touch Bar";
 "panel.settings" = "Настройки игры";
 "panel.status" = "Время и счёт";
@@ -172,7 +172,8 @@
 "achievement.32.desc" = "Удалите 10,000 красных блоков во всех режимах.";
 
 // 浅色探索版首页与固定玩法规则。
-"home.brand" = "Тетрис на Touch Bar 1";
+"home.brand" = "Тетрис на Touch Bar";
+"home.space_key" = "ПРОБЕЛ";
 "home.game_modes" = "Режим игры";
 "home.hero.free" = "Меняй блоки.\nИграй с радостью.";
 "home.hero.timed" = "Одна минута.\nБольше фигур!";

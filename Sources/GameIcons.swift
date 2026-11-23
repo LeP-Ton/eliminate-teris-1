@@ -11,7 +11,7 @@ enum GameIconRenderer {
     }
 
     static func drawSymbol(_ name: String, in bounds: NSRect, color: NSColor, fallbacks: [String] = []) {
-        // 模式图案是游戏美术，颜色由自身定义；所有入口共用同一资源，保持等比。
+        // 玩法说明等入口使用自带颜色的游戏图案，统一等比绘制。
         if let mode = HomeGameMode.allCases.first(where: { $0.symbol == name }) {
             GameModeArtwork.draw(mode, in: bounds); return
         }

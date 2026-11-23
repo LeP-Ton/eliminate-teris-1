@@ -5,6 +5,11 @@
 - 本地启动使用 `./run.sh`，打包使用 `./package.sh`；自动化验证使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`，测试使用系统自带 XCTest。
 - 检索项目时先读取 `.agentdocs/index.md`，再按索引中的读取场景查阅具体文档；不要直接全量检索 `.agentdocs/workflow/`。
 
+## 2026-11-23（深色界面探索分支）
+- `experiment/ui-refactor-v2` 的大厅、设置、玩法、挑战记录和成就窗口共用 `HomeDashboardStyle` 的深蓝底、斜边与状态色。桌面大厅和窗口标题的简体中文名称为「消除俄罗斯方块」。
+- 深色主题的结构斜边以水平偏移 ÷ 垂直高度 0.45 绘制。边框、分段选中态、进度填充与统计入场共享该几何规范。应用内自绘文字和标签共享轻斜体。
+- 大厅的介绍与本局快照并排展示。模式切换只让统计卡入场，标题继续可见。左侧插画、统计图标与触控栏示意共用 `HomeLobbyArtwork` 的原生矢量方块。实际触控栏由 `GameTouchBarView` 绘制，开局和结算仍经原有控制器协调。
+
 ## 2026-11-22（首页双栏与跨栏成就）
 - `HomeDashboardView` 管理左侧开局区、右侧信息栏及下方跨栏成就。`HomeAchievementPathView` 按窗口宽度提供单行预览，完整列表由成就窗口展示。挑战卡转场由 `HomeModeHeaderView` 独立绘制。
 

@@ -18,10 +18,67 @@ final class AchievementFilterControlTests: AchievementTestCase {
     }
 
     private func click(_ index: Int, on filter: AchievementFilterControl) throws {
-        let point = filter.convert(NSPoint(x: filter.bounds.width * (CGFloat(index) + 0.5) / 3, y: filter.bounds.midY), to: nil)
+        try click(NSPoint(x: filter.bounds.width * (CGFloat(index) + 0.5) / CGFloat(filter.segmentCount),
+                          y: filter.bounds.midY), on: filter)
+    }
+
+    private func click(_ position: NSPoint, on filter: AchievementFilterControl) throws {
+        let point = filter.convert(position, to: nil)
         let event = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0,
                                                    windowNumber: filter.window?.windowNumber ?? 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
         filter.mouseDown(with: event)
+    }
+
+    private func corners(of path: CGPath) -> [CGPoint] {
+        var points: [CGPoint] = []
+        path.applyWithBlock { element in
+            if element.pointee.type == .moveToPoint || element.pointee.type == .addLineToPoint {
+                points.append(element.pointee.points[0])
+            }
+        }
+        return points
+    }
+
+    func testSelectionRimFillAndGlowFollowOuterSlantInBothPanels() throws {
+        _ = NSApplication.shared
+        let achievements = AchievementsWindowController(manager: manager)
+        let records = HomeUtilityPanel(page: "records", store: ModeRecordStore(defaults: defaults))
+        defer { achievements.close(); records.close() }
+        achievements.refresh()
+        records.refresh(mode: .free, volume: 0.5)
+
+        for window in [try XCTUnwrap(achievements.window), try XCTUnwrap(records.window)] {
+            for width: CGFloat in [480, 600] {
+                window.setContentSize(NSSize(width: width, height: 580))
+                let content = try XCTUnwrap(window.contentView)
+                content.layoutSubtreeIfNeeded()
+                let filter = try XCTUnwrap(descendants(content).compactMap { $0 as? AchievementFilterControl }.first)
+                filter.reducesMotion = { true }
+                let layer = try thumb(in: filter)
+                let mask = try XCTUnwrap(layer.sublayers?.first { $0.name == "achievement-filter-selection-fill" }?.mask as? CAShapeLayer)
+                let rim = try XCTUnwrap(layer.sublayers?.first { $0.name == "achievement-filter-selection-rim" } as? CAShapeLayer)
+                let outer = corners(of: HomeDashboardStyle.cgSlant(filter.bounds.insetBy(dx: 0.5, dy: 0.5)))
+                let selected = corners(of: try XCTUnwrap(rim.path))
+                XCTAssertEqual(selected, corners(of: try XCTUnwrap(mask.path)))
+                XCTAssertEqual(selected, corners(of: try XCTUnwrap(layer.shadowPath)))
+                XCTAssertEqual(selected, corners(of: HomeDashboardStyle.cgSlant(layer.bounds.insetBy(dx: 0.5, dy: 0.5))))
+                guard outer.count == 4, selected.count == 4 else { return XCTFail("外框和选中层应为四边形") }
+                // 外框和选中层高度不同，通过垂直距离归一后，左右两侧保持相同斜率。
+                for points in [outer, selected] {
+                    XCTAssertEqual((points[0].x - points[3].x) / (points[3].y - points[0].y), 0.45, accuracy: 0.001)
+                    XCTAssertEqual((points[1].x - points[2].x) / (points[2].y - points[1].y), 0.45, accuracy: 0.001)
+                }
+
+                let track = filter.bounds.insetBy(dx: 4, dy: 4)
+                let offset = HomeDashboardStyle.edgeOffset(for: track.height)
+                let boundary = track.minX + (track.width - offset) / CGFloat(filter.segmentCount)
+                // 相同的横坐标穿过斜分界，上缘属于第一段，下缘属于第二段。
+                try click(NSPoint(x: boundary + offset / 2, y: track.maxY - 4), on: filter)
+                XCTAssertEqual(filter.selectedSegment, 1)
+                try click(NSPoint(x: boundary + offset / 2, y: track.minY + 4), on: filter)
+                XCTAssertEqual(filter.selectedSegment, 0)
+            }
+        }
     }
 
     func testAnimatedSelectionSurvivesRefreshAndRapidChanges() throws {

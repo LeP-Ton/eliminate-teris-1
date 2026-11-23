@@ -1,12 +1,9 @@
 import Cocoa
 
-/// 转场覆盖窗口上方整行，左列只负责定位。右侧模式面板由大厅单独叠在前方。
+/// 上方文案和本局统计并排排版，切换模式时仅统计卡从右侧滑入。
 final class HomeModeHeaderView: NSView {
     static let previewDuration: TimeInterval = 1
-    private static let cardHeight: CGFloat = 148
-    private static let fullScale = NSSize(width: 1, height: 1)
-    // 远处的卡片横向收得更多，靠近时逐渐展开成正面。
-    private static let distantScale = NSSize(width: 0.20, height: 0.27)
+    private static let distantScale: CGFloat = 0.20
     var now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
@@ -14,24 +11,21 @@ final class HomeModeHeaderView: NSView {
     private(set) var card = HomeChallengeHUDView(frame: .zero)
     private var spareCard = HomeChallengeHUDView(frame: .zero)
     private var selectedMode: HomeGameMode?
-    private var showsCard = false
     private var timer: Timer?
     private var transition: Transition?
-    private var column = NSRect.zero
+    private var cardColumn = NSRect.zero
     private var entryX: CGFloat = 0
 
+    private struct Pose {
+        let offset: CGFloat
+        let scale: CGFloat
+        let alpha: CGFloat
+    }
+
     private struct Transition {
-        let outgoing: NSView
-        let incoming: NSView
-        let direction: CGFloat
         let start: TimeInterval
-        let duration: TimeInterval
-        let outgoingOffset: CGFloat
-        let incomingOffset: CGFloat
-        let outgoingScale: NSSize
-        let incomingScale: NSSize
-        let outgoingAlpha: CGFloat
-        let incomingAlpha: CGFloat
+        let outgoing: Pose
+        let incoming: Pose
         var fraction: CGFloat = 0
     }
 
@@ -41,9 +35,9 @@ final class HomeModeHeaderView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer?.masksToBounds = true
-        addSubview(intro)
         addSubview(spareCard)
         addSubview(card)
+        addSubview(intro)
         settle()
     }
 
@@ -51,9 +45,19 @@ final class HomeModeHeaderView: NSView {
     deinit { timer?.invalidate() }
 
     func position(leftColumn: NSRect, windowWidth: CGFloat, modePanelLeading: CGFloat) {
-        let topPadding: CGFloat = 8
+        let topPadding = HomeChallengeHUDView.surfaceInsetY + 3
         frame = NSRect(x: 0, y: leftColumn.minY - topPadding, width: windowWidth, height: leftColumn.height + topPadding)
-        column = leftColumn.offsetBy(dx: 0, dy: -frame.minY)
+        let headingWidth = (leftColumn.width * 0.361).rounded(.down)
+        let gap = min(16, leftColumn.width * 0.025)
+        intro.frame = NSRect(x: leftColumn.minX, y: topPadding, width: headingWidth, height: leftColumn.height)
+        let cardTop = min(19, leftColumn.height * 0.079)
+        let cardHeight = min(186, max(102, leftColumn.height * 0.77))
+        let faceX = intro.frame.maxX + gap + HomeChallengeHUDView.trailingInset
+        let faceRight = modePanelLeading - min(22, leftColumn.width * 0.031)
+        let cardX = faceX - HomeChallengeHUDView.leadingInset(for: max(0, faceRight - faceX), height: cardHeight)
+        cardColumn = NSRect(x: cardX, y: topPadding + cardTop,
+                            width: max(0, faceRight + HomeChallengeHUDView.trailingInset - cardX),
+                            height: cardHeight + HomeChallengeHUDView.surfaceInsetY * 2)
         entryX = modePanelLeading
         needsLayout = true
     }
@@ -63,53 +67,36 @@ final class HomeModeHeaderView: NSView {
         return hit === self ? nil : hit
     }
 
-    func refresh(snapshot: GameSnapshot, mode: HomeGameMode, isStarting: Bool) {
-        let shouldShowCard = mode != .free || (!isStarting && (snapshot.isRunning || snapshot.isFinished))
+    func refresh(snapshot: GameSnapshot, mode: HomeGameMode) {
         let changedMode = selectedMode.map { $0 != mode } ?? false
-        let previousView = showsCard ? card as NSView : intro
-        if changedMode, showsCard {
-            // 切换挑战时保留旧卡的快照，避免滑出过程中先变成下一种模式。
+        let reuseIncoming = changedMode && !spareCard.isHidden && spareCard.mode == mode
+        if changedMode {
+            // 离场卡保留自己的快照，连续切换时只在回到同一模式后续用它的位置。
             let previousCard = card
             card = spareCard
             spareCard = previousCard
-        } else if changedMode, shouldShowCard, !spareCard.isHidden, spareCard.mode == mode {
-            // 用户在返回过程中改主意时，沿用仍在画面中的同一张卡。
-            let nextCard = spareCard
-            spareCard = card
-            card = nextCard
         }
-        let activeView = shouldShowCard ? card as NSView : intro
         selectedMode = mode
-        showsCard = shouldShowCard
         card.refresh(snapshot: snapshot, mode: mode)
-        if activeView === intro { intro.refresh(mode: mode) }
+        intro.refresh(mode: mode)
 
-        if changedMode, previousView !== activeView, window != nil, column.width > 0, !reducesMotion() {
-            animate(from: previousView, to: activeView, entersFromRight: shouldShowCard)
-        } else if changedMode || previousView !== activeView || transition == nil {
+        if changedMode, window != nil, cardColumn.width > 0, !reducesMotion() {
+            animate(reuseIncoming: reuseIncoming)
+        } else if changedMode || transition == nil {
             settle()
         }
     }
 
-    private func animate(from outgoing: NSView, to incoming: NSView, entersFromRight: Bool) {
-        // 位置以列宽为单位保存，快速切换和调整窗口大小时从当前画面继续。
-        let direction: CGFloat = entersFromRight ? 1 : -1
-        let incomingWasVisible = !incoming.isHidden
-        let incomingScale = incomingWasVisible ? scale(of: incoming) : entersFromRight ? Self.distantScale : Self.fullScale
-        let initialX = entersFromRight ? min(entryX, visibleRightEdge - column.width * incomingScale.width - 6) : column.minX - column.width
-        let initialOffset = (initialX - column.minX) / column.width
-        transition = Transition(outgoing: outgoing, incoming: incoming, direction: direction,
-                                start: now(), duration: entersFromRight ? Self.previewDuration : 0.46,
-                                outgoingOffset: (outgoing.frame.minX - column.minX) / column.width,
-                                incomingOffset: incomingWasVisible ? (incoming.frame.minX - column.minX) / column.width : initialOffset,
-                                outgoingScale: scale(of: outgoing), incomingScale: incomingScale,
-                                outgoingAlpha: outgoing.alphaValue,
-                                incomingAlpha: incomingWasVisible ? incoming.alphaValue : 0)
-        for item in subviews {
-            item.isHidden = item !== incoming && item !== outgoing
-            item.setAccessibilityHidden(item !== incoming)
-        }
-        addSubview(incoming, positioned: .above, relativeTo: outgoing)
+    private func animate(reuseIncoming: Bool) {
+        // 以卡面宽度为单位记录位置，重设窗口尺寸时进度可按比例继续。
+        let right = visibleRightEdge - cardColumn.width * Self.distantScale - 6
+        let launchX = min(entryX, right)
+        let launch = Pose(offset: (launchX - cardColumn.minX) / cardColumn.width, scale: Self.distantScale, alpha: 0)
+        transition = Transition(start: now(), outgoing: pose(of: spareCard), incoming: reuseIncoming ? pose(of: card) : launch)
+        card.isHidden = false
+        card.setAccessibilityHidden(false)
+        spareCard.setAccessibilityHidden(true)
+        addSubview(card, positioned: .above, relativeTo: spareCard)
         placeSubviews()
 
         timer?.invalidate()
@@ -124,18 +111,19 @@ final class HomeModeHeaderView: NSView {
         return min(bounds.maxX, convert(window.convertPoint(fromScreen: point), from: nil).x)
     }
 
-    private func scale(of view: NSView) -> NSSize {
-        guard view !== intro else { return Self.fullScale }
-        return NSSize(width: view.frame.width / column.width, height: view.frame.height / Self.cardHeight)
+    private func pose(of view: HomeChallengeHUDView) -> Pose {
+        Pose(offset: (view.frame.minX - cardColumn.minX) / cardColumn.width,
+             scale: view.bounds.width > 0 ? view.frame.width / view.bounds.width : 1,
+             alpha: view.alphaValue)
     }
 
     func advanceAnimation() {
         guard var transition else { return }
         let elapsed = max(0, now() - transition.start)
-        if elapsed >= transition.duration || reducesMotion() {
+        if elapsed >= Self.previewDuration || reducesMotion() {
             settle()
         } else {
-            transition.fraction = CGFloat(elapsed / transition.duration)
+            transition.fraction = CGFloat(elapsed / Self.previewDuration)
             self.transition = transition
             placeSubviews()
         }
@@ -155,117 +143,123 @@ final class HomeModeHeaderView: NSView {
         transition = nil
         timer?.invalidate()
         timer = nil
-        let activeView = showsCard ? card as NSView : intro
-        for item in subviews {
-            item.isHidden = item !== activeView
-            item.setAccessibilityHidden(item !== activeView)
-            item.alphaValue = 1
-        }
+        card.isHidden = false
+        card.setAccessibilityHidden(false)
+        spareCard.isHidden = true
+        spareCard.setAccessibilityHidden(true)
         placeSubviews()
     }
 
     private func placeSubviews() {
-        guard let transition else {
-            place(intro, offset: 0)
-            place(card, offset: 0)
-            place(spareCard, offset: 0)
+        guard let transition, cardColumn.width > 0 else {
+            place(card, pose: Pose(offset: 0, scale: 1, alpha: 1))
+            place(spareCard, pose: Pose(offset: 0, scale: 1, alpha: 1))
             card.revealFraction = nil
             spareCard.revealFraction = nil
             return
         }
         let t = transition.fraction
         let travel = t * t * (3 - 2 * t)
-        let incomingScale = NSSize(width: transition.incomingScale.width + (1 - transition.incomingScale.width) * travel,
-                                   height: transition.incomingScale.height + (1 - transition.incomingScale.height) * travel)
-        var incomingOffset = transition.incomingOffset * (1 - travel)
-        if transition.incoming !== intro, column.width > 0 {
-            // 窗口缩放期间也限制卡片右端，始终以完整卡面的实际尺寸计算。
-            let rightmostOffset = (bounds.maxX - column.minX) / column.width - incomingScale.width
-            incomingOffset = min(incomingOffset, rightmostOffset)
-        }
-        var outgoingOffset = transition.outgoingOffset * (1 - travel) - transition.direction * travel
-        var exitProgress = travel
-        if transition.outgoing === intro, transition.direction > 0, column.width > 0 {
-            // 卡片前沿先接近实际文字，再推着文字离场，避免两者隔着一整列空白一起移动。
-            let textWidth = min(1, (intro.contentWidth + 14) / column.width)
-            outgoingOffset = min(transition.outgoingOffset, incomingOffset - textWidth)
-            exitProgress = min(1, max(0, -outgoingOffset / textWidth))
-        }
-        place(transition.outgoing, offset: outgoingOffset, scale: transition.outgoingScale)
-        place(transition.incoming, offset: incomingOffset, scale: incomingScale)
-        transition.outgoing.alphaValue = transition.outgoingAlpha * (1 - exitProgress * exitProgress)
-        transition.incoming.alphaValue = transition.incomingAlpha + (1 - transition.incomingAlpha) * sqrt(travel)
-        (transition.outgoing as? HomeChallengeHUDView)?.revealFraction = nil
-        (transition.incoming as? HomeChallengeHUDView)?.revealFraction = travel
+        let incoming = transition.incoming
+        let scale = incoming.scale + (1 - incoming.scale) * travel
+        let rightmostOffset = (bounds.maxX - cardColumn.minX) / cardColumn.width - scale
+        let offset = min(incoming.offset * (1 - travel), rightmostOffset)
+        place(card, pose: Pose(offset: offset, scale: scale, alpha: incoming.alpha + (1 - incoming.alpha) * sqrt(travel)))
+        card.revealFraction = travel
+
+        let outgoing = transition.outgoing
+        place(spareCard, pose: Pose(offset: outgoing.offset * (1 - travel) - 0.08 * travel,
+                                    scale: outgoing.scale, alpha: outgoing.alpha * (1 - travel)))
+        spareCard.revealFraction = nil
     }
 
-    private func place(_ view: NSView, offset: CGFloat, scale: NSSize = HomeModeHeaderView.fullScale) {
-        let x = column.minX + offset * column.width
-        if view === intro {
-            view.frame = NSRect(x: x, y: column.minY, width: column.width, height: column.height)
-        } else {
-            // 按完整卡面的坐标绘制，再缩放整个视图，使数字、图案和阴影一起放大。
-            view.frame = NSRect(x: x, y: column.minY - HomeChallengeHUDView.surfaceInsetY * scale.height,
-                                width: column.width * scale.width, height: Self.cardHeight * scale.height)
-            view.bounds = NSRect(x: 0, y: 0, width: column.width, height: Self.cardHeight)
-        }
+    private func place(_ view: HomeChallengeHUDView, pose: Pose) {
+        // 入场全程等比缩放，使卡片斜边和文字角度在移动时也保持一致。
+        view.frame = NSRect(x: cardColumn.minX + pose.offset * cardColumn.width,
+                            y: cardColumn.minY - HomeChallengeHUDView.surfaceInsetY * pose.scale,
+                            width: cardColumn.width * pose.scale, height: cardColumn.height * pose.scale)
+        view.bounds = NSRect(origin: .zero, size: cardColumn.size)
+        view.alphaValue = pose.alpha
     }
 }
 
 private final class HomeModeIntroView: NSView {
     private let heading = NSTextField(wrappingLabelWithString: "")
     private let subtitle = NSTextField(wrappingLabelWithString: "")
+    private var title = ""
 
     override var isFlipped: Bool { true }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        heading.textColor = HomeStyle.ink
-        subtitle.textColor = HomeStyle.secondary.withAlphaComponent(0.82)
-        subtitle.font = .systemFont(ofSize: 19, weight: .medium)
+        subtitle.textColor = HomeDashboardStyle.muted
         addSubview(heading)
         addSubview(subtitle)
     }
 
     required init?(coder: NSCoder) { nil }
 
-    var contentWidth: CGFloat {
-        max(lineWidth(in: heading), lineWidth(in: subtitle))
-    }
-
-    private func lineWidth(in label: NSTextField) -> CGFloat {
-        guard let font = label.font else { return 0 }
-        return label.stringValue.split(separator: "\n").map { line in
-            (String(line) as NSString).size(withAttributes: [.font: font]).width
-        }.max() ?? 0
-    }
-
     func refresh(mode: HomeGameMode) {
-        heading.stringValue = AchievementText.string("home.hero.\(mode.key)")
-        subtitle.stringValue = AchievementText.string("home.subtitle.\(mode.key)")
+        let newTitle = AchievementText.string("home.hero.\(mode.key)")
+        let newSubtitle = AchievementText.string("home.subtitle.\(mode.key)")
+        guard title != newTitle || subtitle.stringValue != newSubtitle else { return }
+        title = newTitle
+        subtitle.stringValue = newSubtitle
+        needsLayout = true
     }
 
     override func layout() {
         super.layout()
-        let headingY: CGFloat = 20
-        let subtitleY = max(headingY, bounds.height - 42)
-        let headingHeight = max(0, subtitleY - headingY - 8)
-        let textWidth = max(0, bounds.width - 4)
-        var fontSize = min(60, max(44, bounds.width * 0.092))
-        // 先给副标题留出独立区域，再按语言和窗口宽高调整主标题字级。
-        while fontSize > 32 {
-            let font = NSFont.systemFont(ofSize: fontSize, weight: .heavy)
-            let textSize = (heading.stringValue as NSString).boundingRect(
-                with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
-                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]
-            )
-            if ceil(textSize.height) + 4 <= headingHeight { break }
-            fontSize -= 1
+        let textWidth = max(1, bounds.width - 8)
+        let headingY = min(10, bounds.height * 0.04)
+        let headingMaxHeight = bounds.height * 0.68
+        let lines = title.split(separator: "\n")
+        var size = min(66, max(24, bounds.width * 0.21), bounds.height * 0.32)
+        var font = NSFont.systemFont(ofSize: size, weight: .heavy)
+        // 本地化后的两行标题需同时满足宽度和高度，以免副标题被挤出。
+        while size > 17 {
+            let maxWidth = lines.map { (String($0) as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
+            if maxWidth <= textWidth, textHeight(title, width: textWidth, font: font) <= headingMaxHeight { break }
+            size -= 1
+            font = .systemFont(ofSize: size, weight: .heavy)
         }
-        heading.font = .systemFont(ofSize: fontSize, weight: .heavy)
+        let styled = NSMutableAttributedString(string: title, attributes: HomeDashboardStyle.textAttributes(font: font))
+        let divider = (title as NSString).range(of: "\n")
+        if divider.location != NSNotFound {
+            let start = NSMaxRange(divider)
+            styled.addAttribute(.foregroundColor, value: HomeDashboardStyle.yellow, range: NSRange(location: start, length: styled.length - start))
+        }
+        heading.attributedStringValue = styled
         heading.preferredMaxLayoutWidth = bounds.width
-        subtitle.preferredMaxLayoutWidth = bounds.width
+        let headingHeight = min(headingMaxHeight, textHeight(title, width: textWidth, font: font) + 4)
         heading.frame = NSRect(x: 0, y: headingY, width: bounds.width, height: headingHeight)
-        subtitle.frame = NSRect(x: 0, y: subtitleY, width: bounds.width, height: 42)
+
+        let subtitleY = heading.frame.maxY + 8
+        let available = max(0, bounds.height - subtitleY - 12)
+        var subtitleSize = min(20, max(11, bounds.width * 0.063))
+        var subtitleFont = NSFont.systemFont(ofSize: subtitleSize, weight: .medium)
+        while subtitleSize > 10, textHeight(subtitle.stringValue, width: textWidth, font: subtitleFont) > available {
+            subtitleSize -= 1
+            subtitleFont = .systemFont(ofSize: subtitleSize, weight: .medium)
+        }
+        subtitle.attributedStringValue = NSAttributedString(string: subtitle.stringValue,
+            attributes: HomeDashboardStyle.textAttributes(font: subtitleFont, color: HomeDashboardStyle.muted))
+        subtitle.preferredMaxLayoutWidth = bounds.width
+        let subtitleHeight = min(available, textHeight(subtitle.stringValue, width: textWidth, font: subtitleFont) + 2)
+        subtitle.frame = NSRect(x: 0, y: subtitleY, width: bounds.width, height: subtitleHeight)
+        needsDisplay = true
+    }
+
+    private func textHeight(_ value: String, width: CGFloat, font: NSFont) -> CGFloat {
+        ceil((value as NSString).boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                                              options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]).height)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard !title.isEmpty else { return }
+        let width = min(78, bounds.width * 0.25)
+        let y = min(bounds.maxY - 4, subtitle.frame.maxY + 11)
+        let underline = HomeDashboardStyle.slant(NSRect(x: 10, y: y, width: width, height: 4))
+        NSGradient(colors: [HomeDashboardStyle.yellow, HomeDashboardStyle.yellow, .clear])?.draw(in: underline, angle: 0)
     }
 }

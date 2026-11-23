@@ -13,7 +13,8 @@ final class HomeUtilityPanel: NSWindowController {
     private let content: UtilityPageView
     private let language = UtilityLanguagePopup(frame: .zero, pullsDown: false)
     private let volume = NSSlider(value: 1, minValue: 0, maxValue: 1, target: nil, action: nil)
-    private let percent = UtilityStyle.label("", size: 18, weight: .bold)
+    private let percent = UtilityStyle.label("", size: 18, weight: .bold, color: HomeDashboardStyle.yellow,
+                                             alignment: .right, monospacedDigits: true)
     private let recordTabs = AchievementFilterControl(frame: .zero)
     private let recordBody = UtilityStyle.stack([])
     private let store: ModeRecordStore
@@ -28,8 +29,8 @@ final class HomeUtilityPanel: NSWindowController {
         let size = NSSize(width: page == "settings" ? 540 : 600, height: page == "settings" ? 430 : 740)
         let panel = HomeAuxiliaryWindow(contentRect: NSRect(origin: .zero, size: size),
                                         styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.isReleasedWhenClosed = false; panel.appearance = NSAppearance(named: .aqua)
-        panel.backgroundColor = HomeStyle.background; panel.hidesOnDeactivate = true
+        panel.isReleasedWhenClosed = false; panel.appearance = NSAppearance(named: .darkAqua)
+        panel.backgroundColor = HomeDashboardStyle.navy; panel.hidesOnDeactivate = true
         content.frame = NSRect(origin: .zero, size: size); content.autoresizingMask = [.width, .height]
         panel.contentView = content
         super.init(window: panel)
@@ -37,7 +38,6 @@ final class HomeUtilityPanel: NSWindowController {
         language.focusRingType = .exterior; language.target = self; language.action = #selector(languageChanged)
         volume.cell = UtilityVolumeSliderCell(); volume.minValue = 0; volume.maxValue = 1
         volume.isContinuous = true; volume.target = self; volume.action = #selector(volumeChanged)
-        percent.font = .monospacedDigitSystemFont(ofSize: 18, weight: .bold); percent.alignment = .right
         recordTabs.segmentCount = 2; recordTabs.segmentSymbols = [HomeGameMode.timed.symbol, HomeGameMode.moves.symbol]
         recordTabs.selectedSegment = 0; recordTabs.target = self; recordTabs.action = #selector(recordModeChanged)
         // 固定尺寸只注册一次，语言切换时仅重建排版与文案。
@@ -82,21 +82,21 @@ final class HomeUtilityPanel: NSWindowController {
         let languageStack = UtilityStyle.stack([settingHeading("globe", title: "language.label", detail: "utility.settings.language_hint"), language], spacing: 16)
         UtilityStyle.fillWidth(language, in: languageStack)
         content.addSection(UtilityCard(languageStack))
-        let sliderRow = UtilityStyle.stack([UtilityStyle.icon("speaker.fill", color: HomeStyle.secondary, size: 16), volume, percent], vertical: false, spacing: 14)
+        let sliderRow = UtilityStyle.stack([UtilityStyle.icon("speaker.fill", color: HomeDashboardStyle.muted, size: 16), volume, percent], vertical: false, spacing: 14)
         volume.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let volumeStack = UtilityStyle.stack([settingHeading("speaker.wave.2.fill", title: "volume.label", detail: "utility.settings.volume_hint"), sliderRow], spacing: 14)
         UtilityStyle.fillWidth(sliderRow, in: volumeStack)
         content.addSection(UtilityCard(volumeStack))
-        let footnote = UtilityStyle.stack([UtilityStyle.icon("checkmark.circle.fill", color: HomeStyle.green, size: 16),
-                                          UtilityStyle.label(UtilityStyle.text("utility.settings.instant"), size: 11, color: HomeStyle.secondary)], vertical: false, spacing: 7)
+        let footnote = UtilityStyle.stack([UtilityStyle.icon("checkmark.circle.fill", color: HomeDashboardStyle.green, size: 16),
+                                          UtilityStyle.label(UtilityStyle.text("utility.settings.instant"), size: 11, color: HomeDashboardStyle.muted)], vertical: false, spacing: 7)
         content.addSection(footnote)
         language.setAccessibilityLabel(UtilityStyle.text("language.label")); volume.setAccessibilityLabel(UtilityStyle.text("volume.label"))
     }
 
     private func settingHeading(_ symbol: String, title: String, detail: String) -> NSView {
         let copy = UtilityStyle.stack([UtilityStyle.label(UtilityStyle.text(title), size: 15, weight: .bold),
-                                       UtilityStyle.label(UtilityStyle.text(detail), size: 12, color: HomeStyle.secondary)], spacing: 4)
-        return UtilityStyle.stack([UtilityStyle.icon(symbol, color: HomeStyle.blue, size: 26), copy], vertical: false, spacing: 13)
+                                       UtilityStyle.label(UtilityStyle.text(detail), size: 12, color: HomeDashboardStyle.muted)], spacing: 4)
+        return UtilityStyle.stack([UtilityStyle.icon(symbol, color: HomeDashboardStyle.cyan, size: 26), copy], vertical: false, spacing: 13)
     }
     private func recordEntries(_ mode: ModeRecordKey) -> [ModeRecord] { store.records(for: mode, detailValue: mode == .timed ? 60 : 30) }
 
@@ -104,7 +104,7 @@ final class HomeUtilityPanel: NSWindowController {
         for view in recordBody.arrangedSubviews { recordBody.removeArrangedSubview(view); view.removeFromSuperview() }
         let mode: ModeRecordKey = recordTabs.selectedSegment == 0 ? .timed : .moves
         let entries = recordEntries(mode)
-        for view in [UtilityRecordBestView(mode: mode, entry: entries.first), UtilityRecordContent.table(mode: mode, entries: entries)] {
+        for view in [UtilityRecordContent.best(mode: mode, entry: entries.first), UtilityRecordContent.table(entries: entries)] {
             recordBody.addArrangedSubview(view); UtilityStyle.fillWidth(view, in: recordBody)
         }
         let sections = store.legacySections()
@@ -120,8 +120,8 @@ final class HomeUtilityPanel: NSWindowController {
             recordBody.addArrangedSubview(historyButton); UtilityStyle.fillWidth(historyButton, in: recordBody)
             if showingHistory {
                 for section in sections {
-                    let card = UtilityRecordContent.legacyTable(section)
-                    recordBody.addArrangedSubview(card); UtilityStyle.fillWidth(card, in: recordBody)
+                    let list = UtilityRecordContent.legacyTable(section)
+                    recordBody.addArrangedSubview(list); UtilityStyle.fillWidth(list, in: recordBody)
                 }
             }
         }
@@ -147,7 +147,9 @@ final class HomeUtilityPanel: NSWindowController {
         onLanguage?(AppLanguage.allCases[language.indexOfSelectedItem])
     }
     private func updateVolumeLabel() {
-        percent.stringValue = "\(Int((volume.doubleValue * 100).rounded()))%"; volume.setAccessibilityValue(percent.stringValue)
+        let text = "\(Int((volume.doubleValue * 100).rounded()))%"
+        UtilityStyle.setText(text, on: percent)
+        volume.setAccessibilityValue(text)
     }
     @objc private func volumeChanged() { updateVolumeLabel(); onVolume?(Float(volume.doubleValue)) }
     @objc private func recordModeChanged() {

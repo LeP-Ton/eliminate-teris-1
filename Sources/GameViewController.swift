@@ -561,25 +561,11 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
 
 }
 
-/// 辅助面板沿用首页的暖白背景，保留共用组件入口以减少主题分歧。
+/// 成就图鉴与大厅共用深色斜纹背景。
 final class ArcadeStageView: NSView {
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
-        HomeStyle.background.setFill()
-        bounds.fill()
-    }
-}
-
-/// 成就列表共用的轻量卡片，解锁状态通过边框颜色及图标共同表示。
-final class PixelFrameCardView: NSView {
-    private let accentColor: NSColor
-    init(accentColor: NSColor) {
-        self.accentColor = accentColor
-        super.init(frame: .zero)
-    }
-    required init?(coder: NSCoder) { nil }
-    override func draw(_ dirtyRect: NSRect) {
-        HomeStyle.card(bounds, border: accentColor == HomeStyle.green ? HomeStyle.green.withAlphaComponent(0.5) : HomeStyle.border)
+        HomeDashboardStyle.backdrop(in: bounds)
     }
 }
 

@@ -161,14 +161,15 @@ final class GameIconPresentationTests: AchievementTestCase {
                         let verticalScale = CGFloat(pixels.pixelsHigh) / badge.bounds.height
                         var minX = pixels.pixelsWide, minY = pixels.pixelsHigh, maxX = -1, maxY = -1
                         var statusMinX = pixels.pixelsWide, statusMaxX = -1
-                        // 状态标记单独检查；居中测量仅包含成就图案与文字，忽略浅色卡片和边框。
+                        // 状态标记单独检查；按亮度将图案与文字从深色卡面中提取。
+                        let statusCenter = max(14, HomeDashboardStyle.edgeOffset(for: badge.bounds.height / 2) + 4) + 9
                         let insetX = Int(8 * scale), insetY = Int(4 * verticalScale)
                         for y in stride(from: insetY, to: pixels.pixelsHigh - insetY, by: 2) {
                             for x in stride(from: insetX, to: pixels.pixelsWide - insetX, by: 2) {
                                 guard let color = pixels.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
                                       color.alphaComponent > 0.5,
-                                      min(color.redComponent, color.greenComponent, color.blueComponent) < 0.78 else { continue }
-                                if CGFloat(x) / scale < 34 {
+                                      max(color.redComponent, color.greenComponent, color.blueComponent) > 0.58 else { continue }
+                                if CGFloat(x) / scale < statusCenter + 11 {
                                     statusMinX = min(statusMinX, x); statusMaxX = max(statusMaxX, x)
                                 } else {
                                     minX = min(minX, x); maxX = max(maxX, x)
@@ -178,8 +179,8 @@ final class GameIconPresentationTests: AchievementTestCase {
                         }
                         XCTAssertGreaterThan(maxX, minX)
                         XCTAssertGreaterThan(statusMaxX, statusMinX, "完成/锁定标记应独立保留在左侧")
-                        XCTAssertEqual(CGFloat(statusMinX + statusMaxX + 1) / (2 * scale), 23, accuracy: 2,
-                                       "状态标记位置不应随名称或窗口宽度改变")
+                        XCTAssertEqual(CGFloat(statusMinX + statusMaxX + 1) / (2 * scale), statusCenter, accuracy: 2,
+                                       "状态标记与斜边的间距不应随名称或窗口宽度改变")
                         let centerX = CGFloat(minX + maxX + 1) / (2 * scale)
                         let centerY = CGFloat(minY + maxY + 1) / (2 * verticalScale)
                         // 与实际绘制相比，隔点取样及浅色边缘过滤会略微改变测得的轮廓。

@@ -3,7 +3,64 @@ import Cocoa
 /// 左侧局内面板从同一份快照展示剩余预算、消除总数和四类方块明细。
 final class HomeChallengeHUDView: NSView {
     static let surfaceInsetY: CGFloat = 5
-    var surfaceRect: NSRect { bounds.insetBy(dx: 3, dy: Self.surfaceInsetY) }
+    static let trailingInset: CGFloat = 3
+    private static let rearOverhang: CGFloat = 0.08
+    private static let rearTopInset: CGFloat = 45 / 636
+
+    static func leadingInset(for width: CGFloat, height: CGFloat) -> CGFloat {
+        max(width * rearOverhang, HomeDashboardStyle.edgeOffset(for: height) + 1 - width * rearTopInset)
+    }
+
+    var surfaceRect: NSRect {
+        let height = max(0, bounds.height - 2 * Self.surfaceInsetY)
+        let available = bounds.width - Self.trailingInset
+        // 窄窗背板向左伸得更远，为斜边和描线留出完整空间。
+        let rearWidth = (available - HomeDashboardStyle.edgeOffset(for: height) - 1) / (1 - Self.rearTopInset)
+        let width = max(0, min(available / (1 + Self.rearOverhang), rearWidth))
+        return NSRect(x: Self.leadingInset(for: width, height: height), y: Self.surfaceInsetY, width: width, height: height)
+    }
+
+    var breakdownCellRects: [NSRect] { Face(frame: surfaceRect).breakdownCellRects }
+
+    /// 设计稿坐标以底部分格左边缘为参考。背板可以越过这个边缘，在前层左侧露出。
+    private struct Face {
+        let frame: NSRect
+        var typographyScale: CGFloat { min(frame.width / 636, frame.height / 186) }
+
+        var rules: NSRect { plate(from: point(455, 123), to: point(1046, 309)) }
+        var totals: NSRect { plate(from: point(472, 175), to: point(1033, 255)) }
+
+        var breakdownCellRects: [NSRect] {
+            let total = totals
+            let height = point(410, 308).y - total.maxY
+            let cut = HomeDashboardStyle.edgeOffset(for: height)
+            let count = CGFloat(PieceKind.allCases.count)
+            let available = total.width - HomeDashboardStyle.edgeOffset(for: total.height)
+            let gap = 10 * typographyScale
+            let cellWidth = max(0, (available - gap * (count - 1)) / count)
+            return PieceKind.allCases.indices.map { index in
+                NSRect(x: total.minX - cut + CGFloat(index) * (cellWidth + gap), y: total.maxY,
+                       width: cellWidth + cut, height: height)
+            }
+        }
+
+        private func plate(from topLeft: NSPoint, to rightAndBottom: NSPoint) -> NSRect {
+            let height = rightAndBottom.y - topLeft.y
+            let x = topLeft.x - HomeDashboardStyle.edgeOffset(for: height)
+            return NSRect(x: x, y: topLeft.y, width: rightAndBottom.x - x, height: height)
+        }
+
+        func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
+            NSPoint(x: frame.minX + (x - 410) / 636 * frame.width,
+                    y: frame.minY + (y - 123) / 186 * frame.height)
+        }
+
+        func box(_ x: CGFloat, _ y: CGFloat, width: CGFloat, height: CGFloat) -> NSRect {
+            let origin = point(x, y)
+            let end = point(x + width, y + height)
+            return NSRect(x: origin.x, y: origin.y, width: end.x - origin.x, height: end.y - origin.y)
+        }
+    }
     private(set) var snapshot: GameSnapshot?
     private(set) var mode: HomeGameMode = .timed
     var revealFraction: CGFloat? { didSet { if oldValue != revealFraction { needsDisplay = true } } }
@@ -38,7 +95,7 @@ final class HomeChallengeHUDView: NSView {
 
     func refresh(snapshot: GameSnapshot, mode: HomeGameMode) {
         self.snapshot = snapshot; self.mode = mode
-        var labels: [String] = []
+        var labels = [modeCaption]
         if showsBudget { labels.append(AchievementText.string(budgetLabelKey) + ": " + budgetText) }
         labels.append(AchievementText.string("home.cleared_title") + ": \(snapshot.totalCleared)")
         labels += PieceKind.allCases.map { kind in
@@ -49,114 +106,213 @@ final class HomeChallengeHUDView: NSView {
         needsDisplay = true
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        guard let snapshot else { return }
-        let urgent = showsBudget && snapshot.isRunning && !snapshot.isFinished && remainingFraction <= (mode == .timed ? 1.0 / 6 : 1.0 / 5)
-        let accent: NSColor = urgent ? .systemRed : mode == .timed ? GameLobbyStyle.amber : mode == .moves ? HomeStyle.blue : GameLobbyStyle.teal
-        let face = surfaceRect
-        let depth = revealFraction.map { 1 - $0 } ?? 0
-        if depth > 0 {
-            // 在卡面右下缘露出带色的厚度，转正时收回到静态卡面的阴影中。
-            let side = face.offsetBy(dx: 2.5 * depth, dy: 4.5 * depth)
-            GameLobbyStyle.gradient(side, colors: [accent.withAlphaComponent(0.26 * depth),
-                                                  accent.withAlphaComponent(0.68 * depth)], radius: 18)
-        }
-        GameLobbyStyle.surface(face, radius: 18, tint: NSColor(calibratedRed: 1, green: 0.99, blue: 0.96, alpha: 1), strength: 0.07 + 0.13 * depth)
-        // 扣除挑战预算后，消除总数占三分之一，其余宽度交给四类方块明细。
-        let content = face.insetBy(dx: 20, dy: 18)
-        let budgetWidth = showsBudget ? content.width * 0.27 : 0
-        let totalWidth = (content.width - budgetWidth) / 3
-        let totalX = content.minX + budgetWidth
-        let breakdownX = totalX + totalWidth
-        let metricTop = content.minY + (showsBudget ? 4 : 16)
-        GameLobbyStyle.glow(NSRect(x: face.minX, y: face.minY, width: budgetWidth + totalWidth, height: face.height),
-                            color: accent.withAlphaComponent(0.08))
-        if showsBudget {
-            drawMetric(budgetText, label: budgetLabelKey, x: content.minX, y: metricTop,
-                       width: budgetWidth - 17, color: urgent ? .systemRed : HomeStyle.ink)
-            drawDivider(at: totalX - 9, from: metricTop, to: metricTop + 76)
-        }
-        drawMetric(String(snapshot.totalCleared), label: "home.cleared_title", x: totalX, y: metricTop,
-                   width: totalWidth - 17, color: HomeStyle.ink)
-        drawBreakdown(snapshot, in: NSRect(x: breakdownX, y: metricTop + 33, width: content.maxX - breakdownX, height: 28))
-        if showsBudget {
-            drawTrack(NSRect(x: content.minX, y: content.maxY - 6, width: content.width, height: 6), accent: accent, snapshot: snapshot)
-        }
-        if let revealFraction { drawRevealHighlight(in: face, accent: accent, fraction: revealFraction) }
+    private var modeCaption: String {
+        let title = AchievementText.string("home.mode.\(mode.key)")
+        let description = AchievementText.string("home.mode_desc.\(mode.key)")
+        return title + " · " + description.trimmingCharacters(in: CharacterSet(charactersIn: "。."))
     }
 
-    private func drawRevealHighlight(in face: NSRect, accent: NSColor, fraction: CGFloat) {
-        // 随滑入从右向左掠过一次，收尾时完全淡出，只照亮卡面。
-        let intensity = sin(.pi * fraction)
-        guard intensity > 0 else { return }
+    override func draw(_ dirtyRect: NSRect) {
+        let surface = surfaceRect
+        guard let snapshot, surface.width > 40, surface.height > 45 else { return }
+        let urgent = showsBudget && snapshot.isRunning && !snapshot.isFinished && remainingFraction <= (mode == .timed ? 1.0 / 6 : 1.0 / 5)
+        let accent = urgent ? NSColor.systemRed : HomeDashboardStyle.cyan
+        let face = Face(frame: surface)
+        let total = HomeDashboardStyle.slant(face.totals)
+        if let revealFraction {
+            let depth = 1 - revealFraction
+            NSGraphicsContext.saveGraphicsState()
+            let offset = NSAffineTransform()
+            offset.translateX(by: 2.5 * depth, yBy: 4.5 * depth)
+            offset.concat()
+            accent.withAlphaComponent(0.46 * depth).setFill()
+            total.fill()
+            NSGraphicsContext.restoreGraphicsState()
+        }
+
+        drawRules(on: face)
+        // 总数牌压在规则背板上，独立描边在左右两侧形成错位。
+        fill(total, colors: [HomeDashboardStyle.color(0x17232D), HomeDashboardStyle.color(0x0C151E),
+                             HomeDashboardStyle.color(0x101A25)], angle: 14,
+             border: HomeDashboardStyle.color(0x57636B))
+        drawTotals(snapshot, on: face, accent: accent)
+        drawBreakdown(snapshot, on: face)
+        if let revealFraction { drawRevealHighlight(in: surface, outline: total, accent: accent, fraction: revealFraction) }
+    }
+
+    private func drawRules(on face: Face) {
+        let plate = face.rules
+        let blue = HomeDashboardStyle.color(0x203547)
+        NSGradient(colors: [blue.withAlphaComponent(0.62), blue.withAlphaComponent(0.30), blue.withAlphaComponent(0)])?
+            .draw(in: HomeDashboardStyle.slant(plate), angle: 90)
+        let rim = HomeDashboardStyle.color(0x657681)
+        let cut = HomeDashboardStyle.edgeOffset(for: plate.height)
+        let topLeft = NSPoint(x: plate.minX + cut, y: plate.minY)
+        let topRight = NSPoint(x: plate.maxX, y: plate.minY)
+        let joinY = face.totals.minY
+        let joinX = plate.maxX - HomeDashboardStyle.edgeOffset(for: joinY - plate.minY)
+        HomeDashboardStyle.line(from: topLeft, to: topRight, color: rim.withAlphaComponent(0.80), width: 1.25)
+        HomeDashboardStyle.line(from: topRight, to: NSPoint(x: joinX, y: joinY), color: rim.withAlphaComponent(0.65), width: 1.25)
+        let leftRim = HomeDashboardStyle.slant(NSRect(x: plate.minX - 0.625, y: plate.minY,
+                                                      width: cut + 1.25, height: plate.height))
+        NSGradient(colors: [rim, rim.withAlphaComponent(0.58), rim.withAlphaComponent(0)])?.draw(in: leftRim, angle: 90)
+
+        for x: CGFloat in [482, 498] {
+            var mark = face.box(x, 138, width: 14, height: 20)
+            mark.size.width += HomeDashboardStyle.edgeOffset(for: mark.height)
+            HomeDashboardStyle.mark(in: mark)
+        }
+        let caption = face.box(535, 123, width: 478, height: 52)
+        let size = GameLobbyStyle.fittedSize(modeCaption, width: caption.width,
+                                             preferred: max(11, 18 * face.typographyScale), minimum: 9, weight: .bold)
+        label(modeCaption, x: caption.minX, y: caption.midY - 1, width: caption.width, size: size, weight: .bold,
+              color: HomeDashboardStyle.cyan)
+    }
+
+    private func drawTotals(_ snapshot: GameSnapshot, on face: Face, accent: NSColor) {
+        let body = face.box(478, 175, width: 506, height: 80)
+        let x = body.minX
+        let available = body.width
+        let right = body.maxX
+        if showsBudget {
+            let split = x + available * 0.48
+            let trackY = body.maxY - 8
+            let track = NSRect(x: x, y: trackY, width: right - x, height: 3)
+            drawTrack(track, accent: accent, snapshot: snapshot)
+            let separatorTop = body.minY + 8
+            let separatorBottom = trackY - 6
+            let separatorOffset = HomeDashboardStyle.edgeOffset(for: separatorBottom - separatorTop) / 2
+            let columnPadding = separatorOffset + 5
+            let metricY = body.midY - 4
+            drawStackedMetric(budgetText, labelKey: budgetLabelKey, center: metricY, x: x,
+                              width: split - x - columnPadding, height: body.height, color: accent, alignment: .left)
+            drawStackedMetric(String(snapshot.totalCleared), labelKey: "home.cleared_title", center: metricY,
+                              x: split + columnPadding, width: right - split - columnPadding, height: body.height,
+                              color: HomeDashboardStyle.ink, alignment: .right)
+            HomeDashboardStyle.line(from: NSPoint(x: split + separatorOffset, y: separatorTop),
+                                    to: NSPoint(x: split - separatorOffset, y: separatorBottom), color: HomeDashboardStyle.border)
+        } else {
+            let title = AchievementText.string("home.cleared_title")
+            let titleWidth = available * 0.48
+            let titleSize = GameLobbyStyle.fittedSize(title, width: titleWidth, preferred: max(12, 21 * face.typographyScale),
+                                                       minimum: 10, weight: .bold)
+            label(title, x: x, y: body.midY, width: titleWidth, size: titleSize, weight: .bold)
+            let value = String(snapshot.totalCleared)
+            let size = GameLobbyStyle.fittedSize(value, width: available - titleWidth - 8,
+                                                 preferred: max(24, 58 * face.typographyScale), minimum: 12, weight: .black)
+            count(value, in: NSRect(x: x + titleWidth, y: body.minY - 1, width: available - titleWidth, height: body.height),
+                  size: size, weight: .black, alignment: .right)
+        }
+    }
+
+    private func drawStackedMetric(_ value: String, labelKey: String, center: CGFloat, x: CGFloat, width: CGFloat,
+                                   height: CGFloat, color: NSColor, alignment: NSTextAlignment) {
+        let title = AchievementText.string(labelKey)
+        let titleSize = GameLobbyStyle.fittedSize(title, width: width, preferred: min(13, height * 0.26),
+                                                   minimum: 8, weight: .semibold)
+        let valueSize = GameLobbyStyle.fittedSize(value, width: width, preferred: min(38, height * 0.59),
+                                                   minimum: 11, weight: .heavy)
+        label(title, x: x, y: center - height * 0.24, width: width, size: titleSize, weight: .semibold,
+              color: HomeDashboardStyle.muted, alignment: alignment)
+        let number = NSRect(x: x, y: center - height * 0.39, width: width, height: height)
+        count(value, in: number, size: valueSize, weight: .heavy, color: color, alignment: alignment)
+    }
+
+    private func drawBreakdown(_ snapshot: GameSnapshot, on face: Face) {
+        // 各分格用独立轮廓，双斜边之间留出原稿中的暗缝。
+        let cells = face.breakdownCellRects
+        let rim = HomeDashboardStyle.color(0x55616A)
+        for (kind, cell) in zip(PieceKind.allCases, cells) {
+            let shape = HomeDashboardStyle.slant(cell)
+            fill(shape, colors: [HomeDashboardStyle.color(0x202B34), HomeDashboardStyle.color(0x121E29)],
+                 angle: 21, border: rim)
+            let cut = HomeDashboardStyle.edgeOffset(for: cell.height)
+            let padding = min(24, (cell.width - cut) * 0.18)
+            let content = cell.insetBy(dx: cut / 2 + padding, dy: 0)
+            // 图标按较短一边等比缩放，四格的图标起点和数字间距使用相同规则。
+            let scale = face.typographyScale
+            let icon = NSRect(x: content.minX, y: cell.midY - 15 * scale, width: 42 * scale, height: 30 * scale)
+            HomeLobbyArtwork.drawPiece(kind, in: icon)
+            let number = String(snapshot.clearedByKind[kind, default: 0])
+            let numberX = icon.maxX + 12 * scale
+            let slot = NSRect(x: numberX, y: cell.minY, width: max(0, content.maxX - numberX), height: cell.height)
+            let size = GameLobbyStyle.fittedSize(number, width: slot.width, preferred: max(11, 21 * face.typographyScale),
+                                                 minimum: 7, weight: .semibold)
+            count(number, in: slot, size: size, weight: .semibold)
+        }
+        if let first = cells.first, let last = cells.last {
+            let right = last.maxX - HomeDashboardStyle.edgeOffset(for: last.height)
+            HomeDashboardStyle.line(from: NSPoint(x: first.minX, y: first.maxY),
+                                    to: NSPoint(x: right, y: last.maxY), color: rim)
+        }
+    }
+
+    private func fill(_ shape: NSBezierPath, colors: [NSColor], angle: CGFloat, border: NSColor) {
+        NSGradient(colors: colors)?.draw(in: shape, angle: angle)
+        border.setStroke()
+        shape.lineWidth = 1.25
+        shape.stroke()
+    }
+
+    private func count(_ value: String, in slot: NSRect, size: CGFloat, weight: NSFont.Weight,
+                       color: NSColor = HomeDashboardStyle.ink, alignment: NSTextAlignment = .left) {
+        guard slot.width > 0 else { return }
+        let font = NSFont.systemFont(ofSize: size, weight: weight)
+        let width = max(slot.width, ceil((value as NSString).size(withAttributes: [.font: font]).width) + 2)
+        // 极窄窗口里的长数字仍保留全部位数，只压缩字形宽度。
         NSGraphicsContext.saveGraphicsState()
-        let outline = NSBezierPath(roundedRect: face, xRadius: 18, yRadius: 18)
-        outline.addClip()
-        let x = face.maxX + 90 - (face.width + 180) * fraction
-        let shine = NSBezierPath()
-        shine.move(to: NSPoint(x: x, y: face.minY))
-        shine.line(to: NSPoint(x: x + 135, y: face.minY))
-        shine.line(to: NSPoint(x: x + 83, y: face.maxY))
-        shine.line(to: NSPoint(x: x - 52, y: face.maxY))
-        shine.close()
-        NSGradient(colors: [.clear, .white.withAlphaComponent(0.42 * intensity), accent.withAlphaComponent(0.12 * intensity), .clear])?
-            .draw(in: shine, angle: 0)
-        accent.withAlphaComponent(0.32 * intensity).setStroke()
-        outline.lineWidth = 2
-        outline.stroke()
+        let fit = NSAffineTransform()
+        fit.translateX(by: slot.minX, yBy: 0)
+        fit.scaleX(by: slot.width / width, yBy: 1)
+        fit.concat()
+        label(value, x: 0, y: slot.midY, width: width, size: size, weight: weight, color: color, alignment: alignment)
         NSGraphicsContext.restoreGraphicsState()
     }
 
-    private func drawMetric(_ value: String, label key: String, x: CGFloat, y: CGFloat, width: CGFloat, color: NSColor) {
-        let label = AchievementText.string(key)
-        let labelSize = GameLobbyStyle.fittedSize(label, width: width, preferred: 13, minimum: 10, weight: .semibold)
-        HomeStyle.text(label, in: NSRect(x: x, y: y, width: width, height: 19), size: labelSize, weight: .semibold, color: HomeStyle.secondary)
-        let size = GameLobbyStyle.fittedSize(value, width: width, preferred: 44, minimum: 14, weight: .heavy)
-        let height = ceil((value as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .heavy)]).height)
-        HomeStyle.text(value, in: NSRect(x: x, y: y + 47 - height / 2, width: width, height: height), size: size, weight: .heavy, color: color)
+    private func label(_ value: String, x: CGFloat, y: CGFloat, width: CGFloat, size: CGFloat, weight: NSFont.Weight,
+                       color: NSColor = HomeDashboardStyle.ink, alignment: NSTextAlignment = .left) {
+        let height = ceil((value as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: weight)]).height)
+        HomeDashboardStyle.text(value, in: NSRect(x: x, y: y - height / 2, width: width, height: height + 1),
+                                size: size, weight: weight, color: color, alignment: alignment)
     }
 
-    private func drawDivider(at x: CGFloat, from top: CGFloat, to bottom: CGFloat) {
-        HomeStyle.border.withAlphaComponent(0.6).setStroke()
-        let divider = NSBezierPath()
-        divider.move(to: NSPoint(x: x, y: top))
-        divider.line(to: NSPoint(x: x, y: bottom))
-        divider.stroke()
-    }
-
-    private func drawBreakdown(_ snapshot: GameSnapshot, in rect: NSRect) {
-        let kinds = PieceKind.allCases
-        let slot = rect.width / CGFloat(kinds.count)
-        let iconWidth = min(36, slot * 0.46)
-        let gap: CGFloat = 6
-        let numberWidth = slot - iconWidth - gap - 6
-        // 四组都从各自的列左边缘排起，数字位数变化时图标之间仍然等距。
-        for (index, kind) in kinds.enumerated() {
-            let number = String(snapshot.clearedByKind[kind, default: 0])
-            let size = GameLobbyStyle.fittedSize(number, width: numberWidth, preferred: 18, minimum: 10, weight: .semibold)
-            let height = ceil((number as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .semibold)]).height)
-            let iconX = rect.minX + CGFloat(index) * slot
-            let numberX = iconX + iconWidth + gap
-            HomeStyle.piece(kind, in: NSRect(x: iconX, y: rect.minY, width: iconWidth, height: rect.height), shadow: false)
-            HomeStyle.text(number, in: NSRect(x: numberX, y: rect.midY - height / 2, width: numberWidth, height: height),
-                           size: size, weight: .semibold)
-        }
+    private func drawRevealHighlight(in face: NSRect, outline: NSBezierPath, accent: NSColor, fraction: CGFloat) {
+        // 斜光随卡面掠过一次，最终回到静态描边。
+        let intensity = sin(.pi * fraction)
+        guard intensity > 0 else { return }
+        NSGraphicsContext.saveGraphicsState()
+        outline.addClip()
+        let width = min(140, face.width * 0.32) + HomeDashboardStyle.edgeOffset(for: face.height)
+        let x = face.maxX + width - (face.width + width * 2) * fraction
+        let beam = NSRect(x: x, y: face.minY, width: width, height: face.height)
+        NSGradient(colors: [.clear, accent.withAlphaComponent(0.22 * intensity), .clear])?
+            .draw(in: HomeDashboardStyle.slant(beam), angle: 0)
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     private func drawTrack(_ track: NSRect, accent: NSColor, snapshot: GameSnapshot) {
-        HomeStyle.ink.withAlphaComponent(0.055).setFill()
-        NSBezierPath(roundedRect: track, xRadius: 2.5, yRadius: 2.5).fill()
+        let idleColor = HomeDashboardStyle.muted.withAlphaComponent(0.18)
         if mode == .moves {
             // 30 个可消耗格让有限行动可视化，最后一步完成后清空。
-            let gap: CGFloat = 2
-            let width = (track.width - gap * CGFloat(HomeGameMode.moveLimit - 1)) / CGFloat(HomeGameMode.moveLimit)
-            for index in 0..<max(0, min(HomeGameMode.moveLimit, snapshot.remainingSwaps ?? 0)) {
-                accent.setFill()
-                NSBezierPath(roundedRect: NSRect(x: track.minX + CGFloat(index) * (width + gap), y: track.minY, width: width, height: track.height), xRadius: 1.5, yRadius: 1.5).fill()
+            let limit = HomeGameMode.moveLimit
+            let remaining = snapshot.remainingSwaps ?? limit
+            let cut = HomeDashboardStyle.edgeOffset(for: track.height)
+            let available = max(0, track.width - cut)
+            let gap = min(2, available / CGFloat(limit * 2))
+            let width = (available - gap * CGFloat(limit - 1)) / CGFloat(limit)
+            for index in 0..<limit {
+                let segment = NSRect(x: track.minX + CGFloat(index) * (width + gap), y: track.minY,
+                                     width: width + cut, height: track.height)
+                (index < remaining ? accent : idleColor).setFill()
+                HomeDashboardStyle.slant(segment).fill()
             }
-        } else if remainingFraction > 0 {
-            GameLobbyStyle.gradient(NSRect(x: track.minX, y: track.minY, width: track.width * remainingFraction, height: track.height),
-                                    colors: [accent, accent.blended(withFraction: 0.25, of: .white) ?? accent], radius: 2.5)
+        } else {
+            idleColor.setFill()
+            HomeDashboardStyle.slant(track).fill()
+            let fill = HomeDashboardStyle.segmentFill(track, fraction: remainingFraction)
+            guard !fill.isEmpty else { return }
+            NSGradient(colors: [accent, accent.blended(withFraction: 0.25, of: .white) ?? accent])?
+                .draw(in: fill, angle: 90)
         }
     }
 }

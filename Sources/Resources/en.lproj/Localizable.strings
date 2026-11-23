@@ -1,4 +1,4 @@
-"window.title" = "Eliminate Teris 1";
+"window.title" = "Eliminate Teris";
 "window.subtitle" = "Pixel Touch Bar Challenge";
 "panel.settings" = "Game Settings";
 "panel.status" = "Time & Score";
@@ -179,7 +179,8 @@
 "achievement.32.desc" = "Clear 10,000 red tiles across all modes.";
 
 // 浅色探索版首页与固定玩法规则。
-"home.brand" = "Eliminate Teris 1";
+"home.brand" = "Eliminate Teris";
+"home.space_key" = "SPACE";
 "home.game_modes" = "Game modes";
 "home.hero.free" = "Swap a little.\nSmile a lot.";
 "home.hero.timed" = "One minute.\nMake it count.";

@@ -3,12 +3,15 @@ import QuartzCore
 
 /// 滑轨只承载视觉过渡；真实选中值和筛选事件仍沿用原生 NSSegmentedControl。
 final class AchievementFilterControl: NSSegmentedControl {
-    private let thumb = CAGradientLayer()
+    private let thumb = CALayer()
+    private let thumbFill = CAGradientLayer()
+    private let thumbMask = CAShapeLayer()
+    private let thumbRim = CAShapeLayer()
     private let labels = FilterLabelsView()
     private var counts: [Int] = []
     private var tracking: NSTrackingArea?
     private var hoveredSegment: Int?
-    private var hasPlacedThumb = false
+    private var placedThumbFrame: NSRect?
     /// 辅助页面复用同一套滑轨质感；未指定时保持成就筛选的三个状态图标。
     var segmentSymbols = ["square.grid.2x2.fill", "lock.fill", "checkmark.seal.fill"]
     /// 在测试中可替换系统偏好，运行时每次切换都读取最新设置。
@@ -27,17 +30,22 @@ final class AchievementFilterControl: NSSegmentedControl {
         labels.wantsLayer = true
         addSubview(labels)
         thumb.name = "achievement-filter-selection"
-        thumb.colors = [NSColor(calibratedRed: 1, green: 0.88, blue: 0.35, alpha: 1).cgColor,
-                        HomeStyle.yellow.cgColor]
-        thumb.startPoint = CGPoint(x: 0.5, y: 0)
-        thumb.endPoint = CGPoint(x: 0.5, y: 1)
-        thumb.cornerRadius = 9
-        thumb.borderWidth = 0.75
-        thumb.borderColor = NSColor(calibratedRed: 0.91, green: 0.66, blue: 0.05, alpha: 0.5).cgColor
-        thumb.shadowColor = NSColor(calibratedRed: 0.43, green: 0.32, blue: 0.09, alpha: 1).cgColor
-        thumb.shadowOpacity = 0.16
-        thumb.shadowRadius = 2
-        thumb.shadowOffset = CGSize(width: 0, height: 1)
+        thumbFill.name = "achievement-filter-selection-fill"
+        thumbFill.colors = [HomeDashboardStyle.color(0x17505A).cgColor, HomeDashboardStyle.color(0x10313D).cgColor]
+        thumbFill.startPoint = CGPoint(x: 0, y: 0.5)
+        thumbFill.endPoint = CGPoint(x: 1, y: 0.5)
+        thumbMask.fillColor = NSColor.white.cgColor
+        thumbFill.mask = thumbMask
+        thumbRim.name = "achievement-filter-selection-rim"
+        thumbRim.fillColor = nil
+        thumbRim.strokeColor = HomeDashboardStyle.cyan.withAlphaComponent(0.85).cgColor
+        thumbRim.lineWidth = 1
+        thumb.addSublayer(thumbFill)
+        thumb.addSublayer(thumbRim)
+        thumb.shadowColor = HomeDashboardStyle.cyan.cgColor
+        thumb.shadowOpacity = 0.18
+        thumb.shadowRadius = 3
+        thumb.shadowOffset = .zero
         layer?.insertSublayer(thumb, at: 0)
         labels.layer?.zPosition = 1
         focusRingType = .exterior
@@ -48,7 +56,8 @@ final class AchievementFilterControl: NSSegmentedControl {
         let widest = (0..<segmentCount).map { index in
             ((label(forSegment: index) ?? "") as NSString).size(withAttributes: [.font: labelFont]).width
         }.max() ?? 0
-        return NSSize(width: CGFloat(segmentCount) * max(102, widest + 58) + 8, height: 44)
+        return NSSize(width: CGFloat(segmentCount) * max(102, widest + 58) + 8 + HomeDashboardStyle.edgeOffset(for: 36),
+                      height: 44)
     }
 
     private var labelFont: NSFont { .systemFont(ofSize: 12, weight: .semibold) }
@@ -71,8 +80,14 @@ final class AchievementFilterControl: NSSegmentedControl {
 
     private func segmentRect(_ index: Int) -> NSRect {
         guard segmentCount > 0 else { return .zero }
-        let width = max(0, bounds.width - 8) / CGFloat(segmentCount)
-        return NSRect(x: 4 + CGFloat(index) * width, y: 4, width: width, height: max(0, bounds.height - 8))
+        let track = bounds.insetBy(dx: 4, dy: 4)
+        let offset = HomeDashboardStyle.edgeOffset(for: track.height)
+        let pitch = max(0, track.width - offset) / CGFloat(segmentCount)
+        return NSRect(x: track.minX + CGFloat(index) * pitch, y: track.minY, width: pitch + offset, height: track.height)
+    }
+
+    private func segmentIndex(at point: NSPoint) -> Int? {
+        (0..<segmentCount).first { HomeDashboardStyle.slant(segmentRect($0)).contains(point) }
     }
 
     override func layout() {
@@ -80,18 +95,25 @@ final class AchievementFilterControl: NSSegmentedControl {
         labels.frame = bounds
         let target = segmentRect(selectedSegment).insetBy(dx: 1, dy: 0)
         // 刷新列表或数量时不重置正在进行的动画；仅在几何尺寸改变时同步。
-        if !hasPlacedThumb || thumb.frame != target { positionThumb(animated: false) }
+        if placedThumbFrame != target { positionThumb(animated: false) }
     }
 
     private func positionThumb(animated: Bool) {
         guard selectedSegment >= 0, selectedSegment < segmentCount, bounds.width > 8, bounds.height > 8 else { return }
         let target = segmentRect(selectedSegment).insetBy(dx: 1, dy: 0)
         let previous = thumb.presentation()?.frame ?? thumb.frame
-        let shouldAnimate = animated && hasPlacedThumb && !reducesMotion()
+        let shouldAnimate = animated && placedThumbFrame != nil && !reducesMotion()
         thumb.removeAnimation(forKey: "filter-selection")
         CATransaction.begin(); CATransaction.setDisableActions(true)
         thumb.frame = target
-        thumb.shadowPath = CGPath(roundedRect: thumb.bounds, cornerWidth: 9, cornerHeight: 9, transform: nil)
+        thumbFill.frame = thumb.bounds
+        thumbMask.frame = thumbFill.bounds
+        thumbRim.frame = thumb.bounds
+        // 渐变、描边和光晕共用同一轮廓，整个滑块在切换时一同移动。
+        let outline = HomeDashboardStyle.cgSlant(thumb.bounds.insetBy(dx: 0.5, dy: 0.5))
+        thumbMask.path = outline
+        thumbRim.path = outline
+        thumb.shadowPath = outline
         CATransaction.commit()
         if shouldAnimate {
             let movement = CABasicAnimation(keyPath: "position")
@@ -106,42 +128,49 @@ final class AchievementFilterControl: NSSegmentedControl {
             group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             thumb.add(group, forKey: "filter-selection")
         }
-        hasPlacedThumb = true
+        // 图层会由中心点反算 frame。保留布局目标可避免小数舍入误差把刷新误判成变尺寸。
+        placedThumbFrame = target
         labels.needsDisplay = true
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 12, yRadius: 12)
-        NSGradient(colors: [NSColor(calibratedWhite: 0.94, alpha: 1), NSColor(calibratedWhite: 0.965, alpha: 1)])?.draw(in: path, angle: 90)
-        NSColor(calibratedWhite: 0.86, alpha: 0.65).setStroke(); path.lineWidth = 1; path.stroke()
+        UtilityStyle.drawCard(bounds)
     }
+
+    override var focusRingMaskBounds: NSRect { bounds }
+    override func drawFocusRingMask() { HomeDashboardStyle.slant(bounds).fill() }
 
     fileprivate func drawLabels() {
         for index in 0..<segmentCount {
             let rect = segmentRect(index)
             let selected = selectedSegment == index
             let title = label(forSegment: index) ?? ""
-            let color = selected ? HomeStyle.ink : hoveredSegment == index ? HomeStyle.ink : HomeStyle.secondary
+            let color = selected ? HomeDashboardStyle.cyan : hoveredSegment == index ? HomeDashboardStyle.ink : HomeDashboardStyle.muted
             let count = counts.indices.contains(index) ? String(counts[index]) : "0"
             let countFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold)
-            let countWidth = max(21, ceil((count as NSString).size(withAttributes: [.font: countFont]).width) + 10)
+            let countWidth = max(23, ceil((count as NSString).size(withAttributes: [.font: countFont]).width) + 12)
+            let labelWidth = max(0, rect.width - HomeDashboardStyle.edgeOffset(for: rect.height) - 34 - countWidth)
             var font = labelFont
             var titleWidth = ceil((title as NSString).size(withAttributes: [.font: font]).width)
-            while 13 + 6 + titleWidth + 7 + countWidth > rect.width - 10, font.pointSize > 10 {
+            while titleWidth > labelWidth, font.pointSize > 10 {
                 font = .systemFont(ofSize: font.pointSize - 0.5, weight: .semibold)
                 titleWidth = ceil((title as NSString).size(withAttributes: [.font: font]).width)
             }
+            titleWidth = min(titleWidth, labelWidth)
             let contentWidth = 13 + 6 + titleWidth + 7 + countWidth
             let start = rect.midX - contentWidth / 2
             let symbol = segmentSymbols.indices.contains(index) ? segmentSymbols[index] : "square.fill"
             HomeStyle.symbol(symbol, in: NSRect(x: start, y: rect.midY - 6.5, width: 13, height: 13), color: color)
-            let titleSize = (title as NSString).size(withAttributes: [.font: font])
-            (title as NSString).draw(at: NSPoint(x: start + 19, y: rect.midY - titleSize.height / 2), withAttributes: [.font: font, .foregroundColor: color])
+            let titleHeight = font.ascender - font.descender + font.leading
+            HomeDashboardStyle.text(title, in: NSRect(x: start + 19, y: rect.midY - titleHeight / 2, width: titleWidth + 3,
+                                                     height: titleHeight + 2), size: font.pointSize, weight: .semibold, color: color)
             let chip = NSRect(x: start + 19 + titleWidth + 7, y: rect.midY - 9, width: countWidth, height: 18)
-            (selected ? HomeStyle.ink.withAlphaComponent(0.075) : HomeStyle.ink.withAlphaComponent(0.035)).setFill()
-            NSBezierPath(roundedRect: chip, xRadius: 6, yRadius: 6).fill()
+            color.withAlphaComponent(selected ? 0.16 : 0.09).setFill()
+            HomeDashboardStyle.slant(chip).fill()
             let size = (count as NSString).size(withAttributes: [.font: countFont])
-            (count as NSString).draw(at: NSPoint(x: chip.midX - size.width / 2, y: chip.midY - size.height / 2), withAttributes: [.font: countFont, .foregroundColor: color])
+            (count as NSString).draw(at: NSPoint(x: chip.midX - size.width / 2, y: chip.midY - size.height / 2),
+                                    withAttributes: [.font: countFont, .foregroundColor: color,
+                                                     .obliqueness: HomeDashboardStyle.letterSlant])
         }
     }
 
@@ -154,7 +183,7 @@ final class AchievementFilterControl: NSSegmentedControl {
 
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        hoveredSegment = (0..<segmentCount).first { segmentRect($0).contains(point) }
+        hoveredSegment = segmentIndex(at: point)
         labels.needsDisplay = true
     }
     override func mouseExited(with event: NSEvent) { hoveredSegment = nil; labels.needsDisplay = true }
@@ -162,7 +191,7 @@ final class AchievementFilterControl: NSSegmentedControl {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        guard isEnabled, let index = (0..<segmentCount).first(where: { segmentRect($0).contains(point) }), index != selectedSegment else { return }
+        guard isEnabled, let index = segmentIndex(at: point), index != selectedSegment else { return }
         selectedSegment = index
         sendAction(action, to: target)
     }
@@ -170,7 +199,8 @@ final class AchievementFilterControl: NSSegmentedControl {
     @discardableResult
     override func sendAction(_ action: Selector?, to target: Any?) -> Bool {
         // 辅助功能可通过原生 Cell 改变选中值，再同步滑块，保持与鼠标/键盘相同的反馈。
-        if hasPlacedThumb, selectedSegment >= 0, thumb.frame != segmentRect(selectedSegment).insetBy(dx: 1, dy: 0) {
+        if let placedThumbFrame, selectedSegment >= 0,
+           placedThumbFrame != segmentRect(selectedSegment).insetBy(dx: 1, dy: 0) {
             positionThumb(animated: true)
         }
         return super.sendAction(action, to: target)

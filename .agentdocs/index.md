@@ -1,6 +1,11 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261123231057-split-popup-lists-into-row-cards.md` - 会话-16 至会话-18 将挑战记录、旧规则记录和玩法教学按条目拆为独立斜边卡，记录表头和数据保持列对齐。
+`workflow/20261123215822-restore-popup-parallelogram-borders.md` - 会话-12 至会话-15 恢复辅助弹窗卡片的整条斜边，逐行给文案和表格留白。含宽窄原生渲染与本轮增量 diff。
+`workflow/20261123092817-unify-lobby-and-panel-slants.md` - 会话-9 至会话-11 统一大厅和弹窗的斜边与文字，修正等宽统计格、斜切进度填充和滑块动画。含实际预览、回归与本轮增量 diff。
+`workflow/20261123082529-match-reference-rule-and-stat-card.md` - 会话-6 至会话-8 按参考图坐标还原规则背板、总数前板和四张分类斜卡。含双边暗缝像素回归与本轮增量 diff。
+`workflow/20261123075948-dark-angular-appkit-ui.md` - 会话-2 至会话-5 在 `experiment/ui-refactor-v2` 按设计图重构深色 AppKit 界面，保留「消除俄罗斯方块」名称。含五语言、原生预览验证和完整 diff。
 `workflow/20261122165517-full-width-achievement-row.md` - 会话-207 起恢复跨栏单行成就，并让开始按钮与联系我们卡片底边对齐。含宽窄窗口回归、实际预览与完整 diff。
 `workflow/20261122163532-even-piece-stat-spacing.md` - 会话-205 起将四组方块放在等宽列的同一侧，首组贴齐明细区左边缘，图标保持等距。含不同位数的像素回归、预览与完整 diff。
 `workflow/20261122161432-left-align-first-piece-stat.md` - 会话-203 起把首组方块明细贴齐左边缘，缩短与消除总数的视觉距离。含宽窄窗口像素回归、预览与完整 diff。
@@ -97,6 +102,11 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要调整弹窗逐行卡片、记录表头与列宽、历史记录分组或教学卡片间距时，读取 `20261123231057-split-popup-lists-into-row-cards.md`。
+- 需要调整玩法、设置、挑战记录或成就弹窗的完整平行四边形和内部行布局时，读取 `20261123215822-restore-popup-parallelogram-borders.md`。
+- 需要调整统一斜角、轻斜文字、成就进度的部分填充、等宽消除分格或弹窗分段滑块时，读取 `20261123092817-unify-lobby-and-panel-slants.md`。
+- 需要核对深色大厅规则与消除统计卡的原图尺寸、层间错位、分格暗缝、长数字或转场遮挡时，读取 `20261123082529-match-reference-rule-and-stat-card.md`。
+- 需要调整深色大厅斜边主题、统计与标题并排、方块及触控栏示意，或核对辅助面板主题和游戏名称时，读取 `20261123075948-dark-angular-appkit-ui.md`。
 - 需要调整当前首页的跨栏成就预览、开始按钮与联系卡的底边或小窗口布局时，读取 `20261122165517-full-width-achievement-row.md`。
 - 需要调整当前方块图标的等距布局，或核对数字位数变化时图标的位置，读取 `20261122163532-even-piece-stat-spacing.md`。
 - 需要调整方块明细首列左对齐或与消除总数的留白时，读取 `20261122161432-left-align-first-piece-stat.md`。
@@ -194,12 +204,12 @@
 - 需要确认启动脚本中构建与二进制定位策略时，优先读取此文档。
 
 ## 关键记忆
-- 模式图案由 `GameModeArtwork` 独立绘制，自由是悬浮方块、限时是冲刺秒表、限步是 30 次行动计数器；`game.mode.*` 经统一图标入口供首页和辅助页使用，不能再按系统符号名称处理。
-- 大厅材质由 `GameLobbyStyle` 提供；`GameControlFeedback` 的 0.18 秒反馈只在交互变化时刷新，重复界面刷新不重新计时，减少动态效果立即到位。局内预算面板只消费快照，原开局及结算规则仍由控制器执行。
+- 深色大厅、辅助面板和成就窗口共用 `HomeDashboardStyle` 的 0.45 结构斜率和轻斜字形。大厅模式卡使用线形图标，辅助页通过 `GameIconRenderer` 继续使用 `GameModeArtwork` 的彩色模式图案。
+- `GameControlFeedback` 的 0.18 秒反馈仅由交互变化触发，减少动态效果时立即到位。任何模式在大厅均显示 `GameSnapshot` 的本局统计，挑战卡切换时保留独立转场。
 - 开局由 `GameStartSequence` 统一管理；`prepareRound` 仅生成预览，`beginPreparedRound` 在开场结束后启用同一棋盘并开始计时。待机 Touch Bar 显示滑轨，开局指针全部抬起后才接受交换；私有 modal 刷新保持开场进度。
-- 成就筛选由 `AchievementFilterControl` 统一绘制一体式滑轨与数量，沿用 `NSSegmentedControl` 的真实选择值；黄色滑块由 Core Animation 移动，刷新列表不重置动画，减少动态效果时即时定位。测试动画及页面图位于 `docs/previews/achievement-filter.gif` 和 `achievement-panel.png`，正式应用无测试预览入口。
+- 成就筛选由 `AchievementFilterControl` 统一绘制滑轨与数量，沿用 `NSSegmentedControl` 的真实选择值。深色版滑块使用青色，刷新列表时继续当前动画，减少动态效果时即时定位。
 - `GameIconRenderer` 保留模式图标的等比绘制与奖杯兼容；成就使用 `AchievementIconCatalog` 和 `AchievementBadgeArtwork` 的透明背景彩色游戏图案，不绘制徽章外框或底板。正式应用没有测试预览入口；`Tests/AchievementIconContactSheet.swift` 仅在 XCTest 导出全部图标，静态测试图位于 `docs/previews/`。
-- 首页主插画使用从原始设计稿直接提取的 `home-design-*.png`，包含四种方块、投影、短线与交换箭头；按原稿坐标整体等比缩放，方块独立浮动。`GameResourceLocator` 共用于语言和图片；小尺寸统计图标仍使用 `HomeStyle.piece`。
+- 深色大厅的四种立体方块、触控栏示意和统计图标由 `HomeLobbyArtwork` 等比绘制，减少动态效果时方块静止。历史浅色设计稿与提取图用于追溯和像素校验。
 - `experiment/ui-refactor` 探索分支使用暖白首页：左侧标题/方块插画/开始按钮，右侧模式卡片与本局实时统计，底部五枚成就及完成度；设置、玩法说明与挑战记录从顶部导航打开。
 - 本局分类数量来自 `GameState`/`GameSnapshot`，重开或实际切换模式清零；点击已选模式不清零。跨局成就继续由 `AchievementsManager` 持久化。
 - 当前三种模式通过按钮、空格或滑动触控栏显式开局：自由不限时间/次数，限时挑战固定 60 秒，限步挑战固定 30 次合法相邻交换；只统计消除数量，不再计分。无消除也扣一次，自动连锁不多扣，末次交换完整结算；限步不比较耗时。

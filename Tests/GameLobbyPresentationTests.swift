@@ -12,7 +12,10 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         return pixels
     }
     private func export(_ view: NSView, name: String) throws {
-        try XCTUnwrap(try image(view).representation(using: .png, properties: [:]))
+        try export(image(view), name: name)
+    }
+    private func export(_ bitmap: NSBitmapImageRep, name: String) throws {
+        try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
             .write(to: FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-\(name).png"))
     }
 
@@ -58,12 +61,12 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         XCTAssertEqual(hud.budgetText, "0")
     }
 
-    func testPieceCountsFillFourEqualColumnsAcrossStatWidths() throws {
+    func testPieceCountsUseEqualCellsAndGapsAcrossStatWidths() throws {
         _ = NSApplication.shared
         let longCount = 123_456
         let counts = Dictionary(uniqueKeysWithValues: zip(PieceKind.allCases, [0, 12, 345, longCount]))
         for mode in HomeGameMode.allCases {
-            for width: CGFloat in [534, 1_360] {
+            for width: CGFloat in [336, 534, 1_360] {
                 let hud = HomeChallengeHUDView(frame: NSRect(x: 0, y: 0, width: width, height: 148))
                 hud.refresh(snapshot: GameSnapshot(mode: mode.gameMode, elapsedTime: 60,
                                                    remainingTime: mode == .timed ? 0 : nil,
@@ -71,11 +74,32 @@ final class GameLobbyPresentationTests: AchievementTestCase {
                                                    isRunning: false, isFinished: true, clearedByKind: counts), mode: mode)
                 let bitmap = try image(hud)
                 let scale = CGFloat(bitmap.pixelsWide) / width
+                let cells = hud.breakdownCellRects
+                XCTAssertEqual(cells.count, PieceKind.allCases.count)
+                let first = try XCTUnwrap(cells.first)
+                let cut = HomeDashboardStyle.edgeOffset(for: first.height)
+                let flatWidth = first.width - cut
+                let gaps = zip(cells, cells.dropFirst()).map { previous, next in
+                    next.minX + cut - previous.maxX
+                }
+                let firstGap = try XCTUnwrap(gaps.first)
+                XCTAssertGreaterThan(firstGap, 0)
+                for cell in cells {
+                    XCTAssertEqual(cell.minY, first.minY)
+                    XCTAssertEqual(cell.width, first.width, "四类统计必须使用相同宽度")
+                    XCTAssertEqual(cell.height, first.height)
+                    XCTAssertTrue(hud.bounds.contains(cell))
+                }
+                for gap in gaps {
+                    XCTAssertEqual(gap, firstGap, accuracy: 0.001, "四张卡之间的斜缝必须等宽")
+                }
+
+                let rowPixels = stride(from: Int(ceil(first.minY * scale)), to: Int(first.maxY * scale), by: 2)
                 var iconStarts: [CGFloat] = []
                 var previousColoredX = -CGFloat.infinity
-                // 结算后的进度条没有颜色。用彩色列测量四个图标实际位置，覆盖不同位数的数字。
+                // 只在底部方块行检测彩色像素，避免把青色模式标题误当成方块。
                 for x in 0..<bitmap.pixelsWide {
-                    let containsArtwork = stride(from: 0, to: bitmap.pixelsHigh, by: 2).contains { y in
+                    let containsArtwork = rowPixels.contains { y in
                         guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
                               color.alphaComponent > 0.9 else { return false }
                         let high = max(color.redComponent, color.greenComponent, color.blueComponent)
@@ -87,13 +111,12 @@ final class GameLobbyPresentationTests: AchievementTestCase {
                     if position - previousColoredX > 3 { iconStarts.append(position) }
                     previousColoredX = position
                 }
-                let statsWidth = (hud.surfaceRect.width - 40) * (mode == .free ? 1 : 0.73)
-                let columnWidth = statsWidth * 2 / 3 / CGFloat(PieceKind.allCases.count)
-                XCTAssertEqual(iconStarts.count, PieceKind.allCases.count, "\(mode.key) / \(width)")
-                let breakdownStart = hud.surfaceRect.maxX - 20 - statsWidth * 2 / 3
-                for (index, start) in iconStarts.enumerated() {
-                    XCTAssertEqual(start, breakdownStart + CGFloat(index) * columnWidth, accuracy: 1,
-                                   "\(mode.key) / \(width)：方块图标应依等宽列左边缘排布")
+                // 从彩色像素验证实际绘制也遵循每个等宽格的左侧留白。
+                let iconInset = cut / 2 + min(24, flatWidth * 0.18)
+                XCTAssertEqual(iconStarts.count, cells.count, "\(mode.key) / \(width)")
+                for (start, cell) in zip(iconStarts, cells) {
+                    XCTAssertEqual(start, cell.minX + iconInset, accuracy: 3,
+                                   "\(mode.key) / \(width)：方块应按分格对齐")
                 }
                 XCTAssertTrue(hud.toolTip?.contains("\(longCount)") == true, "长数字的完整值可通过提示查看")
                 if mode == .moves, width == 534 { try export(hud, name: "hud-compact-long-counts") }
@@ -119,14 +142,16 @@ final class GameLobbyPresentationTests: AchievementTestCase {
                     for size in [NSSize(width: 960, height: 720), NSSize(width: 1180, height: 800), NSSize(width: 1920, height: 1080)] {
                         home.setFrameSize(size); home.refresh(snapshot: snapshot, mode: mode, manager: manager)
                         _ = try image(home)
-                        XCTAssertEqual(home.challengeHUD.isHidden, !running && mode == .free)
-                        if !running, mode == .free {
-                            let intro = try XCTUnwrap(home.modeHeader.subviews.first { !$0.isHidden })
-                            let labels = intro.subviews.compactMap { $0 as? NSTextField }.sorted { $0.frame.minY < $1.frame.minY }
-                            XCTAssertEqual(labels.count, 2)
-                            XCTAssertGreaterThanOrEqual(labels[1].frame.minY - labels[0].frame.maxY, 8,
-                                                        "主标题和副标题之间保留独立排版空间")
-                        }
+                        XCTAssertFalse(home.challengeHUD.isHidden)
+                        let intro = try modeIntro(in: home.modeHeader)
+                        let labels = intro.subviews.compactMap { $0 as? NSTextField }.sorted { $0.frame.minY < $1.frame.minY }
+                        XCTAssertEqual(labels.map(\.stringValue), [AchievementText.string("home.hero.\(mode.key)"),
+                                                                 AchievementText.string("home.subtitle.\(mode.key)")])
+                        let heading = try XCTUnwrap(labels.first)
+                        let subtitle = try XCTUnwrap(labels.last)
+                        XCTAssertGreaterThanOrEqual(subtitle.frame.minY - heading.frame.maxY, 8)
+                        let headerSurface = home.challengeHUD.convert(home.challengeHUD.surfaceRect, to: home.modeHeader)
+                        XCTAssertLessThan(intro.frame.maxX, headerSurface.minX)
                         XCTAssertEqual(home.challengeHUD.snapshot?.totalCleared, running ? 42 : 0)
                         let hudRect = home.challengeHUD.convert(home.challengeHUD.bounds, to: home)
                         XCTAssertTrue(home.bounds.contains(hudRect))
@@ -134,7 +159,8 @@ final class GameLobbyPresentationTests: AchievementTestCase {
                         XCTAssertEqual(cards.map(\.mode), [.free, nil, .timed, .moves])
                         XCTAssertLessThan(hudRect.maxX, home.modePanel.frame.minX)
                         let surface = home.challengeHUD.convert(home.challengeHUD.surfaceRect, to: home)
-                        XCTAssertEqual(surface.minY, home.modePanel.frame.minY, accuracy: 0.1)
+                        let topInset = min(19, size.height * 0.245 * 0.079)
+                        XCTAssertEqual(surface.minY, home.modePanel.frame.minY + topInset, accuracy: 0.2)
                         XCTAssertFalse(cards[1].isEnabled)
                         let label = try XCTUnwrap(home.challengeHUD.accessibilityLabel())
                         XCTAssertEqual(label.components(separatedBy: AchievementText.string("home.cleared_title")).count, 2)
@@ -157,12 +183,21 @@ final class GameLobbyPresentationTests: AchievementTestCase {
                         if language == .russian, size.width == 960, mode == .moves, !running {
                             try export(home, name: "lobby-compact-ru")
                         }
+                        if language == .chineseSimplified, size.width == 960, mode == .moves, !running {
+                            try export(home, name: "lobby-compact-zh-hans")
+                        }
                     }
                 }
             }
         }
         XCTAssertEqual(defaults.object(forKey: AchievementsManager.storageKey) as? NSDictionary, saved)
         Localizer.shared.setLanguage(.chineseSimplified)
+        home.setFrameSize(NSSize(width: 1585, height: 992))
+        home.refresh(snapshot: GameSnapshot(mode: .free, elapsedTime: 0, remainingTime: nil,
+            remainingSwaps: nil, isRunning: false, isFinished: false), mode: .free, manager: manager)
+        let referenceBitmap = try image(home)
+        try assertRuleCardMatchesReference(home, bitmap: referenceBitmap)
+        try export(referenceBitmap, name: "lobby-reference-size")
         home.setFrameSize(NSSize(width: 1180, height: 800))
         home.refresh(snapshot: GameSnapshot(mode: .moves(limit: 30), elapsedTime: 150, remainingTime: nil,
             remainingSwaps: 3, isRunning: true, isFinished: false, clearedByKind: [.orangeRicky: 120]), mode: .moves, manager: manager)
@@ -197,15 +232,19 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         let moves = GameSnapshot(mode: .moves(limit: 30), elapsedTime: 0, remainingTime: nil, remainingSwaps: 30, isRunning: false, isFinished: false)
         home.refresh(snapshot: free, mode: .free, manager: manager)
         home.layoutSubtreeIfNeeded()
-        let intro = try XCTUnwrap(header.subviews.first { !$0.isHidden })
-        let restingX = intro.frame.minX
-        let restingWidth = intro.frame.width
+        let intro = try modeIntro(in: header)
+        let introFrame = intro.frame
+        let outgoing = home.challengeHUD
+        let restingX = outgoing.frame.minX
+        let restingWidth = outgoing.frame.width
+        let restingSurfaceY = outgoing.convert(outgoing.surfaceRect, to: home).minY
         home.refresh(snapshot: timed, mode: .timed, manager: manager)
         let preview = home.challengeHUD
         XCTAssertGreaterThan(preview.frame.minX, restingX)
         XCTAssertLessThanOrEqual(preview.frame.minX, home.modePanel.frame.minX + 0.1)
         XCTAssertEqual(preview.frame.width, restingWidth * 0.20, accuracy: 0.1)
-        XCTAssertLessThan(preview.frame.width / preview.bounds.width, preview.frame.height / preview.bounds.height)
+        XCTAssertEqual(preview.frame.width / preview.bounds.width, preview.frame.height / preview.bounds.height,
+                       accuracy: 0.001, "卡面起始帧须保持原有斜边角度")
         try assertLaunchIsWithinScreen(preview, in: window)
         XCTAssertLessThan(preview.alphaValue, 0.2)
 
@@ -221,6 +260,8 @@ final class GameLobbyPresentationTests: AchievementTestCase {
             header.advanceAnimation()
             XCTAssertGreaterThanOrEqual(preview.frame.width + 0.1, previousWidth)
             XCTAssertLessThanOrEqual(preview.frame.maxX, header.bounds.maxX + 0.1)
+            XCTAssertEqual(preview.frame.width / preview.bounds.width, preview.frame.height / preview.bounds.height,
+                           accuracy: 0.001, "入场每帧都须等比缩放")
             previousWidth = preview.frame.width
             if step == steps / 2 {
                 let position = preview.frame.minX
@@ -229,10 +270,10 @@ final class GameLobbyPresentationTests: AchievementTestCase {
                 home.refresh(snapshot: timed, mode: .timed, manager: manager)
                 home.layoutSubtreeIfNeeded()
                 XCTAssertEqual(preview.frame.minX, position, accuracy: 1, "重复刷新不能重启动画")
-                try assertPreviewLaysOverGapAndBehindPanel(home, preview: preview)
             }
-            if step == steps * 3 / 4 { XCTAssertLessThan(intro.frame.minX, restingX, "卡片接触文案后将其向左推开") }
-            XCTAssertEqual(preview.convert(preview.surfaceRect, to: home).minY, home.modePanel.frame.minY, accuracy: 0.1)
+            if step == steps / 3 { try assertPreviewLaysOverGapAndBehindPanel(home, preview: preview) }
+            XCTAssertEqual(intro.frame, introFrame, "切换统计卡时保留标题的位置")
+            XCTAssertEqual(preview.convert(preview.surfaceRect, to: home).minY, restingSurfaceY, accuracy: 0.1)
             home.layoutSubtreeIfNeeded()
             let pixels = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: header.frame))
             home.cacheDisplay(in: header.frame, to: pixels)
@@ -248,7 +289,8 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         XCTAssertEqual(preview.frame.minX, restingX, accuracy: 1)
         XCTAssertEqual(preview.frame.width, restingWidth, accuracy: 0.1)
         XCTAssertEqual(preview.alphaValue, 1)
-        XCTAssertTrue(intro.isHidden)
+        XCTAssertTrue(outgoing.isHidden)
+        XCTAssertFalse(intro.isHidden)
 
         home.refresh(snapshot: moves, mode: .moves, manager: manager)
         XCTAssertEqual(home.challengeHUD.budgetText, "30")
@@ -265,8 +307,54 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         XCTAssertEqual(home.challengeHUD.frame.minX, restingX, accuracy: 1)
         XCTAssertTrue(preview.isHidden)
         home.refresh(snapshot: free, mode: .free, manager: manager)
-        XCTAssertTrue(home.challengeHUD.isHidden)
+        XCTAssertFalse(home.challengeHUD.isHidden)
         XCTAssertFalse(intro.isHidden)
+    }
+
+    private func modeIntro(in header: HomeModeHeaderView) throws -> NSView {
+        try XCTUnwrap(header.subviews.first { !$0.isHidden && !($0 is HomeChallengeHUDView) })
+    }
+
+    private func assertRuleCardMatchesReference(_ home: HomeDashboardView, bitmap: NSBitmapImageRep) throws {
+        let card = home.challengeHUD
+        let surface = card.convert(card.surfaceRect, to: home)
+        XCTAssertEqual(surface.minX, 410, accuracy: 2.5)
+        XCTAssertEqual(surface.minY, 123, accuracy: 2.5)
+        XCTAssertEqual(surface.maxX, 1046, accuracy: 2.5)
+        XCTAssertEqual(surface.maxY, 309, accuracy: 2.5)
+        let scale = CGFloat(bitmap.pixelsWide) / home.bounds.width
+
+        func brightness(at point: NSPoint) throws -> CGFloat {
+            let color = try XCTUnwrap(bitmap.colorAt(x: Int(point.x * scale), y: Int(point.y * scale))?.usingColorSpace(.sRGB))
+            return (color.redComponent + color.greenComponent + color.blueComponent) / 3
+        }
+
+        func brightnessInReference(_ x: CGFloat, _ y: CGFloat) throws -> CGFloat {
+            try brightness(at: NSPoint(x: surface.minX + (x - 410) * surface.width / 636,
+                                       y: surface.minY + (y - 123) * surface.height / 186))
+        }
+
+        let rim = try (173...176).map { try brightnessInReference(780, CGFloat($0)) }.max() ?? 0
+        let rimNeighbors = try max(brightnessInReference(780, 170), brightnessInReference(780, 178))
+        XCTAssertGreaterThan(rim, rimNeighbors + 0.09, "统计前板的上边缘应在两层深色面板之间清楚可见")
+
+        func edgeBrightness(_ x: CGFloat, _ y: CGFloat) throws -> CGFloat {
+            try (-2...2).map { try brightness(at: NSPoint(x: x + CGFloat($0) / 2, y: y)) }.max() ?? 0
+        }
+
+        let cells = card.breakdownCellRects.map { card.convert($0, to: home) }
+        // 从两个高度采样暗缝，两边的描线都必须贴合共用角度。
+        for (left, right) in zip(cells, cells.dropFirst()) {
+            for fraction: CGFloat in [0.25, 0.75] {
+                let y = left.minY + left.height * fraction
+                let leftX = left.maxX - HomeDashboardStyle.edgeOffset(for: y - left.minY)
+                let rightX = right.minX + HomeDashboardStyle.edgeOffset(for: right.maxY - y)
+                let leftRim = try edgeBrightness(leftX, y)
+                let rightRim = try edgeBrightness(rightX, y)
+                let gap = try brightness(at: NSPoint(x: (leftX + rightX) / 2, y: y))
+                XCTAssertGreaterThan(min(leftRim, rightRim), gap + 0.05, "两张斜卡之间应保留可见间隔")
+            }
+        }
     }
 
     private func assertLaunchIsWithinScreen(_ preview: HomeChallengeHUDView, in window: NSWindow) throws {
@@ -281,7 +369,7 @@ final class GameLobbyPresentationTests: AchievementTestCase {
     private func assertPreviewLaysOverGapAndBehindPanel(_ home: HomeDashboardView, preview: HomeChallengeHUDView) throws {
         let panel = home.modePanel.frame
         let surface = preview.convert(preview.surfaceRect, to: home)
-        let gapPoint = NSPoint(x: panel.minX - 14, y: panel.minY + 43)
+        let gapPoint = NSPoint(x: panel.minX - 10, y: surface.midY)
         let panelPoint = NSPoint(x: panel.minX + 10, y: gapPoint.y)
         XCTAssertTrue(surface.contains(gapPoint) && surface.contains(panelPoint))
 
@@ -338,7 +426,7 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         let mode = HomeModeButton(mode: .moves)
         mode.frame = NSRect(x: 10, y: 80, width: 320, height: 90); mode.selected = true
         let button = HomeButton(frame: NSRect(x: 23, y: 10, width: 294, height: 62))
-        button.primary = true; button.title = "开始游戏"; button.symbolName = "play.fill"
+        button.style = .primary; button.title = "开始游戏"; button.symbolName = "play.fill"
         preview.addSubview(mode); preview.addSubview(button)
         var clock: TimeInterval = 100
         for effect in [mode.feedback, button.feedback] { effect.now = { clock }; effect.reducesMotion = { false } }
@@ -361,7 +449,7 @@ final class GameLobbyPresentationTests: AchievementTestCase {
 }
 
 private final class LobbyFeedbackPreview: NSView {
-    override func draw(_ dirtyRect: NSRect) { HomeStyle.background.setFill(); bounds.fill() }
+    override func draw(_ dirtyRect: NSRect) { HomeDashboardStyle.backdrop(in: bounds) }
 }
 
 /// 仅测试 target 中的三枚图案总览，不增加正式页面入口。

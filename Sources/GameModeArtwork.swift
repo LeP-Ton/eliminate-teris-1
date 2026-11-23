@@ -24,15 +24,6 @@ enum GameModeArtwork {
                    operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 
-    /// 大厅预留入口用紫色拼图造型，与可玩的三种模式区分。
-    static func drawPuzzle(in bounds: NSRect) {
-        let face = bounds.insetBy(dx: bounds.width * 0.15, dy: bounds.height * 0.15)
-        let lavender = NSColor(calibratedRed: 0.54, green: 0.41, blue: 0.84, alpha: 1)
-        GameLobbyStyle.glow(face.insetBy(dx: -5, dy: -4), color: lavender.withAlphaComponent(0.16))
-        HomeStyle.symbol("puzzlepiece.fill", in: face.offsetBy(dx: 1, dy: 2), color: NSColor(calibratedRed: 0.37, green: 0.26, blue: 0.64, alpha: 1))
-        HomeStyle.symbol("puzzlepiece.fill", in: face, color: lavender)
-    }
-
     /// 方块通过侧面、顶部高光和柔和色影获得体积，三种图案保持同一光照。
     private static func tile(_ rect: NSRect, color: NSColor, angle: CGFloat = 0) {
         NSGraphicsContext.saveGraphicsState()

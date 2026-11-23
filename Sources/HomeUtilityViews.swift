@@ -3,12 +3,29 @@ import Cocoa
 /// 辅助页共用首页材质；文字使用原生视图，支持换行和辅助功能。
 enum UtilityStyle {
     static func label(_ text: String, size: CGFloat = 13, weight: NSFont.Weight = .regular,
-                      color: NSColor = HomeStyle.ink) -> NSTextField {
-        let label = NSTextField(wrappingLabelWithString: text)
-        label.font = .systemFont(ofSize: size, weight: weight); label.textColor = color
+                      color: NSColor = HomeDashboardStyle.ink, alignment: NSTextAlignment = .natural,
+                      monospacedDigits: Bool = false) -> NSTextField {
+        let label = NSTextField(wrappingLabelWithString: "")
+        label.font = monospacedDigits ? .monospacedDigitSystemFont(ofSize: size, weight: weight)
+                                      : .systemFont(ofSize: size, weight: weight)
+        label.textColor = color
+        label.alignment = alignment
         label.maximumNumberOfLines = 0
         label.setContentCompressionResistancePriority(.required, for: .vertical)
+        setText(text, on: label)
         return label
+    }
+
+    static func setText(_ text: String, on label: NSTextField) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = label.alignment
+        paragraph.lineBreakMode = label.lineBreakMode
+        label.attributedStringValue = NSAttributedString(string: text, attributes: [
+            .font: label.font ?? NSFont.systemFont(ofSize: 13),
+            .foregroundColor: label.textColor ?? HomeDashboardStyle.ink,
+            .paragraphStyle: paragraph,
+            .obliqueness: HomeDashboardStyle.letterSlant,
+        ])
     }
     static func stack(_ views: [NSView], vertical: Bool = true, spacing: CGFloat = 10) -> NSStackView {
         let stack = NSStackView(views: views)
@@ -32,6 +49,14 @@ enum UtilityStyle {
         NSLayoutConstraint.activate([view.widthAnchor.constraint(equalToConstant: size), view.heightAnchor.constraint(equalToConstant: size)])
         return view
     }
+
+    static func drawCard(_ rect: NSRect, accent: NSColor? = nil) {
+        let top = HomeDashboardStyle.panel
+        let base = HomeDashboardStyle.color(0x101C28)
+        let tint = accent.flatMap { top.blended(withFraction: 0.12, of: $0) } ?? top
+        let outline = accent?.withAlphaComponent(0.62) ?? HomeDashboardStyle.border
+        HomeDashboardStyle.surface(rect, colors: [tint, base], border: outline)
+    }
 }
 
 /// 彩色矢量始终等比绘制，不依赖字体附件的基线。
@@ -48,21 +73,52 @@ final class UtilityArtworkView: NSView {
 }
 
 final class UtilityCard: NSView {
-    init(_ content: NSView, tint: NSColor = .white, padding: CGFloat = 20) {
+    private let accent: NSColor?
+
+    convenience init(_ content: NSView, accent: NSColor? = nil, padding: CGFloat = 20) {
+        self.init(rows: [content], accent: accent, padding: padding)
+    }
+
+    init(rows: [NSView], accent: NSColor? = nil, padding: CGFloat = 20, spacing: CGFloat = 0) {
+        self.accent = accent
         super.init(frame: .zero)
-        wantsLayer = true
-        layer?.backgroundColor = tint.cgColor
-        layer?.borderColor = HomeStyle.border.withAlphaComponent(0.8).cgColor
-        layer?.borderWidth = 0.75; layer?.cornerRadius = 14
-        content.translatesAutoresizingMaskIntoConstraints = false; addSubview(content)
-        NSLayoutConstraint.activate([
-            content.leadingAnchor.constraint(equalTo: leadingAnchor, constant: padding),
-            content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -padding),
-            content.topAnchor.constraint(equalTo: topAnchor, constant: padding),
-            content.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -padding)
-        ])
+        var top = topAnchor
+        for (index, row) in rows.enumerated() {
+            row.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(row)
+            row.topAnchor.constraint(equalTo: top, constant: index == 0 ? padding : spacing).isActive = true
+            constrainToSlantedEdges(row, padding: padding)
+            top = row.bottomAnchor
+        }
+        bottomAnchor.constraint(equalTo: top, constant: padding).isActive = true
+        // 斜边把宽高联在一起。优先贴合内容高度，避免水平抱紧约束靠拉高卡片缩短各行。
+        let fittedHeight = heightAnchor.constraint(equalToConstant: 0)
+        fittedHeight.priority = NSLayoutConstraint.Priority(rawValue: NSLayoutConstraint.Priority.defaultHigh.rawValue - 1)
+        fittedHeight.isActive = true
     }
     required init?(coder: NSCoder) { nil }
+    override var isFlipped: Bool { true }
+    override func draw(_ dirtyRect: NSRect) { UtilityStyle.drawCard(bounds, accent: accent) }
+
+    private func constrainToSlantedEdges(_ row: NSView, padding: CGFloat) {
+        let left = NSLayoutGuide()
+        let right = NSLayoutGuide()
+        addLayoutGuide(left)
+        addLayoutGuide(right)
+        // 左上角和右下角最接近边框。以这两处的垂直距离换算水平留白。
+        NSLayoutConstraint.activate([
+            left.leadingAnchor.constraint(equalTo: leadingAnchor),
+            left.trailingAnchor.constraint(equalTo: row.leadingAnchor),
+            left.topAnchor.constraint(equalTo: row.topAnchor),
+            left.bottomAnchor.constraint(equalTo: bottomAnchor),
+            left.widthAnchor.constraint(equalTo: left.heightAnchor, multiplier: HomeDashboardStyle.slope, constant: padding),
+            right.leadingAnchor.constraint(equalTo: row.trailingAnchor),
+            right.trailingAnchor.constraint(equalTo: trailingAnchor),
+            right.topAnchor.constraint(equalTo: topAnchor),
+            right.bottomAnchor.constraint(equalTo: row.bottomAnchor),
+            right.widthAnchor.constraint(equalTo: right.heightAnchor, multiplier: HomeDashboardStyle.slope, constant: padding)
+        ])
+    }
 }
 
 /// 标题固定、正文独立滚动，在小屏幕与长翻译下不裁切内容。
@@ -75,12 +131,12 @@ final class UtilityPageView: NSView {
     let document: NSView = UtilityDocumentView()
     let sections = UtilityStyle.stack([])
     private let title = UtilityStyle.label("", size: 23, weight: .bold)
-    private let subtitle = UtilityStyle.label("", size: 12, color: HomeStyle.secondary)
+    private let subtitle = UtilityStyle.label("", size: 12, color: HomeDashboardStyle.muted)
 
     init(page: String) {
         super.init(frame: .zero)
         let symbol = page == "settings" ? "slider.horizontal.3" : page == "rules" ? "gamecontroller.fill" : "trophy"
-        let artwork = UtilityStyle.icon(symbol, color: page == "records" ? .systemOrange : HomeStyle.blue, size: 32)
+        let artwork = UtilityStyle.icon(symbol, color: page == "records" ? HomeDashboardStyle.yellow : HomeDashboardStyle.cyan, size: 32)
         let headings = UtilityStyle.stack([title, subtitle], spacing: 5)
         let header = UtilityStyle.stack([artwork, headings], vertical: false, spacing: 14)
         header.translatesAutoresizingMaskIntoConstraints = false
@@ -109,10 +165,10 @@ final class UtilityPageView: NSView {
     }
     required init?(coder: NSCoder) { nil }
     override var isFlipped: Bool { true }
-    override func draw(_ dirtyRect: NSRect) { HomeStyle.background.setFill(); bounds.fill() }
+    override func draw(_ dirtyRect: NSRect) { HomeDashboardStyle.backdrop(in: bounds) }
     func refreshHeader(page: String) {
-        title.stringValue = UtilityStyle.text("panel.\(page)")
-        subtitle.stringValue = UtilityStyle.text("utility.\(page).subtitle")
+        UtilityStyle.setText(UtilityStyle.text("panel.\(page)"), on: title)
+        UtilityStyle.setText(UtilityStyle.text("utility.\(page).subtitle"), on: subtitle)
     }
     func addSection(_ view: NSView) {
         sections.addArrangedSubview(view); UtilityStyle.fillWidth(view, in: sections)
@@ -124,36 +180,50 @@ final class UtilityPageView: NSView {
 
 /// 保留原生菜单和辅助功能，只重绘游戏主题外观。
 final class UtilityLanguagePopup: NSPopUpButton {
+    override var isFlipped: Bool { true }
     override var intrinsicContentSize: NSSize { NSSize(width: 220, height: 44) }
     override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) }
+    override var focusRingMaskBounds: NSRect { bounds }
+    override func drawFocusRingMask() { HomeDashboardStyle.slant(bounds).fill() }
     override func draw(_ dirtyRect: NSRect) {
-        HomeStyle.card(bounds, fill: HomeStyle.blue.withAlphaComponent(isHighlighted ? 0.09 : 0.035), border: HomeStyle.blue.withAlphaComponent(0.25), radius: 9)
-        HomeStyle.text(title, in: NSRect(x: 15, y: bounds.midY - 10, width: bounds.width - 52, height: 22), size: 14, weight: .semibold)
-        HomeStyle.symbol("chevron.down", in: NSRect(x: bounds.maxX - 29, y: bounds.midY - 6, width: 12, height: 12), color: HomeStyle.blue)
+        UtilityStyle.drawCard(bounds, accent: isHighlighted ? HomeDashboardStyle.cyan : nil)
+        HomeDashboardStyle.text(title, in: NSRect(x: 19, y: bounds.midY - 10, width: bounds.width - 58, height: 22),
+                                size: 14, weight: .semibold)
+        HomeStyle.symbol("chevron.down", in: NSRect(x: bounds.maxX - 29, y: bounds.midY - 6, width: 12, height: 12), color: HomeDashboardStyle.cyan)
     }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .pointingHand) }
 }
 
-/// 原生滑杆负责拖动与键盘步进，自绘金色进度和白色旋钮。
+/// 原生滑杆负责拖动与键盘步进，深色轨道突出黄色进度。
 final class UtilityVolumeSliderCell: NSSliderCell {
     override var knobThickness: CGFloat { 22 }
     override func drawBar(inside rect: NSRect, flipped: Bool) {
         // 原生旋钮的光学中心与 barRect 有细微偏移，轨道以旋钮中心为准。
         let track = NSRect(x: rect.minX, y: knobRect(flipped: flipped).midY - 3, width: rect.width, height: 6)
-        NSColor(calibratedWhite: 0.92, alpha: 1).setFill(); NSBezierPath(roundedRect: track, xRadius: 3, yRadius: 3).fill()
+        NSGraphicsContext.saveGraphicsState()
+        if !flipped {
+            let orient = NSAffineTransform()
+            orient.translateX(by: 0, yBy: track.midY * 2)
+            orient.scaleX(by: 1, yBy: -1)
+            orient.concat()
+        }
+        HomeDashboardStyle.border.setFill()
+        HomeDashboardStyle.slant(track).fill()
         let fraction = CGFloat((doubleValue - minValue) / max(0.001, maxValue - minValue))
-        let fill = NSRect(x: track.minX, y: track.minY, width: track.width * fraction, height: track.height)
-        HomeStyle.yellow.setFill(); NSBezierPath(roundedRect: fill, xRadius: 3, yRadius: 3).fill()
+        HomeDashboardStyle.yellow.setFill()
+        HomeDashboardStyle.segmentFill(track, fraction: fraction).fill()
+        NSGraphicsContext.restoreGraphicsState()
     }
     override func drawKnob(_ knobRect: NSRect) {
         let knob = NSRect(x: knobRect.midX - 10, y: knobRect.midY - 10, width: 20, height: 20)
         NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow(); shadow.shadowColor = HomeStyle.ink.withAlphaComponent(0.16)
+        let shadow = NSShadow(); shadow.shadowColor = HomeDashboardStyle.yellow.withAlphaComponent(0.36)
         shadow.shadowBlurRadius = 3; shadow.shadowOffset = NSSize(width: 0, height: -1); shadow.set()
-        NSColor.white.setFill(); NSBezierPath(ovalIn: knob).fill()
+        HomeDashboardStyle.navy.setFill(); NSBezierPath(ovalIn: knob).fill()
         NSGraphicsContext.restoreGraphicsState()
-        HomeStyle.border.setStroke(); NSBezierPath(ovalIn: knob.insetBy(dx: 0.5, dy: 0.5)).stroke()
-        HomeStyle.yellow.setFill(); NSBezierPath(ovalIn: knob.insetBy(dx: 7, dy: 7)).fill()
+        HomeDashboardStyle.yellow.withAlphaComponent(0.75).setStroke()
+        NSBezierPath(ovalIn: knob.insetBy(dx: 0.5, dy: 0.5)).stroke()
+        HomeDashboardStyle.yellow.setFill(); NSBezierPath(ovalIn: knob.insetBy(dx: 7, dy: 7)).fill()
     }
 }
 
@@ -163,22 +233,32 @@ final class UtilityLessonArtwork: NSView {
     init(step: Int) {
         self.step = step; super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([widthAnchor.constraint(equalToConstant: 100), heightAnchor.constraint(equalToConstant: 52)])
+        let preferredWidth = widthAnchor.constraint(equalToConstant: 72)
+        preferredWidth.priority = .defaultLow
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(greaterThanOrEqualToConstant: 48), widthAnchor.constraint(lessThanOrEqualToConstant: 72),
+            heightAnchor.constraint(equalTo: widthAnchor, multiplier: 0.52), preferredWidth
+        ])
         setAccessibilityElement(false)
     }
     required init?(coder: NSCoder) { nil }
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let fit = NSAffineTransform()
+        fit.scale(by: min(bounds.width / 100, bounds.height / 52))
+        fit.concat()
         if step == 0 {
             HomeStyle.piece(.orangeRicky, in: NSRect(x: 0, y: 14, width: 33, height: 24))
-            HomeStyle.symbol("arrow.left.arrow.right", in: NSRect(x: 38, y: 17, width: 22, height: 18), color: HomeStyle.secondary)
+            HomeStyle.symbol("arrow.left.arrow.right", in: NSRect(x: 38, y: 17, width: 22, height: 18), color: HomeDashboardStyle.muted)
             HomeStyle.piece(.blueRicky, in: NSRect(x: 65, y: 14, width: 33, height: 24))
         } else {
             let rows = step == 1 ? 1 : 2
             for row in 0..<rows {
                 for column in 0..<3 {
                     let tile = NSRect(x: 19 + CGFloat(column) * 21, y: CGFloat(rows == 1 ? 17 : 7) + CGFloat(row) * 21, width: 18, height: 18)
-                    let color = row == 0 ? HomeStyle.blue : HomeStyle.green
+                    let color = row == 0 ? HomeDashboardStyle.cyan : HomeDashboardStyle.green
                     NSGradient(colors: [color.blended(withFraction: 0.25, of: .white)!, color])?.draw(in: NSBezierPath(roundedRect: tile, xRadius: 4, yRadius: 4), angle: -90)
                     NSColor.white.withAlphaComponent(0.4).setStroke()
                     NSBezierPath(roundedRect: tile.insetBy(dx: 1, dy: 1), xRadius: 3, yRadius: 3).stroke()
@@ -191,139 +271,137 @@ final class UtilityLessonArtwork: NSView {
 enum UtilityRulesContent {
     static func populate(_ page: UtilityPageView, mode: HomeGameMode) {
         page.removeSections()
-        let lessons = UtilityStyle.stack([], spacing: 0)
+        let lessons = UtilityStyle.stack([], spacing: 8)
         for step in 0..<3 {
-            let number = UtilityStyle.label(String(format: "%02d", step + 1), size: 13, weight: .heavy, color: HomeStyle.blue)
+            let number = UtilityStyle.label(String(format: "%02d", step + 1), size: 13, weight: .heavy, color: HomeDashboardStyle.cyan)
             number.widthAnchor.constraint(equalToConstant: 25).isActive = true
-            let copy = UtilityStyle.stack([
-                UtilityStyle.label(UtilityStyle.text("utility.lesson.\(step).title"), size: 15, weight: .bold),
-                UtilityStyle.label(UtilityStyle.text("utility.lesson.\(step).body"), size: 12, color: HomeStyle.secondary)
-            ], spacing: 5)
-            let row = UtilityStyle.stack([number, copy, UtilityLessonArtwork(step: step)], vertical: false, spacing: 12)
-            copy.setContentHuggingPriority(.defaultLow, for: .horizontal)
-            lessons.addArrangedSubview(row); UtilityStyle.fillWidth(row, in: lessons)
-            row.heightAnchor.constraint(greaterThanOrEqualToConstant: 82).isActive = true
-            if step < 2 {
-                let divider = NSBox(); divider.boxType = .separator
-                lessons.addArrangedSubview(divider); UtilityStyle.fillWidth(divider, in: lessons)
-            }
+            let title = UtilityStyle.label(UtilityStyle.text("utility.lesson.\(step).title"), size: 15, weight: .bold)
+            title.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            let heading = UtilityStyle.stack([number, title, UtilityLessonArtwork(step: step)], vertical: false, spacing: 9)
+            let body = UtilityStyle.label(UtilityStyle.text("utility.lesson.\(step).body"), size: 12, color: HomeDashboardStyle.muted)
+            // 标题和说明各自沿边框排版。说明使用整个横截面，插图不会挤占文案宽度。
+            heading.heightAnchor.constraint(greaterThanOrEqualToConstant: 38).isActive = true
+            body.heightAnchor.constraint(greaterThanOrEqualToConstant: 25).isActive = true
+            let stepCard = UtilityCard(rows: [heading, body], padding: 10, spacing: 4)
+            lessons.addArrangedSubview(stepCard)
+            UtilityStyle.fillWidth(stepCard, in: lessons)
         }
-        page.addSection(UtilityCard(lessons, padding: 18))
+        page.addSection(lessons)
         page.addSection(UtilityStyle.label(UtilityStyle.text("utility.rules.modes"), size: 14, weight: .bold))
         let modes = UtilityStyle.stack([], spacing: 10)
         for candidate in HomeGameMode.allCases {
             let selected = candidate == mode
             let copy = UtilityStyle.stack([
                 UtilityStyle.label(UtilityStyle.text("home.mode.\(candidate.key)"), size: 13, weight: .bold),
-                UtilityStyle.label(UtilityStyle.text("home.mode_desc.\(candidate.key)"), size: 12, color: HomeStyle.secondary)
+                UtilityStyle.label(UtilityStyle.text("home.mode_desc.\(candidate.key)"), size: 12, color: HomeDashboardStyle.muted)
             ], spacing: 3)
             copy.setContentHuggingPriority(.defaultLow, for: .horizontal)
-            let row = UtilityStyle.stack([UtilityStyle.icon(candidate.symbol, color: selected ? HomeStyle.blue : HomeStyle.secondary, size: 26), copy], vertical: false, spacing: 13)
+            let row = UtilityStyle.stack([UtilityStyle.icon(candidate.symbol, color: selected ? HomeDashboardStyle.cyan : HomeDashboardStyle.muted, size: 26), copy], vertical: false, spacing: 13)
             if selected {
-                let current = UtilityStyle.label(UtilityStyle.text("utility.rules.current"), size: 10, weight: .semibold, color: HomeStyle.blue)
+                let current = UtilityStyle.label(UtilityStyle.text("utility.rules.current"), size: 10, weight: .semibold, color: HomeDashboardStyle.cyan)
                 current.setContentHuggingPriority(.required, for: .horizontal)
                 current.setContentCompressionResistancePriority(.required, for: .horizontal)
                 row.addArrangedSubview(current)
             }
-            let card = UtilityCard(row, tint: selected ? NSColor(calibratedRed: 0.94, green: 0.975, blue: 1, alpha: 1) : .white, padding: 12)
+            let card = UtilityCard(row, accent: selected ? HomeDashboardStyle.cyan : nil, padding: 12)
             modes.addArrangedSubview(card); UtilityStyle.fillWidth(card, in: modes)
         }
         page.addSection(modes)
-        let note = UtilityStyle.stack([UtilityStyle.icon("checkmark.circle.fill", color: HomeStyle.secondary, size: 19),
-                                     UtilityStyle.label(UtilityStyle.text("utility.rules.progress"), size: 11, color: HomeStyle.secondary)], vertical: false, spacing: 10)
-        page.addSection(UtilityCard(note, tint: HomeStyle.yellow.withAlphaComponent(0.08), padding: 14))
+        let note = UtilityStyle.stack([UtilityStyle.icon("checkmark.circle.fill", color: HomeDashboardStyle.muted, size: 19),
+                                     UtilityStyle.label(UtilityStyle.text("utility.rules.progress"), size: 11, color: HomeDashboardStyle.muted)], vertical: false, spacing: 10)
+        page.addSection(UtilityCard(note, padding: 14))
     }
-}
-
-/// 数字为视觉中心，并明确当前榜单的固定规则。
-final class UtilityRecordBestView: NSView {
-    init(mode: ModeRecordKey, entry: ModeRecord?) {
-        super.init(frame: .zero)
-        wantsLayer = true; layer?.cornerRadius = 14
-        layer?.backgroundColor = HomeStyle.yellow.withAlphaComponent(0.12).cgColor
-        layer?.borderColor = HomeStyle.yellow.withAlphaComponent(0.4).cgColor; layer?.borderWidth = 0.75
-        let metric = entry.map { String($0.clearedCount) } ?? "—"
-        let value = UtilityStyle.label(metric, size: 38, weight: .heavy)
-        value.font = .monospacedDigitSystemFont(ofSize: 38, weight: .heavy)
-        let unit = UtilityStyle.label(UtilityStyle.text("utility.unit.tiles"), size: 13, weight: .semibold, color: HomeStyle.secondary)
-        let copy = UtilityStyle.stack([
-            UtilityStyle.label(UtilityStyle.text("utility.records.best"), size: 11, weight: .semibold, color: HomeStyle.secondary),
-            UtilityStyle.stack([value, unit], vertical: false, spacing: 8),
-            UtilityStyle.label(UtilityStyle.text(mode == .timed ? "utility.records.timed_rule" : "utility.records.moves_rule"), size: 11, color: HomeStyle.secondary)
-        ], spacing: 4)
-        let icon = UtilityStyle.icon(mode == .timed ? HomeGameMode.timed.symbol : HomeGameMode.moves.symbol, color: .systemOrange, size: 56)
-        let row = UtilityStyle.stack([copy, icon], vertical: false, spacing: 16)
-        copy.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        row.translatesAutoresizingMaskIntoConstraints = false; addSubview(row)
-        NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22), row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -26),
-            row.topAnchor.constraint(equalTo: topAnchor, constant: 18), row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -18)
-        ])
-    }
-    required init?(coder: NSCoder) { nil }
 }
 
 enum UtilityRecordContent {
-    /// 独立列宽确保日期不会因分数位数改变而错位。
-    static func table(mode: ModeRecordKey, entries: [ModeRecord]) -> NSView {
-        let rows = UtilityStyle.stack([], spacing: 0)
-        let headings = UtilityStyle.stack([
-            UtilityStyle.label(UtilityStyle.text("utility.records.rank"), size: 10, weight: .semibold, color: HomeStyle.secondary),
-            UtilityStyle.label(UtilityStyle.text("utility.records.result"), size: 10, weight: .semibold, color: HomeStyle.secondary),
-            UtilityStyle.label(UtilityStyle.text("utility.records.date"), size: 10, weight: .semibold, color: HomeStyle.secondary)
-        ], vertical: false, spacing: 12)
-        headings.arrangedSubviews[0].widthAnchor.constraint(equalToConstant: 36).isActive = true
-        headings.arrangedSubviews[2].widthAnchor.constraint(equalToConstant: 135).isActive = true
-        (headings.arrangedSubviews[2] as? NSTextField)?.alignment = .right
-        headings.arrangedSubviews[1].setContentHuggingPriority(.defaultLow, for: .horizontal)
-        rows.addArrangedSubview(headings); UtilityStyle.fillWidth(headings, in: rows)
-        headings.heightAnchor.constraint(equalToConstant: 30).isActive = true
+    /// 数字为视觉中心，并明确当前榜单的固定规则。
+    static func best(mode: ModeRecordKey, entry: ModeRecord?) -> NSView {
+        let metric = entry.map { String($0.clearedCount) } ?? "—"
+        let value = UtilityStyle.label(metric, size: 38, weight: .heavy, color: HomeDashboardStyle.yellow, monospacedDigits: true)
+        let unit = UtilityStyle.label(UtilityStyle.text("utility.unit.tiles"), size: 13, weight: .semibold, color: HomeDashboardStyle.muted)
+        let copy = UtilityStyle.stack([
+            UtilityStyle.label(UtilityStyle.text("utility.records.best"), size: 11, weight: .semibold, color: HomeDashboardStyle.muted),
+            UtilityStyle.stack([value, unit], vertical: false, spacing: 8),
+            UtilityStyle.label(UtilityStyle.text(mode == .timed ? "utility.records.timed_rule" : "utility.records.moves_rule"), size: 11, color: HomeDashboardStyle.muted)
+        ], spacing: 4)
+        let icon = UtilityStyle.icon(mode == .timed ? HomeGameMode.timed.symbol : HomeGameMode.moves.symbol, color: HomeDashboardStyle.yellow, size: 56)
+        let row = UtilityStyle.stack([copy, icon], vertical: false, spacing: 16)
+        copy.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return UtilityCard(row, accent: HomeDashboardStyle.yellow, padding: 18)
+    }
+
+    static func table(entries: [ModeRecord]) -> NSView {
+        if entries.isEmpty {
+            let empty = UtilityStyle.stack([
+                UtilityStyle.icon("flag.checkered", color: HomeDashboardStyle.muted, size: 40),
+                UtilityStyle.label(UtilityStyle.text("records.empty"), size: 15, weight: .semibold, alignment: .center),
+                UtilityStyle.label(UtilityStyle.text("utility.records.empty_hint"), size: 12, color: HomeDashboardStyle.muted,
+                                   alignment: .center)
+            ], spacing: 12)
+            empty.alignment = .centerX
+            empty.heightAnchor.constraint(greaterThanOrEqualToConstant: 148).isActive = true
+            return UtilityCard(empty, padding: 16)
+        }
+
+        let headings = recordColumns(
+            UtilityStyle.label(UtilityStyle.text("utility.records.rank"), size: 10, weight: .semibold,
+                               color: HomeDashboardStyle.muted, alignment: .center),
+            UtilityStyle.label(UtilityStyle.text("utility.records.result"), size: 10, weight: .semibold, color: HomeDashboardStyle.muted),
+            UtilityStyle.label(UtilityStyle.text("utility.records.date"), size: 10, weight: .semibold,
+                               color: HomeDashboardStyle.muted, alignment: .right)
+        )
+        let headerCard = UtilityCard(headings, padding: 7)
+        let cards = UtilityStyle.stack([headerCard], spacing: 7)
+        UtilityStyle.fillWidth(headerCard, in: cards)
         let formatter = DateFormatter(); formatter.locale = Localizer.shared.locale; formatter.dateStyle = .medium
         let ranks = ModeRecordStore.ranks(for: entries)
         for (index, entry) in entries.enumerated() {
-            let divider = NSBox(); divider.boxType = .separator
-            rows.addArrangedSubview(divider); UtilityStyle.fillWidth(divider, in: rows)
             let rank = UtilityRankView(rank: ranks[index])
             rank.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([rank.widthAnchor.constraint(equalToConstant: 36), rank.heightAnchor.constraint(equalToConstant: 30)])
+            rank.heightAnchor.constraint(equalToConstant: 30).isActive = true
             let metric = AchievementText.format("records.metric.cleared", entry.clearedCount)
-            let countLabel = UtilityStyle.label(metric, size: 15, weight: ranks[index] == 1 ? .bold : .semibold)
-            countLabel.font = .monospacedDigitSystemFont(ofSize: 15, weight: ranks[index] == 1 ? .bold : .semibold)
-            countLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
-            let date = UtilityStyle.label(formatter.string(from: Date(timeIntervalSince1970: entry.createdAt)), size: 11, color: HomeStyle.secondary)
-            date.alignment = .right
-            date.widthAnchor.constraint(equalToConstant: 135).isActive = true
-            let row = UtilityStyle.stack([rank, countLabel, date], vertical: false, spacing: 12)
-            rows.addArrangedSubview(row); UtilityStyle.fillWidth(row, in: rows)
-            row.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+            let countLabel = UtilityStyle.label(metric, size: 15, weight: ranks[index] == 1 ? .bold : .semibold, monospacedDigits: true)
+            let date = UtilityStyle.label(formatter.string(from: Date(timeIntervalSince1970: entry.createdAt)), size: 11,
+                                          color: HomeDashboardStyle.muted, alignment: .right)
+            let row = recordColumns(rank, countLabel, date)
             row.setAccessibilityLabel("\(ranks[index]). \(metric), \(date.stringValue)")
+            let card = UtilityCard(row, padding: 7)
+            cards.addArrangedSubview(card)
+            UtilityStyle.fillWidth(card, in: cards)
         }
-        if entries.isEmpty {
-            let empty = UtilityStyle.stack([
-                UtilityStyle.icon("flag.checkered", color: HomeStyle.secondary, size: 40),
-                UtilityStyle.label(UtilityStyle.text("records.empty"), size: 15, weight: .semibold),
-                UtilityStyle.label(UtilityStyle.text("utility.records.empty_hint"), size: 12, color: HomeStyle.secondary)
-            ], spacing: 12)
-            empty.alignment = .centerX
-            for label in empty.arrangedSubviews.compactMap({ $0 as? NSTextField }) { label.alignment = .center }
-            rows.addArrangedSubview(empty); UtilityStyle.fillWidth(empty, in: rows)
-            empty.heightAnchor.constraint(greaterThanOrEqualToConstant: 180).isActive = true
-        }
-        return UtilityCard(rows, padding: 16)
+        return cards
     }
 
     static func legacyTable(_ section: LegacyRecordSection) -> NSView {
-        let stack = UtilityStyle.stack([], spacing: 8)
         let title = AchievementText.format(section.kind == .scoreAttack ? "utility.records.legacy_score" : "utility.records.legacy_speed", section.ruleValue)
         let heading = UtilityStyle.label(title, size: 13, weight: .bold)
-        stack.addArrangedSubview(heading); UtilityStyle.fillWidth(heading, in: stack)
+        let cards = UtilityStyle.stack([heading], spacing: 7)
         let formatter = DateFormatter(); formatter.locale = Localizer.shared.locale; formatter.dateStyle = .medium
         for (index, record) in section.entries.enumerated() {
             let metric = section.kind == .scoreAttack ? AchievementText.format("records.metric.score", record.score) : String(format: "%.2f s", record.elapsedTime)
-            let label = UtilityStyle.label("\(index + 1).  \(metric)    \(formatter.string(from: Date(timeIntervalSince1970: record.createdAt)))", size: 12, color: HomeStyle.secondary)
-            stack.addArrangedSubview(label); UtilityStyle.fillWidth(label, in: stack)
+            let rank = UtilityStyle.label("\(index + 1).", size: 12, weight: .semibold, alignment: .center, monospacedDigits: true)
+            let result = UtilityStyle.label(metric, size: 14, weight: .semibold, monospacedDigits: true)
+            let date = UtilityStyle.label(formatter.string(from: Date(timeIntervalSince1970: record.createdAt)), size: 11,
+                                          color: HomeDashboardStyle.muted, alignment: .right)
+            let row = recordColumns(rank, result, date)
+            row.setAccessibilityLabel("\(index + 1). \(metric), \(date.stringValue)")
+            let card = UtilityCard(row, padding: 7)
+            cards.addArrangedSubview(card)
+            UtilityStyle.fillWidth(card, in: cards)
         }
-        return UtilityCard(stack, tint: NSColor(calibratedWhite: 0.975, alpha: 1), padding: 16)
+        return cards
+    }
+
+    private static func recordColumns(_ rank: NSView, _ result: NSTextField, _ date: NSTextField) -> NSStackView {
+        let row = UtilityStyle.stack([rank, result, date], vertical: false, spacing: 8)
+        result.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        // 表头与所有记录的高度、内边距和列宽相同，数据位数变化也不会移动列。
+        NSLayoutConstraint.activate([
+            rank.widthAnchor.constraint(equalToConstant: 36),
+            date.widthAnchor.constraint(equalTo: row.widthAnchor, multiplier: 0.43),
+            row.heightAnchor.constraint(equalToConstant: 38)
+        ])
+        return row
     }
 }
 
@@ -335,11 +413,11 @@ private final class UtilityRankView: NSView {
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
         if rank <= 3 {
-            let colors = [HomeStyle.yellow, NSColor(calibratedRed: 0.76, green: 0.82, blue: 0.89, alpha: 1), NSColor(calibratedRed: 0.88, green: 0.66, blue: 0.45, alpha: 1)]
+            let colors = [HomeDashboardStyle.yellow, NSColor(calibratedRed: 0.76, green: 0.82, blue: 0.89, alpha: 1), NSColor(calibratedRed: 0.88, green: 0.66, blue: 0.45, alpha: 1)]
             let circle = NSRect(x: bounds.midX - 11, y: bounds.midY - 11, width: 22, height: 22)
             NSGradient(colors: [colors[rank - 1].blended(withFraction: 0.32, of: .white)!, colors[rank - 1]])?.draw(in: NSBezierPath(ovalIn: circle), angle: -90)
         }
-        HomeStyle.text(String(rank), in: NSRect(x: 0, y: bounds.midY - 8, width: bounds.width, height: 18), size: 12, weight: .bold,
-                       color: rank <= 3 ? HomeStyle.ink : HomeStyle.secondary, alignment: .center)
+        HomeDashboardStyle.text(String(rank), in: NSRect(x: 0, y: bounds.midY - 8, width: bounds.width, height: 18), size: 12, weight: .bold,
+                       color: rank <= 3 ? HomeDashboardStyle.navy : HomeDashboardStyle.muted, alignment: .center)
     }
 }

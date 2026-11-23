@@ -68,7 +68,7 @@ final class HomeDashboardTests: AchievementTestCase {
         let controller = GameViewController(achievements: manager, records: records, board: board, audioEnabled: false, startClock: { animationTime })
         controller.startSequence.reducesMotion = { false }
         let view = controller.view
-        let start = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeButton }.first { $0.primary })
+        let start = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeButton }.first { $0.style == .primary })
         let home = try XCTUnwrap(view as? HomeDashboardView)
         let puzzle = try XCTUnwrap(descendants(view).compactMap { $0 as? HomeModeButton }.first { $0.mode == nil })
         XCTAssertFalse(board.snapshot().isRunning)
@@ -132,18 +132,19 @@ final class HomeDashboardTests: AchievementTestCase {
         let badges = buttons.filter { $0.toolTip != nil }
         XCTAssertEqual(badges.count, AchievementDefinition.all.count)
         for (width, height, count) in [(960, 720, 5), (1180, 800, 5), (1440, 720, 7),
-                                       (960, 1000, 5), (1600, 1000, 8), (1920, 1250, 9), (960, 720, 5)] {
+                                       (960, 1000, 5), (1600, 1000, 7), (1920, 1250, 9), (960, 720, 5)] {
             home.setFrameSize(NSSize(width: width, height: height))
             home.layoutSubtreeIfNeeded()
             let mode = home.modePanel.frame
             let path = home.achievementPath.frame
             let contact = home.contactPanel.frame
             XCTAssertEqual(home.startButton.frame.maxY, contact.maxY, accuracy: 0.1)
-            XCTAssertEqual(contact.minY - mode.maxY, 24, accuracy: 0.1)
-            XCTAssertEqual(contact.minX, mode.minX, accuracy: 0.1)
-            XCTAssertEqual(contact.width, mode.width, accuracy: 0.1)
-            XCTAssertEqual(contact.height, 156)
-            XCTAssertEqual(path.minY - contact.maxY, 24, accuracy: 0.1)
+            XCTAssertGreaterThanOrEqual(contact.minY - mode.maxY, 27)
+            XCTAssertLessThanOrEqual(contact.minY - mode.maxY, 52.1)
+            XCTAssertGreaterThanOrEqual(mode.minX, contact.minX)
+            XCTAssertEqual(contact.maxX, mode.maxX, accuracy: 0.1)
+            XCTAssertTrue((110...165).contains(contact.height))
+            XCTAssertGreaterThanOrEqual(path.minY - contact.maxY, 35)
             XCTAssertEqual(path.minX, home.bounds.maxX - path.maxX, accuracy: 0.1)
             XCTAssertEqual(path.maxX, contact.maxX, accuracy: 0.1)
             XCTAssertTrue(home.bounds.contains(path))
@@ -159,6 +160,20 @@ final class HomeDashboardTests: AchievementTestCase {
                 home.cacheDisplay(in: home.bounds, to: rep)
                 try XCTUnwrap(rep.representation(using: .png, properties: [:]))
                     .write(to: FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-home-achievement-grid.png"))
+                // 6 / 32 的进度停在第二个分段中，比较两行黄色像素右端以捕捉垂直裁切回归。
+                let crop = NSRect(x: 0, y: 18, width: path.width * 0.66, height: 24)
+                let meter = try XCTUnwrap(home.achievementPath.bitmapImageRepForCachingDisplay(in: crop))
+                home.achievementPath.cacheDisplay(in: crop, to: meter)
+                let scale = CGFloat(meter.pixelsHigh) / crop.height
+                func fillEnd(at y: CGFloat) throws -> CGFloat {
+                    let row = Int((y - crop.minY) * scale)
+                    let x = try XCTUnwrap((0..<meter.pixelsWide).last { x in
+                        guard let color = meter.colorAt(x: x, y: row)?.usingColorSpace(.sRGB) else { return false }
+                        return color.redComponent > 0.8 && color.greenComponent > 0.7 && color.blueComponent < 0.45
+                    })
+                    return CGFloat(x) / scale
+                }
+                XCTAssertEqual(try fillEnd(at: 26) - fillEnd(at: 33), HomeDashboardStyle.edgeOffset(for: 7), accuracy: 1)
             }
         }
 
@@ -186,6 +201,11 @@ final class HomeDashboardTests: AchievementTestCase {
         let home = HomeDashboardView(frame: NSRect(x: 0, y: 0, width: 1180, height: 800))
         for language in AppLanguage.allCases {
             Localizer.shared.setLanguage(language)
+            let brand = AchievementText.string("home.brand")
+            XCTAssertEqual(brand, AchievementText.string("window.title"))
+            if language == .chineseSimplified {
+                XCTAssertEqual(brand, "消除俄罗斯方块")
+            }
             for mode in HomeGameMode.allCases {
                 let snapshot = GameSnapshot(mode: mode.gameMode, elapsedTime: 12, remainingTime: mode == .timed ? 48 : nil,
                                             remainingSwaps: mode == .moves ? 18 : nil, isRunning: true, isFinished: false,

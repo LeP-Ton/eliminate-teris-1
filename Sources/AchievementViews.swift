@@ -172,19 +172,19 @@ final class AchievementBadgeStripView: NSScrollView {
     @objc private func badgeTapped(_ sender: NSButton) { onSelect?(sender.tag) }
 }
 
-/// 辅助面板沿用浅色首页的文字、边框及成功状态颜色。
+/// 图鉴与大厅共用深色材质和状态配色。
 private enum AchievementPanelStyle {
-    static let accent = HomeStyle.ink
-    static let success = HomeStyle.green
-    static let body = HomeStyle.ink
-    static let muted = HomeStyle.secondary
+    static let accent = HomeDashboardStyle.cyan
+    static let success = HomeDashboardStyle.green
+    static let body = HomeDashboardStyle.ink
+    static let muted = HomeDashboardStyle.muted
     static let controlFont = NSFont.systemFont(ofSize: 12, weight: .semibold)
 
     /// 标题使用独立的彩色奖章，保持原有奖章语义，不受系统模板染色影响。
     static let headingIcon: NSImage = {
         let image = NSImage(size: NSSize(width: 48, height: 48), flipped: true) { _ in
             for (points, color) in [
-                ([NSPoint(x: 11, y: 24), NSPoint(x: 24, y: 27), NSPoint(x: 20, y: 44), NSPoint(x: 15, y: 39), NSPoint(x: 9, y: 42)], HomeStyle.blue),
+                ([NSPoint(x: 11, y: 24), NSPoint(x: 24, y: 27), NSPoint(x: 20, y: 44), NSPoint(x: 15, y: 39), NSPoint(x: 9, y: 42)], HomeDashboardStyle.cyan),
                 ([NSPoint(x: 24, y: 27), NSPoint(x: 37, y: 24), NSPoint(x: 39, y: 42), NSPoint(x: 32, y: 39), NSPoint(x: 28, y: 44)], NSColor.systemRed)
             ] {
                 let ribbon = NSBezierPath(); ribbon.move(to: points[0])
@@ -193,7 +193,7 @@ private enum AchievementPanelStyle {
             }
             let medal = NSBezierPath(ovalIn: NSRect(x: 8, y: 4, width: 32, height: 32))
             NSGradient(colors: [NSColor(calibratedRed: 1, green: 0.92, blue: 0.57, alpha: 1),
-                                HomeStyle.yellow, NSColor(calibratedRed: 0.93, green: 0.62, blue: 0.08, alpha: 1)])?.draw(in: medal, angle: -90)
+                                HomeDashboardStyle.yellow, NSColor(calibratedRed: 0.93, green: 0.62, blue: 0.08, alpha: 1)])?.draw(in: medal, angle: -90)
             let star = NSBezierPath()
             for index in 0..<10 {
                 let angle = CGFloat(index) * .pi / 5 - .pi / 2
@@ -210,15 +210,11 @@ private enum AchievementPanelStyle {
     }()
 
     static func drawControl(_ rect: NSRect, title: String, selected: Bool) {
-        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
-        (selected ? NSColor(calibratedRed: 0.9, green: 0.96, blue: 1, alpha: 1) : NSColor.white).setFill()
-        path.fill()
-        (selected ? HomeStyle.blue : HomeStyle.border).setStroke()
-        path.lineWidth = 1
-        path.stroke()
+        UtilityStyle.drawCard(rect, accent: selected ? accent : nil)
         let attributes: [NSAttributedString.Key: Any] = [
             .font: controlFont,
-            .foregroundColor: selected ? HomeStyle.blue : body
+            .foregroundColor: selected ? accent : body,
+            .obliqueness: HomeDashboardStyle.letterSlant,
         ]
         let size = (title as NSString).size(withAttributes: attributes)
         (title as NSString).draw(at: NSPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2),
@@ -227,6 +223,10 @@ private enum AchievementPanelStyle {
 }
 
 private final class AchievementPanelActionButton: NSButton {
+    override var isFlipped: Bool { true }
+    override var focusRingMaskBounds: NSRect { bounds }
+    override func drawFocusRingMask() { HomeDashboardStyle.slant(bounds).fill() }
+
     override var intrinsicContentSize: NSSize {
         NSSize(width: max(88, ceil((title as NSString).size(withAttributes: [.font: AchievementPanelStyle.controlFont]).width) + 24), height: 32)
     }
@@ -238,21 +238,20 @@ private final class AchievementPanelActionButton: NSButton {
     }
 }
 
-/// 像素进度条沿用原生进度接口，显示颜色与所在成就卡片一致。
+/// 进度条沿用原生进度接口，通过斜边和状态色呈现完成度。
 private final class AchievementProgressIndicator: NSProgressIndicator {
     var accentColor: NSColor = AchievementPanelStyle.accent
 
+    override var isFlipped: Bool { true }
     override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: 10) }
 
     override func draw(_ dirtyRect: NSRect) {
-        let track = NSBezierPath(roundedRect: bounds, xRadius: bounds.height / 2, yRadius: bounds.height / 2)
-        NSColor(calibratedWhite: 0.91, alpha: 1).setFill()
-        track.fill()
+        HomeDashboardStyle.border.withAlphaComponent(0.55).setFill()
+        HomeDashboardStyle.slant(bounds).fill()
         let fraction = min(1, max(0, (doubleValue - minValue) / max(1, maxValue - minValue)))
         if fraction > 0 {
             accentColor.setFill()
-            NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: bounds.width * fraction, height: bounds.height),
-                         xRadius: bounds.height / 2, yRadius: bounds.height / 2).fill()
+            HomeDashboardStyle.segmentFill(bounds, fraction: fraction).fill()
         }
     }
 
@@ -271,7 +270,7 @@ private final class AchievementDocumentView: NSView {
 final class AchievementsWindowController: NSWindowController {
     private let manager: AchievementsManager
     private let filter = AchievementFilterControl()
-    private let heading = NSTextField(labelWithString: "")
+    private let heading = UtilityStyle.label("", size: 16, weight: .heavy)
     private let backButton = AchievementPanelActionButton()
     private let list = NSStackView()
     private let scroll = NSScrollView()
@@ -285,8 +284,8 @@ final class AchievementsWindowController: NSWindowController {
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = true
         panel.minSize = NSSize(width: 480, height: 360)
-        panel.appearance = NSAppearance(named: .aqua)
-        panel.backgroundColor = HomeStyle.background
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.backgroundColor = HomeDashboardStyle.navy
         panel.titlebarAppearsTransparent = true
         panel.contentView = ArcadeStageView(frame: NSRect(x: 0, y: 0, width: 600, height: 580))
         super.init(window: panel)
@@ -329,7 +328,7 @@ final class AchievementsWindowController: NSWindowController {
 
     func refresh() {
         window?.title = AchievementText.string("panel.achievements")
-        heading.stringValue = AchievementText.string("panel.achievements")
+        UtilityStyle.setText(AchievementText.string("panel.achievements"), on: heading)
         backButton.title = AchievementText.string("achievement.view_all")
         backButton.invalidateIntrinsicContentSize()
         backButton.isHidden = detailID == nil
@@ -355,9 +354,8 @@ final class AchievementsWindowController: NSWindowController {
         for category in AchievementCategory.allCases {
             let group = definitions.filter { $0.category == category }
             guard !group.isEmpty else { continue }
-            let label = NSTextField(labelWithString: AchievementText.string("achievement.category.\(category.rawValue)"))
-            label.font = .systemFont(ofSize: 12, weight: .heavy)
-            label.textColor = AchievementPanelStyle.accent
+            let label = UtilityStyle.label(AchievementText.string("achievement.category.\(category.rawValue)"),
+                                           size: 12, weight: .heavy, color: AchievementPanelStyle.accent)
             list.addArrangedSubview(label)
             for definition in group {
                 let row = makeRow(definition)
@@ -366,18 +364,15 @@ final class AchievementsWindowController: NSWindowController {
             }
         }
         if definitions.isEmpty {
-            let empty = NSTextField(wrappingLabelWithString: AchievementText.string("achievement.empty"))
-            empty.font = .systemFont(ofSize: 12, weight: .regular)
-            empty.textColor = AchievementPanelStyle.body
+            let empty = UtilityStyle.label(AchievementText.string("achievement.empty"), size: 12)
             list.addArrangedSubview(empty)
         }
     }
 
     private func buildContent() {
         guard let content = window?.contentView else { return }
-        heading.font = .systemFont(ofSize: 16, weight: .heavy)
-        heading.textColor = AchievementPanelStyle.accent
         heading.lineBreakMode = .byTruncatingTail
+        heading.maximumNumberOfLines = 1
         heading.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         filter.segmentCount = 3
         filter.trackingMode = .selectOne
@@ -399,14 +394,8 @@ final class AchievementsWindowController: NSWindowController {
         titleRow.orientation = .horizontal
         titleRow.alignment = .centerY
         titleRow.spacing = 8
-        let toolbar = NSStackView(views: [titleRow, actions])
-        toolbar.orientation = .vertical
-        toolbar.alignment = .leading
-        toolbar.spacing = 12
-        toolbar.translatesAutoresizingMaskIntoConstraints = false
-        let header = PixelFrameCardView(accentColor: AchievementPanelStyle.accent)
+        let header = UtilityCard(rows: [titleRow, actions], padding: 16, spacing: 12)
         header.translatesAutoresizingMaskIntoConstraints = false
-        header.addSubview(toolbar)
         content.addSubview(header)
 
         scroll.translatesAutoresizingMaskIntoConstraints = false
@@ -426,13 +415,6 @@ final class AchievementsWindowController: NSWindowController {
             header.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
             header.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
             header.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            toolbar.topAnchor.constraint(equalTo: header.topAnchor, constant: 16),
-            toolbar.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 16),
-            toolbar.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -16),
-            toolbar.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -16),
-            titleRow.widthAnchor.constraint(equalTo: toolbar.widthAnchor),
-            actions.widthAnchor.constraint(equalTo: toolbar.widthAnchor),
-            filter.widthAnchor.constraint(equalTo: toolbar.widthAnchor),
             filter.heightAnchor.constraint(equalToConstant: 44),
             backButton.heightAnchor.constraint(equalToConstant: 32),
             scroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 4),
@@ -450,11 +432,8 @@ final class AchievementsWindowController: NSWindowController {
     private func makeRow(_ definition: AchievementDefinition) -> NSView {
         let unlocked = manager.isUnlocked(id: definition.id)
         let accent = unlocked ? AchievementPanelStyle.success : AchievementPanelStyle.accent
-        let row = PixelFrameCardView(accentColor: accent)
-        row.translatesAutoresizingMaskIntoConstraints = false
-        let name = NSTextField(wrappingLabelWithString: AchievementText.string(definition.titleKey))
-        name.font = .systemFont(ofSize: 13, weight: .semibold)
-        name.textColor = accent
+        let name = UtilityStyle.label(AchievementText.string(definition.titleKey), size: 13, weight: .semibold,
+                                      color: unlocked ? accent : AchievementPanelStyle.body)
         name.setAccessibilityLabel(AchievementText.title(definition, manager: manager))
         let icon = NSImageView(image: AchievementIconCatalog.image(for: definition, muted: !unlocked))
         icon.imageScaling = .scaleProportionallyUpOrDown
@@ -465,17 +444,12 @@ final class AchievementsWindowController: NSWindowController {
         titleRow.orientation = .horizontal
         titleRow.alignment = .centerY
         titleRow.spacing = 6
-        let condition = NSTextField(wrappingLabelWithString: AchievementText.string(definition.descriptionKey))
-        condition.font = .systemFont(ofSize: 12, weight: .regular)
-        condition.textColor = AchievementPanelStyle.body
-        let progress = NSTextField(wrappingLabelWithString: AchievementText.progress(definition, manager: manager))
-        progress.font = .systemFont(ofSize: 11, weight: .medium)
-        progress.textColor = accent
-        let status = NSTextField(wrappingLabelWithString: AchievementText.status(definition, manager: manager))
-        status.font = .systemFont(ofSize: 10, weight: .regular)
-        status.textColor = unlocked ? AchievementPanelStyle.success : AchievementPanelStyle.muted
+        let condition = UtilityStyle.label(AchievementText.string(definition.descriptionKey), size: 12)
+        let progress = UtilityStyle.label(AchievementText.progress(definition, manager: manager), size: 11, weight: .medium, color: accent)
+        let status = UtilityStyle.label(AchievementText.status(definition, manager: manager), size: 10,
+                                        color: unlocked ? AchievementPanelStyle.success : AchievementPanelStyle.muted)
         let meter = AchievementProgressIndicator()
-        meter.accentColor = unlocked ? HomeStyle.green : HomeStyle.yellow
+        meter.accentColor = unlocked ? AchievementPanelStyle.success : HomeDashboardStyle.yellow
         meter.heightAnchor.constraint(equalToConstant: 10).isActive = true
         meter.style = .bar
         meter.isIndeterminate = false
@@ -483,22 +457,12 @@ final class AchievementsWindowController: NSWindowController {
         meter.maxValue = 1
         meter.doubleValue = unlocked ? 1 : manager.progress(for: definition).fraction
         meter.setAccessibilityLabel(progress.stringValue)
-        let stack = NSStackView(views: [titleRow, condition, progress, meter, status])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 9
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        row.addSubview(stack)
-        for view in stack.arrangedSubviews {
-            view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        let details: [NSView] = [titleRow, condition, progress, meter, status]
+        for view in details {
             view.setContentCompressionResistancePriority(.required, for: .vertical)
         }
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: row.topAnchor, constant: 16),
-            stack.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -16),
-            stack.bottomAnchor.constraint(equalTo: row.bottomAnchor, constant: -16)
-        ])
+        let row = UtilityCard(rows: details, accent: unlocked ? accent : nil, padding: 16, spacing: 9)
+        row.translatesAutoresizingMaskIntoConstraints = false
         return row
     }
 

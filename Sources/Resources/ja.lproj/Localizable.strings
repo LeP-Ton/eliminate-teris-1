@@ -1,4 +1,4 @@
-"window.title" = "テリス消去1";
+"window.title" = "テトリス消去";
 "window.subtitle" = "ピクセル Touch Bar チャレンジ";
 "panel.settings" = "ゲーム設定";
 "panel.status" = "時間とスコア";
@@ -172,7 +172,8 @@
 "achievement.32.desc" = "すべてのモードで、赤色のブロックを合計 10,000 個消す。";
 
 // 浅色探索版首页与固定玩法规则。
-"home.brand" = "消去テトリス 1";
+"home.brand" = "テトリス消去";
+"home.space_key" = "スペース";
 "home.game_modes" = "ゲームモード";
 "home.hero.free" = "入れ替えて、\n楽しく消そう。";
 "home.hero.timed" = "1 分間、\n消去に挑戦。";
