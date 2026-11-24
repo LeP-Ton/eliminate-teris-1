@@ -209,6 +209,11 @@ final class HomeHeroView: NSView {
 }
 
 private final class HomeTouchBarGuideView: NSView {
+    private var timer: Timer?
+    private var elapsed: TimeInterval = 0
+    private var lastTick: TimeInterval = 0
+    private var reducesMotion = false
+
     override var isFlipped: Bool { true }
 
     override init(frame: NSRect) {
@@ -219,9 +224,46 @@ private final class HomeTouchBarGuideView: NSView {
 
     required init?(coder: NSCoder) { nil }
 
+    deinit { timer?.invalidate() }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        timer?.invalidate()
+        timer = nil
+        guard window != nil else { return }
+
+        elapsed = 0
+        lastTick = ProcessInfo.processInfo.systemUptime
+        reducesMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let timer = Timer(timeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+            self?.advanceDemo()
+        }
+        timer.tolerance = 0.005
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+        needsDisplay = true
+    }
+
+    private func advanceDemo() {
+        let now = ProcessInfo.processInfo.systemUptime
+        let interval = now - lastTick
+        lastTick = now
+        guard let window, window.isVisible, !window.isMiniaturized, !isHiddenOrHasHiddenAncestor else { return }
+
+        let previous = reducesMotion
+        reducesMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        if !reducesMotion {
+            // 窗口隐藏或系统休眠后保留当前阶段，避免恢复时直接跳到补位。
+            elapsed = (elapsed + min(interval, 0.1)).truncatingRemainder(dividingBy: HomeTouchBarDemo.loopDuration)
+        }
+        if !reducesMotion || previous != reducesMotion { needsDisplay = true }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        HomeLobbyArtwork.drawTouchBar(in: bounds)
-        let scale = min(bounds.width / 925, bounds.height / 112)
+        let frame = HomeTouchBarDemo.frame(at: elapsed, animated: window != nil && !reducesMotion)
+        HomeLobbyArtwork.drawTouchBar(in: bounds, frame: frame)
+        let canvas = HomeLobbyArtwork.touchBarCanvasSize
+        let scale = min(bounds.width / canvas.width, bounds.height / canvas.height)
         let size = min(19, max(12, scale * 19))
         let caption = AchievementText.string("home.operation_hint")
         let width = min(bounds.width * 0.63, (caption as NSString).size(withAttributes: [
