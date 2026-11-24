@@ -21,6 +21,7 @@ final class HomeChallengeHUDView: NSView {
     }
 
     var breakdownCellRects: [NSRect] { Face(frame: surfaceRect).breakdownCellRects }
+    var budgetTrackRect: NSRect? { showsBudget ? Face(frame: surfaceRect).budgetTrack : nil }
 
     /// 设计稿坐标以底部分格左边缘为参考。背板可以越过这个边缘，在前层左侧露出。
     private struct Face {
@@ -29,6 +30,19 @@ final class HomeChallengeHUDView: NSView {
 
         var rules: NSRect { plate(from: point(455, 123), to: point(1046, 309)) }
         var totals: NSRect { plate(from: point(472, 175), to: point(1033, 255)) }
+
+        var budgetTrack: NSRect {
+            let plate = rules
+            let headerHeight = totals.minY - plate.minY
+            let height = headerHeight * 0.22
+            let y = plate.minY + (headerHeight - height) / 2
+            // 左端沿用原标记的起点，右端按同一斜率和留白镜像定位。
+            let left = plate.minX + HomeDashboardStyle.edgeOffset(for: plate.maxY - y - height)
+            let right = plate.maxX - HomeDashboardStyle.edgeOffset(for: y - plate.minY)
+            let start = point(482, 123).x
+            let inset = start - left
+            return NSRect(x: start, y: y, width: max(0, right - inset - start), height: height)
+        }
 
         var breakdownCellRects: [NSRect] {
             let total = totals
@@ -95,7 +109,7 @@ final class HomeChallengeHUDView: NSView {
 
     func refresh(snapshot: GameSnapshot, mode: HomeGameMode) {
         self.snapshot = snapshot; self.mode = mode
-        var labels = [modeCaption]
+        var labels: [String] = []
         if showsBudget { labels.append(AchievementText.string(budgetLabelKey) + ": " + budgetText) }
         labels.append(AchievementText.string("home.cleared_title") + ": \(snapshot.totalCleared)")
         labels += PieceKind.allCases.map { kind in
@@ -104,12 +118,6 @@ final class HomeChallengeHUDView: NSView {
         setAccessibilityLabel(labels.joined(separator: ", "))
         toolTip = labels.joined(separator: "\n")
         needsDisplay = true
-    }
-
-    private var modeCaption: String {
-        let title = AchievementText.string("home.mode.\(mode.key)")
-        let description = AchievementText.string("home.mode_desc.\(mode.key)")
-        return title + " · " + description.trimmingCharacters(in: CharacterSet(charactersIn: "。."))
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -130,7 +138,8 @@ final class HomeChallengeHUDView: NSView {
             NSGraphicsContext.restoreGraphicsState()
         }
 
-        drawRules(on: face)
+        drawBackingPlate(on: face)
+        if let track = budgetTrackRect { drawTrack(track, accent: accent, snapshot: snapshot) }
         // 总数牌压在规则背板上，独立描边在左右两侧形成错位。
         fill(total, colors: [HomeDashboardStyle.color(0x17232D), HomeDashboardStyle.color(0x0C151E),
                              HomeDashboardStyle.color(0x101A25)], angle: 14,
@@ -140,7 +149,7 @@ final class HomeChallengeHUDView: NSView {
         if let revealFraction { drawRevealHighlight(in: surface, outline: total, accent: accent, fraction: revealFraction) }
     }
 
-    private func drawRules(on face: Face) {
+    private func drawBackingPlate(on face: Face) {
         let plate = face.rules
         let blue = HomeDashboardStyle.color(0x203547)
         NSGradient(colors: [blue.withAlphaComponent(0.62), blue.withAlphaComponent(0.30), blue.withAlphaComponent(0)])?
@@ -156,17 +165,6 @@ final class HomeChallengeHUDView: NSView {
         let leftRim = HomeDashboardStyle.slant(NSRect(x: plate.minX - 0.625, y: plate.minY,
                                                       width: cut + 1.25, height: plate.height))
         NSGradient(colors: [rim, rim.withAlphaComponent(0.58), rim.withAlphaComponent(0)])?.draw(in: leftRim, angle: 90)
-
-        for x: CGFloat in [482, 498] {
-            var mark = face.box(x, 138, width: 14, height: 20)
-            mark.size.width += HomeDashboardStyle.edgeOffset(for: mark.height)
-            HomeDashboardStyle.mark(in: mark)
-        }
-        let caption = face.box(535, 123, width: 478, height: 52)
-        let size = GameLobbyStyle.fittedSize(modeCaption, width: caption.width,
-                                             preferred: max(11, 18 * face.typographyScale), minimum: 9, weight: .bold)
-        label(modeCaption, x: caption.minX, y: caption.midY - 1, width: caption.width, size: size, weight: .bold,
-              color: HomeDashboardStyle.cyan)
     }
 
     private func drawTotals(_ snapshot: GameSnapshot, on face: Face, accent: NSColor) {
@@ -176,14 +174,11 @@ final class HomeChallengeHUDView: NSView {
         let right = body.maxX
         if showsBudget {
             let split = x + available * 0.48
-            let trackY = body.maxY - 8
-            let track = NSRect(x: x, y: trackY, width: right - x, height: 3)
-            drawTrack(track, accent: accent, snapshot: snapshot)
             let separatorTop = body.minY + 8
-            let separatorBottom = trackY - 6
+            let separatorBottom = body.maxY - 8
             let separatorOffset = HomeDashboardStyle.edgeOffset(for: separatorBottom - separatorTop) / 2
             let columnPadding = separatorOffset + 5
-            let metricY = body.midY - 4
+            let metricY = body.midY
             drawStackedMetric(budgetText, labelKey: budgetLabelKey, center: metricY, x: x,
                               width: split - x - columnPadding, height: body.height, color: accent, alignment: .left)
             drawStackedMetric(String(snapshot.totalCleared), labelKey: "home.cleared_title", center: metricY,

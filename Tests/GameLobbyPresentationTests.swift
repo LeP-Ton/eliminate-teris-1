@@ -61,6 +61,90 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         XCTAssertEqual(hud.budgetText, "0")
     }
 
+    func testChallengeBudgetTrackReplacesOnlyTheTopBandContent() throws {
+        _ = NSApplication.shared
+        for size in [NSSize(width: 336, height: 148), NSSize(width: 692, height: 196)] {
+            let hud = HomeChallengeHUDView(frame: NSRect(origin: .zero, size: size))
+            func render(_ mode: HomeGameMode, remaining: Double) throws -> NSBitmapImageRep {
+                hud.refresh(snapshot: GameSnapshot(mode: mode.gameMode,
+                    elapsedTime: (1 - remaining) * HomeGameMode.timedDuration,
+                    remainingTime: mode == .timed ? remaining * HomeGameMode.timedDuration : nil,
+                    remainingSwaps: mode == .moves ? Int(remaining * Double(HomeGameMode.moveLimit)) : nil,
+                    isRunning: remaining > 0 && remaining < 1, isFinished: remaining == 0,
+                    clearedByKind: [.orangeRicky: 21]), mode: mode)
+                return try image(hud)
+            }
+
+            let free = try render(.free, remaining: 1)
+            XCTAssertNil(hud.budgetTrackRect)
+            let surface = hud.surfaceRect
+            let scale = CGFloat(free.pixelsWide) / size.width
+            func pixels(from start: CGFloat, to end: CGFloat) -> Range<Int> {
+                Int(ceil(start * scale))..<Int(floor(end * scale))
+            }
+            func cyanColumns(in bitmap: NSBitmapImageRep, y: Int, x: Range<Int>) -> [Int] {
+                x.filter { column in
+                    guard let color = bitmap.colorAt(x: column, y: y)?.usingColorSpace(.sRGB),
+                          color.alphaComponent > 0.8 else { return false }
+                    return min(color.greenComponent, color.blueComponent) - color.redComponent > 0.45
+                }
+            }
+            let headerBottom = surface.minY + surface.height * 52 / 186
+            let headerRows = pixels(from: surface.minY, to: headerBottom)
+            let headerColumns = pixels(from: 0, to: size.width)
+            XCTAssertFalse(headerRows.contains { !cyanColumns(in: free, y: $0, x: headerColumns).isEmpty },
+                           "自由模式的背板顶部不应残留青色标记或文字")
+
+            var timedTrack: NSRect?
+            for mode in [HomeGameMode.timed, .moves] {
+                let full = try render(mode, remaining: 1)
+                let track = try XCTUnwrap(hud.budgetTrackRect)
+                if mode == .timed { timedTrack = track } else { XCTAssertEqual(track, timedTrack) }
+                XCTAssertGreaterThan(track.minY, surface.minY)
+                XCTAssertLessThan(track.maxY, headerBottom)
+                XCTAssertEqual(track.midY, (surface.minY + headerBottom) / 2, accuracy: 0.1)
+                XCTAssertEqual(track.minX, surface.minX + surface.width * 72 / 636, accuracy: 0.1)
+                // 在轨道同一高度量两侧水平留白，斜边保持平行时整条轨道都等距。
+                let plateOffset = HomeDashboardStyle.edgeOffset(for: track.midY - surface.minY)
+                let trackOffset = HomeDashboardStyle.edgeOffset(for: track.height) / 2
+                let left = surface.minX + surface.width * 45 / 636 - plateOffset
+                let right = surface.maxX - plateOffset
+                let leftGap = track.minX + trackOffset - left
+                let rightGap = right - (track.maxX - trackOffset)
+                XCTAssertGreaterThan(leftGap, 0)
+                XCTAssertEqual(leftGap, rightGap, accuracy: 0.1)
+
+                let row = Int(track.midY * scale)
+                let columns = pixels(from: track.minX, to: track.maxX)
+                let fullInk = cyanColumns(in: full, y: row, x: columns)
+                XCTAssertGreaterThan(fullInk.count, columns.count / 2)
+                func segmentCount(_ ink: [Int]) -> Int {
+                    guard !ink.isEmpty else { return 0 }
+                    return 1 + zip(ink, ink.dropFirst()).filter { left, right in right > left + 1 }.count
+                }
+                XCTAssertEqual(segmentCount(fullInk), mode == .moves ? 30 : 1)
+
+                let partial = try render(mode, remaining: 0.5)
+                let partialInk = cyanColumns(in: partial, y: row, x: columns)
+                XCTAssertEqual(Double(partialInk.count) / Double(fullInk.count), 0.5, accuracy: 0.05)
+                XCTAssertEqual(segmentCount(partialInk), mode == .moves ? 15 : 1)
+                XCTAssertEqual(partialInk.first, fullInk.first)
+                let empty = try render(mode, remaining: 0)
+                XCTAssertEqual(hud.budgetTrackRect, track, "预算用尽后仍显示空轨道")
+                XCTAssertTrue(cyanColumns(in: empty, y: row, x: columns).isEmpty)
+                let first = try XCTUnwrap(fullInk.first)
+                XCTAssertNotEqual(empty.colorAt(x: first, y: row), free.colorAt(x: first, y: row),
+                                  "挑战归零后仍应绘制暗色轨道底板")
+
+                let totalsRows = pixels(from: headerBottom, to: surface.minY + surface.height * 132 / 186)
+                let totalsColumns = pixels(from: surface.minX + surface.width * 0.50,
+                                           to: surface.minX + surface.width * 0.85)
+                XCTAssertFalse(totalsRows.contains { !cyanColumns(in: full, y: $0, x: totalsColumns).isEmpty },
+                               "统计区下方不得重复绘制进度轨道")
+            }
+        }
+    }
+
     func testPieceCountsUseEqualCellsAndGapsAcrossStatWidths() throws {
         _ = NSApplication.shared
         let longCount = 123_456
