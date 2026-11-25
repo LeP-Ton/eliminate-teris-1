@@ -61,6 +61,48 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         XCTAssertEqual(hud.budgetText, "0")
     }
 
+    func testStatisticsPlateSlantsHaveEqualVisibleSpacing() throws {
+        _ = NSApplication.shared
+        for size in [NSSize(width: 336, height: 148), NSSize(width: 692, height: 196), NSSize(width: 1_360, height: 148)] {
+            let hud = HomeChallengeHUDView(frame: NSRect(origin: .zero, size: size))
+            hud.refresh(snapshot: GameSnapshot(mode: .free, elapsedTime: 0, remainingTime: nil,
+                                              remainingSwaps: nil, isRunning: false, isFinished: false), mode: .free)
+            let bitmap = try image(hud)
+            let scale = CGFloat(bitmap.pixelsWide) / size.width
+            let surface = hud.surfaceRect
+            let join = surface.minY + surface.height * 52 / 186
+
+            func rimCenters(at y: CGFloat) -> [CGFloat] {
+                let row = Int(y * scale)
+                let bright = (0..<bitmap.pixelsWide).filter { x in
+                    guard let color = bitmap.colorAt(x: x, y: row)?.usingColorSpace(.sRGB) else { return false }
+                    return color.alphaComponent > 0.4 && color.redComponent > 0.26
+                }
+                var spans: [ClosedRange<Int>] = []
+                for x in bright {
+                    if let previous = spans.last, x == previous.upperBound + 1 {
+                        spans[spans.count - 1] = previous.lowerBound...x
+                    } else {
+                        spans.append(x...x)
+                    }
+                }
+                return spans.map { CGFloat($0.lowerBound + $0.upperBound) / (2 * scale) }
+            }
+
+            // 背板右线会在交界处被盖住，将交界上方的两根背板斜线投到同一测量高度。
+            let rear = rimCenters(at: join - 4)
+            let front = rimCenters(at: join + 4)
+            XCTAssertEqual(rear.count, 2, "\(size)：交界上方应显示背板的两根斜边")
+            XCTAssertEqual(front.count, 3, "\(size)：交界下方应显示背板左边和两根前板斜边")
+            guard rear.count == 2, front.count == 3 else { continue }
+            let shift = HomeDashboardStyle.edgeOffset(for: 8)
+            let leftGap = front[1] - rear[0] + shift
+            let rightGap = front[2] - rear[1] + shift
+            XCTAssertGreaterThan(leftGap, 0)
+            XCTAssertEqual(rightGap, leftGap, accuracy: 1.5, "\(size)：左右可见错位要等宽")
+        }
+    }
+
     func testChallengeBudgetTrackReplacesOnlyTheTopBandContent() throws {
         _ = NSApplication.shared
         for size in [NSSize(width: 336, height: 148), NSSize(width: 692, height: 196)] {
@@ -108,7 +150,7 @@ final class GameLobbyPresentationTests: AchievementTestCase {
                 let plateOffset = HomeDashboardStyle.edgeOffset(for: track.midY - surface.minY)
                 let trackOffset = HomeDashboardStyle.edgeOffset(for: track.height) / 2
                 let left = surface.minX + surface.width * 45 / 636 - plateOffset
-                let right = surface.maxX - plateOffset
+                let right = surface.minX + surface.width * 606 / 636 - plateOffset
                 let leftGap = track.minX + trackOffset - left
                 let rightGap = right - (track.maxX - trackOffset)
                 XCTAssertGreaterThan(leftGap, 0)

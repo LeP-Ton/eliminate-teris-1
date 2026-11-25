@@ -1,6 +1,12 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261125080913-fix-count-increment-cadence.md` - 会话-56 起固定统计数字的 60 毫秒节拍，连续消除沿同一节拍增加目标，大连锁在十拍内追上实际值。
+`workflow/20261124232704-even-stat-count-step-intervals.md` - 会话-51 起让统计数字等间隔递增，消除最后一步的停顿，并补上节奏边界回归。
+`workflow/20261124225830-animate-stat-count-values-in-place.md` - 会话-42 起改为在原位逐步递增消除统计值，连续消除从画面当前值接续，汇总与分类同步。
+`workflow/20261124223031-restore-space-start-and-stat-number-jumps.md` - 会话-38 起修复模式卡保留焦点时的空格开局，并恢复消除总数和变化分类数字的跳动。
+`workflow/20261124215116-raise-mode-card-icon-plates.md` - 会话-35 起给右侧四张游戏模式卡加入凸出上沿的斜面图标前层，含原生渲染与紧凑布局验证。
+`workflow/20261124212018-match-stat-plate-side-spacing.md` - 会话-32 起统一消除统计卡背板与前板左右斜边的水平错位，含原生像素回归及进度轨道留白校验。
 `workflow/20261124091725-animate-home-touch-bar-guide.md` - 会话-27 起将首页触控栏示意改为循环演示，包含竖直手指、蓝色滑动提示、相邻交换、三连消除和左侧补位。
 `workflow/20261124003148-move-challenge-budget-into-hud-header.md` - 会话-22 起移除统计卡顶部规则文案，自由模式留空，限时和限步把进度条移至顶部并沿斜边等距。
 `workflow/20261123231057-split-popup-lists-into-row-cards.md` - 会话-16 至会话-18 将挑战记录、旧规则记录和玩法教学按条目拆为独立斜边卡，记录表头和数据保持列对齐。
@@ -104,6 +110,12 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要调整统计数字固定节拍、连续消除时的接续或大连锁的计数追赶时，读取 `20261125080913-fix-count-increment-cadence.md`。
+- 需要调整消除统计每次变数的间隔或核对最后一步的节奏时，读取 `20261124232704-even-stat-count-step-intervals.md`。
+- 需要调整消除统计的数字递增、动画快速接续、静态基线或汇总与分类同步时，读取 `20261124225830-animate-stat-count-values-in-place.md`。
+- 需要核对空格开局的主窗口焦点边界，或调整消除统计数字的跳动、归零及减少动态效果时，读取 `20261124223031-restore-space-start-and-stat-number-jumps.md`。
+- 需要调整右侧游戏模式卡的图标前层、立体侧沿、选中色或上沿留空时，读取 `20261124215116-raise-mode-card-icon-plates.md`。
+- 需要调整消除统计卡背板与前板的左右斜边间距或核对等距像素回归时，读取 `20261124212018-match-stat-plate-side-spacing.md`。
 - 需要调整首页触控栏演示的手势、交换、消除、补位、循环节奏或减少动态效果时，读取 `20261124091725-animate-home-touch-bar-guide.md`。
 - 需要调整统计卡顶部的预算轨道、左右等距留白、自由模式标题区域或限时限步预算显示时，读取 `20261124003148-move-challenge-budget-into-hud-header.md`。
 - 需要调整弹窗逐行卡片、记录表头与列宽、历史记录分组或教学卡片间距时，读取 `20261123231057-split-popup-lists-into-row-cards.md`。

@@ -192,11 +192,13 @@ final class GameViewController: NSViewController, NSTouchBarDelegate {
               event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty,
               let window = view.window, window.isKeyWindow, event.window === window,
               window.attachedSheet == nil, NSApp.modalWindow == nil else { return false }
-        if window.childWindows?.contains(where: { $0.isVisible }) == true {
-            return window.firstResponder === dashboard.startButton
+        let responder = window.firstResponder
+        // 点完模式后焦点还在卡上。已选卡的空格进入开局，未选卡仍可用空格选择。
+        let focusedStart = responder === dashboard.startButton || (responder as? HomeModeButton)?.selected == true
+        if !focusedStart {
+            if responder is NSTextView || responder is NSSlider || responder is NSButton { return false }
+            if window.childWindows?.contains(where: { $0.isVisible }) == true { return false }
         }
-        if window.firstResponder is NSTextView || window.firstResponder is NSPopUpButton || window.firstResponder is NSSlider { return false }
-        if let button = window.firstResponder as? NSButton, button !== dashboard.startButton { return false }
         // 游戏中也消费空格，避免焦点恰在“重新开始”按钮时被原生按钮意外激活。
         if event.isARepeat || controller.snapshot().isRunning || startSequence.isOpening { return true }
         startRound()

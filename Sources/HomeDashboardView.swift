@@ -100,6 +100,8 @@ class HomeButton: NSButton {
 }
 
 final class HomeModeButton: HomeButton {
+    static let iconPlateClearance: CGFloat = 8
+
     // 解谜暂时只是大厅入口，没有可交给棋盘控制器的游戏模式。
     let mode: HomeGameMode?
     private var titleKey: String { "home.mode.\(mode?.key ?? "puzzle")" }
@@ -116,6 +118,34 @@ final class HomeModeButton: HomeButton {
     }
     required init?(coder: NSCoder) { nil }
 
+    var faceRect: NSRect {
+        let effect = feedback.values
+        let inset = bounds.insetBy(dx: 1.2, dy: 1.2)
+        return NSRect(x: inset.minX, y: inset.minY + Self.iconPlateClearance + effect.press * 1.4 - effect.hover,
+                      width: inset.width, height: max(0, inset.height - Self.iconPlateClearance))
+    }
+
+    var iconPlateRect: NSRect {
+        let face = faceRect
+        let height = face.height * 0.77
+        let width = face.height * 0.76 + HomeDashboardStyle.edgeOffset(for: height)
+        let rise = min(Self.iconPlateClearance - 1, face.height * 0.13)
+        return NSRect(x: face.minX + 1.5, y: face.minY - rise, width: width, height: height)
+    }
+
+    var modeIconRect: NSRect {
+        let plate = iconPlateRect
+        let size = min(44, plate.height * 0.64)
+        return NSRect(x: plate.midX - size / 2, y: plate.midY - size / 2, width: size, height: size)
+    }
+
+    override var focusRingMaskBounds: NSRect { faceRect.union(iconPlateRect) }
+
+    override func drawFocusRingMask() {
+        HomeDashboardStyle.slant(faceRect).fill()
+        HomeDashboardStyle.slant(iconPlateRect).fill()
+    }
+
     func refresh(selectedMode: HomeGameMode) {
         selected = mode == selectedMode
         let language = Localizer.shared.language
@@ -126,7 +156,8 @@ final class HomeModeButton: HomeButton {
     }
     override func draw(_ dirtyRect: NSRect) {
         let effect = feedback.values
-        let face = bounds.insetBy(dx: 1.2, dy: 1.2).offsetBy(dx: 0, dy: effect.press * 1.4 - effect.hover)
+        let face = faceRect
+        guard face.height > 0, face.width > 0 else { return }
         let cyan = HomeDashboardStyle.cyan
         let tint = min(1, effect.selection + effect.hover * 0.26)
         let left = HomeDashboardStyle.color(0x222D35)
@@ -136,13 +167,9 @@ final class HomeModeButton: HomeButton {
         let stroke = HomeDashboardStyle.border.blended(withFraction: tint, of: cyan) ?? cyan
         HomeDashboardStyle.surface(face, colors: colors, border: stroke,
                                    lineWidth: 1 + 1.7 * effect.selection)
-        let iconSize = min(48, face.height * 0.56)
-        let icon = NSRect(x: face.minX + face.height * 0.57, y: face.midY - iconSize / 2, width: iconSize, height: iconSize)
-        drawModeIcon(in: icon, color: HomeDashboardStyle.ink.blended(withFraction: effect.selection, of: cyan) ?? cyan)
-        let splitX = icon.maxX + face.height * 0.26
-        HomeDashboardStyle.diagonal(from: NSPoint(x: splitX, y: face.midY - iconSize / 2),
-                                    height: iconSize, color: HomeDashboardStyle.border, width: 1.2)
-        let textX = splitX + 13
+        drawIconPlate(iconPlateRect, tint: tint)
+        drawModeIcon(in: modeIconRect, color: HomeDashboardStyle.ink.blended(withFraction: effect.selection, of: cyan) ?? cyan)
+        let textX = face.minX + face.height * 0.83 + min(48, face.height * 0.56) + 13
         let textWidth = face.maxX - textX - max(31, face.height * 0.67)
         let title = AchievementText.string(titleKey)
         let titleSize = GameLobbyStyle.fittedSize(title, width: textWidth, preferred: min(24, face.height * 0.34),
@@ -162,6 +189,31 @@ final class HomeModeButton: HomeButton {
                              in: NSRect(x: face.maxX - face.height * 0.71, y: face.minY + face.height * 0.23, width: size, height: size),
                              color: cyan.withAlphaComponent(effect.selection))
         }
+    }
+
+    private func drawIconPlate(_ plate: NSRect, tint: CGFloat) {
+        let depth = min(3.5, plate.height * 0.07)
+        let side = HomeDashboardStyle.color(0x09151E)
+        let activeSide = HomeDashboardStyle.color(0x12424B)
+        (side.blended(withFraction: tint, of: activeSide) ?? side).setFill()
+        HomeDashboardStyle.slant(plate.offsetBy(dx: depth, dy: depth)).fill()
+
+        let upper = HomeDashboardStyle.color(0x354858)
+        let lower = HomeDashboardStyle.color(0x162631)
+        let edge = HomeDashboardStyle.color(0x617889)
+        let cyan = HomeDashboardStyle.cyan
+        HomeDashboardStyle.surface(plate,
+                                   colors: [upper.blended(withFraction: tint, of: HomeDashboardStyle.color(0x236570)) ?? upper,
+                                            lower.blended(withFraction: tint, of: HomeDashboardStyle.color(0x0D303A)) ?? lower],
+                                   border: edge.blended(withFraction: tint * 0.72, of: cyan) ?? edge)
+
+        // 只提亮前层受光的一段上沿，让下沿的侧面保有厚度。
+        let cut = HomeDashboardStyle.edgeOffset(for: plate.height)
+        let light = HomeDashboardStyle.color(0xB4D3E8).blended(withFraction: tint * 0.55, of: cyan) ?? cyan
+        let highlight = NSRect(x: plate.minX + cut + 1.3, y: plate.minY + 1,
+                               width: (plate.width - cut) * 0.81, height: 1)
+        NSGradient(starting: light.withAlphaComponent(0.78), ending: light.withAlphaComponent(0))?
+            .draw(in: highlight, angle: 0)
     }
 
     private func drawModeIcon(in rect: NSRect, color: NSColor) {
@@ -636,13 +688,15 @@ final class HomeDashboardView: NSView {
                             width: hint.preferredMaxLayoutWidth, height: max(0, achievementTop - stageBottom - 10))
         achievementPath.frame = NSRect(x: margin, y: achievementTop, width: bounds.width - margin * 2,
                                        height: max(0, bounds.height - achievementTop - min(30, bounds.height * 0.031)))
-        let rowGap = min(13, max(7, bounds.height * 0.012))
+        let frontClearance = HomeModeButton.iconPlateClearance
+        let rowGap = min(13, max(frontClearance + 1, bounds.height * 0.012))
         let firstRowY: CGFloat = modePanel.isCompact ? 49 : 57
         let rowHeight = max(0, panel.height - firstRowY - 4 - CGFloat(modes.count - 1) * rowGap) / CGFloat(modes.count)
         for (index, button) in modes.enumerated() {
             let x = CGFloat(modes.count - 1 - index) * min(5, bounds.width * 0.0039)
-            button.frame = NSRect(x: x, y: firstRowY + CGFloat(index) * (rowHeight + rowGap),
-                                  width: max(0, panel.width - 15), height: rowHeight)
+            // 把伸出上沿的前层纳入按钮范围，绘制不会被裁切，图标也可以点击。
+            button.frame = NSRect(x: x, y: firstRowY + CGFloat(index) * (rowHeight + rowGap) - frontClearance,
+                                  width: max(0, panel.width - 15), height: rowHeight + frontClearance)
         }
         var navX = bounds.width - margin + 5
         for button in [settings, rules, records] {

@@ -238,11 +238,20 @@ final class GameStartSequenceTests: AchievementTestCase {
         let window = StartKeyTestWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 800), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = controller.view
         defer { window.close() }
-        func key(modifiers: NSEvent.ModifierFlags = [], repeatKey: Bool = false) throws -> NSEvent {
+        func key(modifiers: NSEvent.ModifierFlags = [], repeatKey: Bool = false, target: NSWindow? = nil) throws -> NSEvent {
             try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
-                                          windowNumber: window.windowNumber, context: nil, characters: " ", charactersIgnoringModifiers: " ", isARepeat: repeatKey, keyCode: 49))
+                                          windowNumber: (target ?? window).windowNumber, context: nil,
+                                          characters: " ", charactersIgnoringModifiers: " ", isARepeat: repeatKey, keyCode: 49))
         }
         XCTAssertFalse(controller.handleStartKeyEvent(try key(modifiers: .command)))
+        let dashboard = try XCTUnwrap(controller.view as? HomeDashboardView)
+        let timed = try XCTUnwrap(dashboard.modePanel.subviews.compactMap { $0 as? HomeModeButton }.first { $0.mode == .timed })
+        XCTAssertTrue(window.makeFirstResponder(timed))
+        XCTAssertTrue(window.firstResponder === timed)
+        XCTAssertFalse(controller.handleStartKeyEvent(try key()), "未选模式应保留原生空格选择")
+        timed.performClick(nil)
+        XCTAssertTrue(timed.selected)
+        XCTAssertTrue(window.firstResponder === timed)
         XCTAssertTrue(controller.handleStartKeyEvent(try key()))
         let preview = board.tiles()
         XCTAssertFalse(board.snapshot().isRunning)
@@ -255,7 +264,28 @@ final class GameStartSequenceTests: AchievementTestCase {
         controller.view.addSubview(editor); window.makeFirstResponder(editor)
         XCTAssertFalse(controller.handleStartKeyEvent(try key()), "文字输入中的空格不能被开局快捷键截获")
         window.makeFirstResponder(nil); editor.removeFromSuperview()
+
+        // 面板事件归面板处理，主窗口明确聚焦开局键或已选模式卡时仍可开局。
+        controller.selectMode(.free)
+        let rules = HomeUtilityPanel(page: "rules", store: ModeRecordStore(defaults: defaults))
+        let panel = try XCTUnwrap(rules.window)
+        rules.present(from: window)
+        XCTAssertTrue(panel.isVisible)
+        XCTAssertFalse(controller.handleStartKeyEvent(try key(target: panel)))
+        XCTAssertFalse(controller.handleStartKeyEvent(try key()))
+        XCTAssertTrue(window.makeFirstResponder(dashboard.startButton))
+        XCTAssertTrue(window.firstResponder === dashboard.startButton)
+        XCTAssertTrue(controller.handleStartKeyEvent(try key()))
+        XCTAssertTrue(controller.startSequence.isOpening)
+        controller.selectMode(.timed)
+        XCTAssertTrue(window.makeFirstResponder(timed))
+        XCTAssertTrue(controller.handleStartKeyEvent(try key()))
+        XCTAssertTrue(controller.startSequence.isOpening)
+        window.removeChildWindow(panel)
+        rules.close()
+
         controller.selectMode(.moves)
+        window.makeFirstResponder(nil)
         XCTAssertTrue(controller.startSequence.beginDrag())
         controller.startSequence.updateDrag(progress: 0.4)
         let partialPreview = board.tiles()
