@@ -1,6 +1,9 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261126212639-balance-contact-card-overhangs.md` - 会话-67 起按联系卡自身左上斜边定位图标，并统一反馈按钮右侧与底边的外露距离。
+`workflow/20261125091517-align-contact-icon-and-raise-feedback.md` - 会话-65 起把联系卡图标前层向右对齐限步卡图标，并将 GitHub 反馈按钮放到主卡右下的凸出前层。
+`workflow/20261125085410-layer-contact-card-icon.md` - 会话-63 起让「联系我们」沿用游戏模式卡的凸出图标前层，含紧凑与标准窗口的原生回归。
 `workflow/20261125080913-fix-count-increment-cadence.md` - 会话-56 起固定统计数字的 60 毫秒节拍，连续消除沿同一节拍增加目标，大连锁在十拍内追上实际值。
 `workflow/20261124232704-even-stat-count-step-intervals.md` - 会话-51 起让统计数字等间隔递增，消除最后一步的停顿，并补上节奏边界回归。
 `workflow/20261124225830-animate-stat-count-values-in-place.md` - 会话-42 起改为在原位逐步递增消除统计值，连续消除从画面当前值接续，汇总与分类同步。
@@ -110,6 +113,9 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要调整联系卡左上图标的小幅外露或反馈按钮右、下等距时，读取 `20261126212639-balance-contact-card-overhangs.md`。
+- 需要调整联系卡图标对齐、右下反馈前层或按钮焦点轮廓时，读取 `20261125091517-align-contact-icon-and-raise-feedback.md`。
+- 需要调整「联系我们」的前层、消息图标、反馈按钮与主卡间距时，读取 `20261125085410-layer-contact-card-icon.md`。
 - 需要调整统计数字固定节拍、连续消除时的接续或大连锁的计数追赶时，读取 `20261125080913-fix-count-increment-cadence.md`。
 - 需要调整消除统计每次变数的间隔或核对最后一步的节奏时，读取 `20261124232704-even-stat-count-step-intervals.md`。
 - 需要调整消除统计的数字递增、动画快速接续、静态基线或汇总与分类同步时，读取 `20261124225830-animate-stat-count-values-in-place.md`。

@@ -13,6 +13,7 @@ enum HomeDashboardStyle {
     // 以每点垂直距离对应的水平偏移定义斜边，组件尺寸变化时角度保持一致。
     static let slope: CGFloat = 0.45
     static let letterSlant: CGFloat = 0.19
+    static let iconPlateClearance: CGFloat = 8
 
     static func color(_ rgb: UInt32) -> NSColor {
         NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255,
@@ -68,6 +69,45 @@ enum HomeDashboardStyle {
         border.setStroke()
         face.lineWidth = lineWidth
         face.stroke()
+    }
+
+    static func iconPlate(in face: NSRect, referenceHeight: CGFloat? = nil) -> NSRect {
+        let baseHeight = referenceHeight ?? face.height
+        let height = baseHeight * 0.77
+        let width = baseHeight * 0.76 + edgeOffset(for: height)
+        let rise = min(iconPlateClearance - 1, baseHeight * 0.13)
+        // 前层较短时，沿主卡的左斜边补偿起点，保留同样的小幅外露。
+        let x = face.minX + 1.5 + edgeOffset(for: face.height - baseHeight)
+        return NSRect(x: x, y: face.minY - rise, width: width, height: height)
+    }
+
+    static func centeredIcon(in plate: NSRect) -> NSRect {
+        let size = min(44, plate.height * 0.64)
+        return NSRect(x: plate.midX - size / 2, y: plate.midY - size / 2, width: size, height: size)
+    }
+
+    static func drawIconPlate(_ plate: NSRect, tint: CGFloat = 0) {
+        guard plate.width > 0, plate.height > 0 else { return }
+        let depth = min(3.5, plate.height * 0.07)
+        let side = color(0x09151E)
+        let activeSide = color(0x12424B)
+        (side.blended(withFraction: tint, of: activeSide) ?? side).setFill()
+        slant(plate.offsetBy(dx: depth, dy: depth)).fill()
+
+        let upper = color(0x354858)
+        let lower = color(0x162631)
+        let edge = color(0x617889)
+        surface(plate, colors: [upper.blended(withFraction: tint, of: color(0x236570)) ?? upper,
+                                lower.blended(withFraction: tint, of: color(0x0D303A)) ?? lower],
+                border: edge.blended(withFraction: tint * 0.72, of: cyan) ?? edge)
+
+        // 只提亮前层受光的一段上沿，让下沿的侧面保有厚度。
+        let cut = edgeOffset(for: plate.height)
+        let light = color(0xB4D3E8).blended(withFraction: tint * 0.55, of: cyan) ?? cyan
+        let highlight = NSRect(x: plate.minX + cut + 1.3, y: plate.minY + 1,
+                               width: (plate.width - cut) * 0.81, height: 1)
+        NSGradient(starting: light.withAlphaComponent(0.78), ending: light.withAlphaComponent(0))?
+            .draw(in: highlight, angle: 0)
     }
 
     static func line(from start: NSPoint, to end: NSPoint, color: NSColor, width: CGFloat = 1) {

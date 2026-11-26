@@ -3,7 +3,7 @@ import CoreText
 
 /// 轻量原生按钮：保持完整点击区域、键盘激活与辅助功能，绘制跟随首页主题。
 class HomeButton: NSButton {
-    enum Style { case navigation, primary, outline, achievementLink }
+    enum Style { case navigation, primary, achievementLink, raisedFeedback }
     var style: Style = .navigation
     var symbolName: String?
     var onClick: (() -> Void)?
@@ -22,9 +22,9 @@ class HomeButton: NSButton {
     required init?(coder: NSCoder) { nil }
     override var isFlipped: Bool { true }
     override var isHighlighted: Bool { didSet { refreshFeedback() } }
-    override var focusRingMaskBounds: NSRect { bounds }
+    override var focusRingMaskBounds: NSRect { style == .raisedFeedback ? buttonSurfaceRect : bounds }
     override func drawFocusRingMask() {
-        HomeDashboardStyle.slant(bounds).fill()
+        HomeDashboardStyle.slant(focusRingMaskBounds).fill()
     }
     override func resetCursorRects() {
         if isEnabled { addCursorRect(bounds, cursor: .pointingHand) }
@@ -46,12 +46,31 @@ class HomeButton: NSButton {
         needsDisplay = true
     }
 
+    var buttonSurfaceInsets: NSEdgeInsets {
+        if style == .raisedFeedback {
+            // 右下侧沿和按下时的位移都画在原生按钮边界内。
+            return NSEdgeInsets(top: 1.2, left: 1.2, bottom: 4.2, right: 5.2)
+        }
+        return NSEdgeInsets(top: 1.2, left: 1.2, bottom: 1.2, right: 1.2)
+    }
+
+    var buttonSurfaceRect: NSRect {
+        let effect = feedback.values
+        let insets = buttonSurfaceInsets
+        let raised = style == .raisedFeedback
+        let dy = raised ? effect.press * 0.4 - effect.hover * 0.7 : effect.press * 1.8 - effect.hover
+        // 反馈前层有上下位移时同步微调横向位置，保持右侧和底边等量外露。
+        let dx = raised ? dy * (1 - HomeDashboardStyle.slope) : 0
+        return NSRect(x: bounds.minX + insets.left + dx, y: bounds.minY + insets.top + dy,
+                      width: max(0, bounds.width - insets.left - insets.right),
+                      height: max(0, bounds.height - insets.top - insets.bottom))
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         let effect = feedback.values
-        let offset = effect.press * 1.8 - effect.hover
-        let face = bounds.insetBy(dx: 1.2, dy: 1.2).offsetBy(dx: 0, dy: offset)
+        let face = buttonSurfaceRect
         let primary = style == .primary
-        let outlined = style == .outline
+        let raisedFeedback = style == .raisedFeedback
         let color = primary ? HomeDashboardStyle.navy : HomeDashboardStyle.ink
         if primary {
             let yellow = HomeDashboardStyle.yellow
@@ -70,23 +89,25 @@ class HomeButton: NSButton {
                 HomeDashboardStyle.navy.withAlphaComponent(0.36).setFill()
                 HomeDashboardStyle.slant(face).fill()
             }
-        } else if outlined || effect.hover > 0 {
+        } else if raisedFeedback {
+            HomeDashboardStyle.drawIconPlate(face, tint: 0.75 + effect.hover * 0.2 - effect.press * 0.08)
+        } else if effect.hover > 0 {
             let cyan = HomeDashboardStyle.cyan
             HomeDashboardStyle.surface(face,
                                        colors: [cyan.withAlphaComponent(effect.hover * 0.10),
                                                 cyan.withAlphaComponent(0.04 + effect.hover * 0.14)],
-                                       border: cyan.withAlphaComponent(outlined ? 0.95 : effect.hover * 0.45),
-                                       lineWidth: outlined ? 1.35 : 0.8)
+                                       border: cyan.withAlphaComponent(effect.hover * 0.45), lineWidth: 0.8)
         }
         let label = style == .achievementLink && title.hasSuffix("  →") ? String(title.dropLast(3)) : title
         let weight: NSFont.Weight = primary ? .black : .bold
         let icon: CGFloat = symbolName == nil ? 0 : (primary ? bounds.height * 0.44 : 16)
         let gap: CGFloat = icon > 0 ? 10 : 0
-        let preferred = primary ? min(34, bounds.height * 0.52) : min(19, bounds.height * 0.44)
-        let size = GameLobbyStyle.fittedSize(label, width: bounds.width - icon - gap - (primary ? 52 : 24),
+        let content = raisedFeedback ? face : bounds
+        let preferred = primary ? min(34, content.height * 0.52) : min(19, content.height * 0.44)
+        let size = GameLobbyStyle.fittedSize(label, width: content.width - icon - gap - (primary ? 52 : 24),
                                              preferred: preferred, minimum: 10, weight: weight)
         let width = (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: weight)]).width
-        let x = (bounds.width - width - icon - gap) / 2
+        let x = content.minX + (content.width - width - icon - gap) / 2
         if let symbolName {
             let iconX = style == .achievementLink ? x + width + gap : x
             let iconColor = style == .achievementLink ? HomeDashboardStyle.yellow : color
@@ -100,8 +121,6 @@ class HomeButton: NSButton {
 }
 
 final class HomeModeButton: HomeButton {
-    static let iconPlateClearance: CGFloat = 8
-
     // 解谜暂时只是大厅入口，没有可交给棋盘控制器的游戏模式。
     let mode: HomeGameMode?
     private var titleKey: String { "home.mode.\(mode?.key ?? "puzzle")" }
@@ -121,23 +140,13 @@ final class HomeModeButton: HomeButton {
     var faceRect: NSRect {
         let effect = feedback.values
         let inset = bounds.insetBy(dx: 1.2, dy: 1.2)
-        return NSRect(x: inset.minX, y: inset.minY + Self.iconPlateClearance + effect.press * 1.4 - effect.hover,
-                      width: inset.width, height: max(0, inset.height - Self.iconPlateClearance))
+        let clearance = HomeDashboardStyle.iconPlateClearance
+        return NSRect(x: inset.minX, y: inset.minY + clearance + effect.press * 1.4 - effect.hover,
+                      width: inset.width, height: max(0, inset.height - clearance))
     }
 
-    var iconPlateRect: NSRect {
-        let face = faceRect
-        let height = face.height * 0.77
-        let width = face.height * 0.76 + HomeDashboardStyle.edgeOffset(for: height)
-        let rise = min(Self.iconPlateClearance - 1, face.height * 0.13)
-        return NSRect(x: face.minX + 1.5, y: face.minY - rise, width: width, height: height)
-    }
-
-    var modeIconRect: NSRect {
-        let plate = iconPlateRect
-        let size = min(44, plate.height * 0.64)
-        return NSRect(x: plate.midX - size / 2, y: plate.midY - size / 2, width: size, height: size)
-    }
+    var iconPlateRect: NSRect { HomeDashboardStyle.iconPlate(in: faceRect) }
+    var modeIconRect: NSRect { HomeDashboardStyle.centeredIcon(in: iconPlateRect) }
 
     override var focusRingMaskBounds: NSRect { faceRect.union(iconPlateRect) }
 
@@ -167,7 +176,7 @@ final class HomeModeButton: HomeButton {
         let stroke = HomeDashboardStyle.border.blended(withFraction: tint, of: cyan) ?? cyan
         HomeDashboardStyle.surface(face, colors: colors, border: stroke,
                                    lineWidth: 1 + 1.7 * effect.selection)
-        drawIconPlate(iconPlateRect, tint: tint)
+        HomeDashboardStyle.drawIconPlate(iconPlateRect, tint: tint)
         drawModeIcon(in: modeIconRect, color: HomeDashboardStyle.ink.blended(withFraction: effect.selection, of: cyan) ?? cyan)
         let textX = face.minX + face.height * 0.83 + min(48, face.height * 0.56) + 13
         let textWidth = face.maxX - textX - max(31, face.height * 0.67)
@@ -189,31 +198,6 @@ final class HomeModeButton: HomeButton {
                              in: NSRect(x: face.maxX - face.height * 0.71, y: face.minY + face.height * 0.23, width: size, height: size),
                              color: cyan.withAlphaComponent(effect.selection))
         }
-    }
-
-    private func drawIconPlate(_ plate: NSRect, tint: CGFloat) {
-        let depth = min(3.5, plate.height * 0.07)
-        let side = HomeDashboardStyle.color(0x09151E)
-        let activeSide = HomeDashboardStyle.color(0x12424B)
-        (side.blended(withFraction: tint, of: activeSide) ?? side).setFill()
-        HomeDashboardStyle.slant(plate.offsetBy(dx: depth, dy: depth)).fill()
-
-        let upper = HomeDashboardStyle.color(0x354858)
-        let lower = HomeDashboardStyle.color(0x162631)
-        let edge = HomeDashboardStyle.color(0x617889)
-        let cyan = HomeDashboardStyle.cyan
-        HomeDashboardStyle.surface(plate,
-                                   colors: [upper.blended(withFraction: tint, of: HomeDashboardStyle.color(0x236570)) ?? upper,
-                                            lower.blended(withFraction: tint, of: HomeDashboardStyle.color(0x0D303A)) ?? lower],
-                                   border: edge.blended(withFraction: tint * 0.72, of: cyan) ?? edge)
-
-        // 只提亮前层受光的一段上沿，让下沿的侧面保有厚度。
-        let cut = HomeDashboardStyle.edgeOffset(for: plate.height)
-        let light = HomeDashboardStyle.color(0xB4D3E8).blended(withFraction: tint * 0.55, of: cyan) ?? cyan
-        let highlight = NSRect(x: plate.minX + cut + 1.3, y: plate.minY + 1,
-                               width: (plate.width - cut) * 0.81, height: 1)
-        NSGradient(starting: light.withAlphaComponent(0.78), ending: light.withAlphaComponent(0))?
-            .draw(in: highlight, angle: 0)
     }
 
     private func drawModeIcon(in rect: NSRect, color: NSColor) {
@@ -688,7 +672,7 @@ final class HomeDashboardView: NSView {
                             width: hint.preferredMaxLayoutWidth, height: max(0, achievementTop - stageBottom - 10))
         achievementPath.frame = NSRect(x: margin, y: achievementTop, width: bounds.width - margin * 2,
                                        height: max(0, bounds.height - achievementTop - min(30, bounds.height * 0.031)))
-        let frontClearance = HomeModeButton.iconPlateClearance
+        let frontClearance = HomeDashboardStyle.iconPlateClearance
         let rowGap = min(13, max(frontClearance + 1, bounds.height * 0.012))
         let firstRowY: CGFloat = modePanel.isCompact ? 49 : 57
         let rowHeight = max(0, panel.height - firstRowY - 4 - CGFloat(modes.count - 1) * rowGap) / CGFloat(modes.count)
@@ -818,15 +802,33 @@ final class HomeModePanelView: NSView {
 /// 反馈按钮打开项目的问题跟踪页。
 final class HomeContactPanelView: NSView {
     private static let feedbackURL = URL(string: "https://github.com/LeP-Ton/eliminate-teris-1/issues")!
+    private static let feedbackOverhang: CGFloat = 12
     private let feedback = HomeButton(frame: .zero)
     var openURL: (URL) -> Void = { _ = NSWorkspace.shared.open($0) }
 
     override var isFlipped: Bool { true }
 
+    var faceRect: NSRect {
+        let top = HomeDashboardStyle.iconPlateClearance
+        let bottom = Self.feedbackOverhang + feedback.buttonSurfaceInsets.bottom
+        return NSRect(x: bounds.minX, y: bounds.minY + top, width: bounds.width,
+                      height: max(0, bounds.height - top - bottom))
+    }
+
+    var iconPlateRect: NSRect {
+        // 前层按标题和说明这部分的高度定尺寸，给下方反馈按钮留出空间。
+        let face = faceRect
+        let headingHeight = min(90, face.height, (bounds.maxY - face.minY) * 0.72)
+        return HomeDashboardStyle.iconPlate(in: face, referenceHeight: max(0, headingHeight))
+    }
+
+    var contactIconRect: NSRect { HomeDashboardStyle.centeredIcon(in: iconPlateRect) }
+    var feedbackPlateRect: NSRect { feedback.convert(feedback.buttonSurfaceRect, to: self) }
+
     override init(frame: NSRect) {
         super.init(frame: frame)
         feedback.symbolName = "arrow.up.right"
-        feedback.style = .outline
+        feedback.style = .raisedFeedback
         feedback.setAccessibilityRole(.link)
         feedback.onClick = { [weak self] in self?.openURL(Self.feedbackURL) }
         addSubview(feedback)
@@ -846,31 +848,38 @@ final class HomeContactPanelView: NSView {
 
     override func layout() {
         super.layout()
+        let face = faceRect
         let titleWidth = (feedback.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 17, weight: .bold)]).width
-        let width = min(max(0, bounds.width - 84), max(bounds.width * 0.52, ceil(titleWidth) + 67))
-        let height = min(47, bounds.height * 0.31)
-        feedback.frame = NSRect(x: bounds.height * 0.38 + 12, y: bounds.height - height - bounds.height * 0.12,
-                                width: width, height: height)
+        let height = min(52, face.height * 0.42)
+        let y = bounds.maxY - height
+        let insets = feedback.buttonSurfaceInsets
+        // 在前层上沿测量同一高度的右斜边，使用与底边相同的外露距离。
+        let bodyRight = face.maxX - HomeDashboardStyle.edgeOffset(for: y + insets.top - face.minY)
+        let right = min(bounds.maxX, bodyRight + Self.feedbackOverhang + insets.right)
+        let left = face.minX + HomeDashboardStyle.edgeOffset(for: face.maxY - y) + 13
+        let width = min(max(0, right - left), max(face.width * 0.52, ceil(titleWidth) + 67))
+        feedback.frame = NSRect(x: right - width, y: y, width: width, height: height)
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let cut = HomeDashboardStyle.edgeOffset(for: bounds.height)
-        HomeDashboardStyle.surface(bounds, colors: [HomeDashboardStyle.color(0x1A2939), HomeDashboardStyle.color(0x101C2B)],
+        let face = faceRect
+        let plate = iconPlateRect
+        let cut = HomeDashboardStyle.edgeOffset(for: face.height)
+        HomeDashboardStyle.surface(face, colors: [HomeDashboardStyle.color(0x1A2939), HomeDashboardStyle.color(0x101C2B)],
                                    border: HomeDashboardStyle.color(0x344C65))
-        let size = min(43, bounds.height * 0.29)
-        let icon = NSRect(x: cut + 11, y: bounds.height * 0.145, width: size, height: size)
-        HomeStyle.symbol("ellipsis.bubble", in: icon, color: HomeDashboardStyle.ink)
-        let textX = icon.maxX + 13
-        let textWidth = max(0, bounds.width - textX - cut * 0.69)
+        HomeDashboardStyle.drawIconPlate(plate)
+        HomeStyle.symbol("ellipsis.bubble", in: contactIconRect, color: HomeDashboardStyle.ink)
+        let textX = max(plate.maxX + 16, face.minX + cut + 11)
+        let textWidth = max(0, face.maxX - textX - cut * 0.69)
         let title = AchievementText.string("home.contact.title")
-        let titleSize = GameLobbyStyle.fittedSize(title, width: textWidth, preferred: min(26, bounds.height * 0.18),
+        let titleSize = GameLobbyStyle.fittedSize(title, width: textWidth, preferred: min(26, face.height * 0.18),
                                                  minimum: 13, weight: .heavy)
-        HomeDashboardStyle.text(title, in: NSRect(x: textX, y: bounds.height * 0.067, width: textWidth, height: 35),
+        HomeDashboardStyle.text(title, in: NSRect(x: textX, y: face.minY + face.height * 0.055, width: textWidth, height: 35),
                                 size: titleSize, weight: .heavy)
         let description = AchievementText.string("home.contact.description")
-        let descriptionY = bounds.height * 0.325
+        let descriptionY = face.minY + face.height * 0.31
         HomeDashboardStyle.description(description, in: NSRect(x: textX, y: descriptionY, width: textWidth,
                                                                height: feedback.frame.minY - descriptionY - 4),
-                                       preferred: min(17, bounds.height * 0.12))
+                                       preferred: min(17, face.height * 0.12))
     }
 }
