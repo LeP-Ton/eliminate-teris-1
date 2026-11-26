@@ -1,6 +1,11 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261126234059-trim-contact-upper-plate-two-percent.md` - 会话-87 起以上层当前宽度为基准从右侧再收短 2%。
+`workflow/20261126232129-align-contact-lower-plate-top.md` - 会话-85 起将联系卡下板右斜边收窄 8%，并沿原斜率向上延伸至与上板齐平。
+`workflow/20261126230618-reveal-contact-lower-plate-top-right.md` - 会话-83 起缩短联系卡上板右缘，让下板右上渐隐斜面露出更多。
+`workflow/20261126224828-refine-contact-stack-overlap-and-fade.md` - 会话-81 起向交界延伸联系卡上下板，让下板右上渐隐，并将 GitHub 反馈改为无边框链接。
+`workflow/20261126223219-stack-contact-card-like-statistics.md` - 会话-79 起将当前分支的「联系我们」拆成错位叠放的左上说明板和右下反馈板，沿用规则统计卡的斜边关系。
 `workflow/20261125080913-fix-count-increment-cadence.md` - 会话-56 起固定统计数字的 60 毫秒节拍，连续消除沿同一节拍增加目标，大连锁在十拍内追上实际值。
 `workflow/20261124232704-even-stat-count-step-intervals.md` - 会话-51 起让统计数字等间隔递增，消除最后一步的停顿，并补上节奏边界回归。
 `workflow/20261124225830-animate-stat-count-values-in-place.md` - 会话-42 起改为在原位逐步递增消除统计值，连续消除从画面当前值接续，汇总与分类同步。
@@ -110,6 +115,11 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要核对联系卡上板额外收短 2% 的宽度基准或新露出的渐隐区域时，读取 `20261126234059-trim-contact-upper-plate-two-percent.md`。
+- 需要调整联系卡下板右斜边、上下板顶部对齐或窄高窗口外缘约束时，读取 `20261126232129-align-contact-lower-plate-top.md`。
+- 需要调整联系卡上板右侧宽度或下板右上露出面积时，读取 `20261126230618-reveal-contact-lower-plate-top-right.md`。
+- 需要调整联系卡两块斜板的重叠、下板顶部透明度或反馈链接边框时，读取 `20261126224828-refine-contact-stack-overlap-and-fade.md`。
+- 需要调整「联系我们」的左上说明板、右下反馈板、重叠区域或反馈按钮定位时，读取 `20261126223219-stack-contact-card-like-statistics.md`。
 - 需要调整统计数字固定节拍、连续消除时的接续或大连锁的计数追赶时，读取 `20261125080913-fix-count-increment-cadence.md`。
 - 需要调整消除统计每次变数的间隔或核对最后一步的节奏时，读取 `20261124232704-even-stat-count-step-intervals.md`。
 - 需要调整消除统计的数字递增、动画快速接续、静态基线或汇总与分类同步时，读取 `20261124225830-animate-stat-count-values-in-place.md`。
