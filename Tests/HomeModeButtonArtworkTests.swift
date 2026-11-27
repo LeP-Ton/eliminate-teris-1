@@ -19,6 +19,30 @@ final class HomeModeButtonArtworkTests: XCTestCase {
         }
     }
 
+    func testSelectedModeUsesCyanOutlineAndIconWithoutTheTrailingCheckmark() throws {
+        _ = NSApplication.shared
+        for size in sizes {
+            for mode in HomeGameMode.allCases {
+                let button = makeButton(mode: mode, size: size, selected: true)
+                let bitmap = try bitmap(of: button)
+                let face = button.faceRect
+                let context = "\(mode.key)／\(size.width)×\(size.height)"
+                // 检查旧对勾所在的区域，避开主卡斜边和正常文字。
+                let badgeSize = min(22, face.height * 0.31)
+                let oldBadge = NSRect(x: face.maxX - face.height * 0.71, y: face.minY + face.height * 0.23,
+                                      width: badgeSize, height: badgeSize)
+                XCTAssertFalse(containsBrightCyan(in: bitmap, area: oldBadge, size: size), context)
+
+                let outline = NSRect(x: face.midX, y: face.minY, width: face.width / 4, height: 4)
+                XCTAssertTrue(containsBrightCyan(in: bitmap, area: outline, size: size), context)
+                XCTAssertTrue(containsBrightCyan(in: bitmap, area: button.modeIconRect, size: size), context)
+                XCTAssertEqual(button.accessibilityValue() as? Int, 1, context)
+                button.refresh(selectedMode: mode == .free ? .timed : .free)
+                XCTAssertEqual(button.accessibilityValue() as? Int, 0, context)
+            }
+        }
+    }
+
     func testExportModeIconPlatePreview() throws {
         _ = NSApplication.shared
         let original = Localizer.shared.language
@@ -52,6 +76,22 @@ final class HomeModeButtonArtworkTests: XCTestCase {
         let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
         view.cacheDisplay(in: view.bounds, to: bitmap)
         return bitmap
+    }
+
+    private func containsBrightCyan(in bitmap: NSBitmapImageRep, area: NSRect, size: NSSize) -> Bool {
+        let xScale = CGFloat(bitmap.pixelsWide) / size.width
+        let yScale = CGFloat(bitmap.pixelsHigh) / size.height
+        let columns = Int(ceil(area.minX * xScale))..<Int(floor(area.maxX * xScale))
+        let rows = Int(ceil(area.minY * yScale))..<Int(floor(area.maxY * yScale))
+        return rows.contains { y in
+            columns.contains { x in
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB), color.alphaComponent > 0.75 else {
+                    return false
+                }
+                let light = min(color.greenComponent, color.blueComponent)
+                return light > 0.77 && light - color.redComponent > 0.45
+            }
+        }
     }
 
     private func assertRaisedPlate(on button: HomeModeButton) throws -> Data {

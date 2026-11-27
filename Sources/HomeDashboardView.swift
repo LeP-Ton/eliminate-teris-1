@@ -11,6 +11,8 @@ class HomeButton: NSButton {
     private(set) var hovering = false
     let feedback = GameControlFeedback()
 
+    static func standardTitleSize(for height: CGFloat) -> CGFloat { min(19, height * 0.44) }
+
     override init(frame: NSRect) {
         super.init(frame: frame)
         isBordered = false
@@ -82,7 +84,7 @@ class HomeButton: NSButton {
         let weight: NSFont.Weight = primary ? .black : .bold
         let icon: CGFloat = symbolName == nil ? 0 : (primary ? bounds.height * 0.44 : 16)
         let gap: CGFloat = icon > 0 ? 10 : 0
-        let preferred = primary ? min(34, bounds.height * 0.52) : min(19, bounds.height * 0.44)
+        let preferred = primary ? min(34, bounds.height * 0.52) : Self.standardTitleSize(for: bounds.height)
         let size = GameLobbyStyle.fittedSize(label, width: bounds.width - icon - gap - (primary ? 52 : 24),
                                              preferred: preferred, minimum: 10, weight: weight)
         let width = (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: weight)]).width
@@ -183,12 +185,6 @@ final class HomeModeButton: HomeButton {
         HomeDashboardStyle.description(description, in: NSRect(x: textX, y: descriptionY,
                                                                width: descriptionWidth, height: face.maxY - descriptionY - 5),
                                        preferred: min(16, face.height * 0.23))
-        if effect.selection > 0 {
-            let size = min(22, face.height * 0.31)
-            HomeStyle.symbol("checkmark.circle.fill",
-                             in: NSRect(x: face.maxX - face.height * 0.71, y: face.minY + face.height * 0.23, width: size, height: size),
-                             color: cyan.withAlphaComponent(effect.selection))
-        }
     }
 
     private func drawIconPlate(_ plate: NSRect, tint: CGFloat) {
@@ -578,8 +574,10 @@ final class HomeDashboardView: NSView {
     private var showsShortcut = true
     private var displayedLanguage: AppLanguage?
 
+    private static let minimumBrandSize: CGFloat = 16
     private var margin: CGFloat { max(29, bounds.width * 0.034) }
     private var headerHeight: CGFloat { min(76, max(56, bounds.height * 0.071)) }
+    private var brandLeadingX: CGFloat { margin + 12 + 72 + 27 }
     private var sectionTop: CGFloat { max(headerHeight + 20, bounds.height * 0.105) }
     private var achievementTop: CGFloat { bounds.height * 0.815 }
     private var stageBottom: CGFloat { achievementTop - max(35, bounds.height * 0.058) }
@@ -698,13 +696,7 @@ final class HomeDashboardView: NSView {
             button.frame = NSRect(x: x, y: firstRowY + CGFloat(index) * (rowHeight + rowGap) - frontClearance,
                                   width: max(0, panel.width - 15), height: rowHeight + frontClearance)
         }
-        var navX = bounds.width - margin + 5
-        for button in [settings, rules, records] {
-            let width = max(89, (button.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 17, weight: .bold)]).width + 27)
-            navX -= width
-            button.frame = NSRect(x: navX, y: (headerHeight - 40) / 2, width: width, height: 40)
-            navX -= 19
-        }
+        layoutNavigation()
         needsDisplay = true
     }
 
@@ -712,15 +704,6 @@ final class HomeDashboardView: NSView {
         HomeDashboardStyle.backdrop(in: bounds)
         drawNavigation()
 
-        let cyan = HomeDashboardStyle.cyan
-        let dividerY = sectionTop + 12
-        let dividerX = modePanel.frame.minX - 1
-        let artworkRight = max(hero.frame.maxX, guide.frame.maxX) + 8
-        // 分隔线在进入左侧插画之前收尾，避免统一斜角后穿过方块。
-        let dividerHeight = max(0, min(achievementTop - dividerY, (dividerX - artworkRight) / HomeDashboardStyle.slope))
-        let dividerTop = NSPoint(x: dividerX, y: dividerY)
-        HomeDashboardStyle.diagonal(from: dividerTop, height: dividerHeight, color: HomeDashboardStyle.border.withAlphaComponent(0.5))
-        HomeDashboardStyle.diagonal(from: dividerTop, height: dividerHeight / 2, color: cyan.withAlphaComponent(0.22))
         HomeDashboardStyle.line(from: NSPoint(x: contactPanel.frame.minX + 28, y: contactPanel.frame.minY - 24),
                                 to: NSPoint(x: contactPanel.frame.maxX, y: contactPanel.frame.minY - 24),
                                 color: HomeDashboardStyle.border.withAlphaComponent(0.77))
@@ -755,6 +738,40 @@ final class HomeDashboardView: NSView {
         hint.attributedStringValue = NSAttributedString(string: value, attributes: attributes)
     }
 
+    private func layoutNavigation() {
+        let buttons = [settings, rules, records]
+        let horizontalPadding: CGFloat = 24
+        let gap: CGFloat = 19
+        let rightEdge = bounds.maxX - margin + 5
+        let brand = AchievementText.string("home.brand")
+        let brandFont = NSFont.systemFont(ofSize: Self.minimumBrandSize, weight: .black)
+        let brandWidth = ceil((brand as NSString).size(withAttributes: [.font: brandFont]).width)
+        let available = rightEdge - brandLeadingX - brandWidth - 26 - CGFloat(buttons.count - 1) * gap
+
+        func widths(for height: CGFloat) -> [CGFloat] {
+            let font = NSFont.systemFont(ofSize: HomeButton.standardTitleSize(for: height), weight: .bold)
+            return buttons.map { button in
+                let titleWidth = (button.title as NSString).size(withAttributes: [.font: font]).width
+                return max(89, ceil(titleWidth) + 2 * horizontalPadding)
+            }
+        }
+
+        // 窄窗中的长译文共用略小的字号，给品牌和按钮两侧的留白都留足空间。
+        var height: CGFloat = 40
+        var buttonWidths = widths(for: height)
+        while buttonWidths.reduce(0, +) > available, height > 33 {
+            height -= 1
+            buttonWidths = widths(for: height)
+        }
+
+        var x = rightEdge
+        for (button, width) in zip(buttons, buttonWidths) {
+            x -= width
+            button.frame = NSRect(x: x, y: (headerHeight - height) / 2, width: width, height: height)
+            x -= gap
+        }
+    }
+
     private func drawNavigation() {
         let y = headerHeight / 2
         let logoX = margin + 12
@@ -769,10 +786,11 @@ final class HomeDashboardView: NSView {
                                     height: 32, color: HomeDashboardStyle.muted.withAlphaComponent(0.62), width: 1.3)
 
         let brand = AchievementText.string("home.brand")
-        let brandX = slashX + 27
+        let brandX = brandLeadingX
         let brandWidth = max(0, records.frame.minX - brandX - 16)
         let preferred = min(34, max(25, bounds.width * 0.023))
-        let size = GameLobbyStyle.fittedSize(brand, width: brandWidth - 10, preferred: preferred, minimum: 16, weight: .black)
+        let size = GameLobbyStyle.fittedSize(brand, width: brandWidth - 10, preferred: preferred,
+                                           minimum: Self.minimumBrandSize, weight: .black)
         let measuredWidth = (brand as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .black)]).width
         HomeDashboardStyle.text(brand, in: NSRect(x: brandX, y: y - size * 0.65, width: brandWidth, height: size * 1.52),
                                 size: size, weight: .black)
@@ -785,8 +803,6 @@ final class HomeDashboardView: NSView {
         }
         HomeDashboardStyle.line(from: NSPoint(x: 0, y: headerHeight), to: NSPoint(x: bounds.maxX, y: headerHeight),
                                 color: HomeDashboardStyle.border)
-        HomeDashboardStyle.line(from: NSPoint(x: 0, y: headerHeight), to: NSPoint(x: logoX + 57, y: headerHeight),
-                                color: HomeDashboardStyle.cyan, width: 2.5)
     }
 
 }

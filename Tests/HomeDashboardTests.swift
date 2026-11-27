@@ -199,9 +199,14 @@ final class HomeDashboardTests: AchievementTestCase {
         defaults.set(["version": 1, "unlocked": [1, 3, 4, 7], "metrics": [:]], forKey: AchievementsManager.storageKey)
         let progress = AchievementsManager(defaults: defaults)
         let home = HomeDashboardView(frame: NSRect(x: 0, y: 0, width: 1180, height: 800))
+        let navigationPages = ["records", "rules", "settings"]
+        let minimumBrandFont = NSFont.systemFont(ofSize: 16, weight: .black)
+        var openedPages: [String] = []
+        home.onNavigate = { openedPages.append($0) }
         for language in AppLanguage.allCases {
             Localizer.shared.setLanguage(language)
             let brand = AchievementText.string("home.brand")
+            let minimumBrandWidth = (brand as NSString).size(withAttributes: [.font: minimumBrandFont]).width
             XCTAssertEqual(brand, AchievementText.string("window.title"))
             if language == .chineseSimplified {
                 XCTAssertEqual(brand, "消除俄罗斯方块")
@@ -218,9 +223,28 @@ final class HomeDashboardTests: AchievementTestCase {
                     let feedback = try XCTUnwrap(home.contactPanel.subviews.compactMap { $0 as? HomeButton }.first)
                     XCTAssertEqual(feedback.title, AchievementText.string("home.contact.action"))
                     XCTAssertTrue(home.contactPanel.bounds.contains(feedback.frame))
-                    for button in home.subviews.compactMap({ $0 as? HomeButton }) where !button.isHidden {
+                    let visibleButtons = home.subviews.compactMap { $0 as? HomeButton }.filter { !$0.isHidden }
+                    for button in visibleButtons {
                         XCTAssertTrue(home.bounds.contains(button.frame), "\(language.rawValue): \(button.frame)")
                         XCTAssertGreaterThan(button.frame.height, 30)
+                    }
+                    let navigationButtons = visibleButtons.filter { $0.style == .navigation }.sorted { $0.frame.minX < $1.frame.minX }
+                    XCTAssertEqual(navigationButtons.map(\.title), navigationPages.map { AchievementText.string("panel.\($0)") })
+                    let firstNavigationFrame = try XCTUnwrap(navigationButtons.first).frame
+                    let brandX = max(29, size.width * 0.034) + 111
+                    XCTAssertGreaterThanOrEqual(firstNavigationFrame.minX - brandX, minimumBrandWidth + 26, "\(language.rawValue): \(size.width)")
+                    let navigationFont = NSFont.systemFont(ofSize: min(19, firstNavigationFrame.height * 0.44), weight: .bold)
+                    for button in navigationButtons {
+                        XCTAssertEqual(button.frame.height, firstNavigationFrame.height)
+                        let titleWidth = (button.title as NSString).size(withAttributes: [.font: navigationFont]).width
+                        XCTAssertGreaterThanOrEqual((button.frame.width - titleWidth) / 2, 24, button.title)
+                    }
+                    for (left, right) in zip(navigationButtons, navigationButtons.dropFirst()) {
+                        XCTAssertEqual(right.frame.minX - left.frame.maxX, 19, accuracy: 0.01)
+                    }
+                    if language == .chineseSimplified, mode == .free, size.width == 960 {
+                        navigationButtons.forEach { $0.performClick(nil) }
+                        XCTAssertEqual(openedPages, navigationPages)
                     }
                     if language == .chineseSimplified, size.width == 1180 {
                         let bitmap = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: home.bounds))
