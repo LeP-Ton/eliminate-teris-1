@@ -1,6 +1,13 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261128084215-make-statistics-fade-visible.md` - 会话-124 起改为匀速淡入，每次换模式从透明起步，含真实窗口轨道像素实测。
+`workflow/20261127231423-match-statistics-plate-heights.md` - 会话-120 起将统计背板高度与前板总数和分类的合计高度对齐。
+`workflow/20261127225349-complete-statistics-backing-outline.md` - 会话-117 起补齐统计背板右斜边和底边，底边向左下角渐隐。
+`workflow/20261127222703-stabilize-statistics-assembly-timing.md` - 会话-112 起从首个动画周期计时，延长统计卡叠合，含原生按钮实时测量。
+`workflow/20261127221016-fade-in-statistics-plate-assembly.md` - 会话-110 起让统计卡叠合时从全透明经过半透明，合拢后到达原有亮度。
+`workflow/20261127215826-stack-statistics-card-plates.md` - 会话-107 起改用背板和前板交错叠合，再以接缝高光收尾，含逐帧和快速切换验证。
+`workflow/20261127213541-clear-statistics-card-entry.md` - 会话-104 起把统计卡的起点移出右栏，前段更快淡入，含双层像素、连续切换和缩窗回归。
 `workflow/20261127210415-remove-lobby-division-and-logo-accent.md` - 会话-100 起移除首页分隔左右栏的斜线和标志下方的高亮线。
 `workflow/20261127063642-polish-mode-selection-and-navigation-padding.md` - 会话-95 起移除选中模式卡右侧的对勾，为顶栏三项导航增加左右内边距。
 `workflow/20261125080913-fix-count-increment-cadence.md` - 会话-56 起固定统计数字的 60 毫秒节拍，连续消除沿同一节拍增加目标，大连锁在十拍内追上实际值。
@@ -112,6 +119,13 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要调整统计卡淡入的可见节奏或验证快速换模式也从透明开始时，读取 `20261128084215-make-statistics-fade-visible.md`。
+- 需要调整统计背板与前板的等高关系或检查分层时的底边位置，读取 `20261127231423-match-statistics-plate-heights.md`。
+- 需要调整统计背板右斜边、底边左下角渐隐或检查分层动画中的边框时，读取 `20261127225349-complete-statistics-backing-outline.md`。
+- 需要调整统计卡叠合时长、首播计时或复测冷启动与连续模式切换时，读取 `20261127222703-stabilize-statistics-assembly-timing.md`。
+- 需要调整统计卡叠合前段的透明度或核对淡入曲线时，读取 `20261127221016-fade-in-statistics-plate-assembly.md`。
+- 需要调整统计卡双层叠合、收尾高光或连续切换的动画节奏时，读取 `20261127215826-stack-statistics-card-plates.md`。
+- 需要调整统计卡滑入起点、入场可见性或切换过程中缩窗时，读取 `20261127213541-clear-statistics-card-entry.md`。
 - 需要核对首页左右栏分隔线或标志下方高亮时，读取 `20261127210415-remove-lobby-division-and-logo-accent.md`。
 - 需要调整首页选中模式提示、顶栏按钮内边距或不同语言下的导航间距时，读取 `20261127063642-polish-mode-selection-and-navigation-padding.md`。
 - 需要调整统计数字固定节拍、连续消除时的接续或大连锁的计数追赶时，读取 `20261125080913-fix-count-increment-cadence.md`。

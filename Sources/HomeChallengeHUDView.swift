@@ -8,14 +8,42 @@ final class HomeChallengeHUDView: NSView {
     private static let rearTopInset: CGFloat = 45 / 636
     private static let countStepInterval: TimeInterval = 0.06
     private static let maxCountSteps = 10
+    private static let backingTravel = NSPoint(x: -24, y: -26)
+    private static let frontTravel = NSPoint(x: 8, y: 24)
+    static let assemblyTopSpace = -backingTravel.y
+    static let assemblyBottomSpace = frontTravel.y
+
+    struct PlateAssembly: Equatable {
+        let backing: CGFloat
+        let front: CGFloat
+        let opacity: CGFloat
+        let highlight: CGFloat
+
+        static let separated = PlateAssembly(backing: 0, front: 0, opacity: 0, highlight: 0)
+        static let settled = PlateAssembly(backing: 1, front: 1, opacity: 1, highlight: 0)
+    }
+
+    private var plateSize: NSSize?
+    var plateAssembly = PlateAssembly.settled {
+        didSet { if plateAssembly != oldValue { needsDisplay = true } }
+    }
+
+    var backingPlateOffset: NSPoint {
+        NSPoint(x: Self.backingTravel.x * (1 - plateAssembly.backing), y: Self.backingTravel.y * (1 - plateAssembly.backing))
+    }
+
+    var frontPlateOffset: NSPoint {
+        NSPoint(x: Self.frontTravel.x * (1 - plateAssembly.front), y: Self.frontTravel.y * (1 - plateAssembly.front))
+    }
 
     static func leadingInset(for width: CGFloat, height: CGFloat) -> CGFloat {
         max(width * rearOverhang, HomeDashboardStyle.edgeOffset(for: height) + 1 - width * rearTopInset)
     }
 
     var surfaceRect: NSRect {
-        let height = max(0, bounds.height - 2 * Self.surfaceInsetY)
-        let available = bounds.width - Self.trailingInset
+        let size = plateSize ?? bounds.size
+        let height = max(0, size.height - 2 * Self.surfaceInsetY)
+        let available = size.width - Self.trailingInset
         // 窄窗背板向左伸得更远，为斜边和描线留出完整空间。
         let rearWidth = (available - HomeDashboardStyle.edgeOffset(for: height) - 1) / (1 - Self.rearTopInset)
         let width = max(0, min(available / (1 + Self.rearOverhang), rearWidth))
@@ -25,7 +53,19 @@ final class HomeChallengeHUDView: NSView {
     var breakdownCellRects: [NSRect] { Face(frame: surfaceRect).breakdownCellRects }
     var budgetTrackRect: NSRect? { showsBudget ? Face(frame: surfaceRect).budgetTrack : nil }
 
-    /// 设计稿坐标以底部分格左边缘为参考。背板与前板同宽，沿同一斜率错开。
+    func positionPlates(in rect: NSRect, assembling: Bool) {
+        plateSize = rect.size
+        // 动画留白只扩展绘制范围，牌面尺寸与静态坐标保持一致。
+        let left = assembling ? -Self.backingTravel.x : 0
+        let top = assembling ? Self.assemblyTopSpace : 0
+        let right = assembling ? Self.frontTravel.x : 0
+        let bottom = assembling ? Self.assemblyBottomSpace : 0
+        frame = NSRect(x: rect.minX - left, y: rect.minY - top,
+                       width: rect.width + left + right, height: rect.height + top + bottom)
+        bounds = NSRect(x: -left, y: -top, width: frame.width, height: frame.height)
+    }
+
+    /// 设计稿坐标以底部分格左边缘为参考。两层等宽等高，沿同一斜率错开。
     private struct Face {
         let frame: NSRect
         var typographyScale: CGFloat { min(frame.width / 636, frame.height / 186) }
@@ -35,9 +75,11 @@ final class HomeChallengeHUDView: NSView {
             let front = totals
             // 两层在同一高度的净宽相同，左右斜边就会露出相同的错位。
             let width = front.width - HomeDashboardStyle.edgeOffset(for: front.height)
-            return plate(from: left, to: NSPoint(x: left.x + width, y: point(455, 309).y))
+            let height = breakdownBottomY - front.minY
+            return plate(from: left, to: NSPoint(x: left.x + width, y: left.y + height))
         }
         var totals: NSRect { plate(from: point(472, 175), to: point(1033, 255)) }
+        private var breakdownBottomY: CGFloat { point(410, 308).y }
 
         var budgetTrack: NSRect {
             let plate = rules
@@ -54,7 +96,7 @@ final class HomeChallengeHUDView: NSView {
 
         var breakdownCellRects: [NSRect] {
             let total = totals
-            let height = point(410, 308).y - total.maxY
+            let height = breakdownBottomY - total.maxY
             let cut = HomeDashboardStyle.edgeOffset(for: height)
             let count = CGFloat(PieceKind.allCases.count)
             let available = total.width - HomeDashboardStyle.edgeOffset(for: total.height)
@@ -110,7 +152,6 @@ final class HomeChallengeHUDView: NSView {
     private var countTransitions: [PieceKind: CountTransition] = [:]
     private var countAnimationStart: TimeInterval?
     private var countAnimationTimer: Timer?
-    var revealFraction: CGFloat? { didSet { if oldValue != revealFraction { needsDisplay = true } } }
     override var isFlipped: Bool { true }
     init(frame: NSRect, clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
          reducesMotion: @escaping () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }) {
@@ -233,32 +274,38 @@ final class HomeChallengeHUDView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         let surface = surfaceRect
-        guard let snapshot, surface.width > 40, surface.height > 45 else { return }
+        guard let snapshot, surface.width > 40, surface.height > 45, plateAssembly.opacity > 0 else { return }
         let urgent = showsBudget && snapshot.isRunning && !snapshot.isFinished && remainingFraction <= (mode == .timed ? 1.0 / 6 : 1.0 / 5)
         let accent = urgent ? NSColor.systemRed : HomeDashboardStyle.cyan
-        let face = Face(frame: surface)
-        let total = HomeDashboardStyle.slant(face.totals)
-        if let revealFraction {
-            let depth = 1 - revealFraction
-            NSGraphicsContext.saveGraphicsState()
-            let offset = NSAffineTransform()
-            offset.translateX(by: 2.5 * depth, yBy: 4.5 * depth)
-            offset.concat()
-            accent.withAlphaComponent(0.46 * depth).setFill()
-            total.fill()
-            NSGraphicsContext.restoreGraphicsState()
+        let backing = backingPlateOffset
+        let backFace = Face(frame: surface.offsetBy(dx: backing.x, dy: backing.y))
+        let front = frontPlateOffset
+        let frontFace = Face(frame: surface.offsetBy(dx: front.x, dy: front.y))
+        drawPlates(opacity: plateAssembly.opacity) {
+            drawBackingPlate(on: backFace)
+            if showsBudget { drawTrack(backFace.budgetTrack, accent: accent, snapshot: snapshot) }
+            fill(HomeDashboardStyle.slant(frontFace.totals),
+                 colors: [HomeDashboardStyle.color(0x17232D), HomeDashboardStyle.color(0x0C151E),
+                          HomeDashboardStyle.color(0x101A25)], angle: 14, border: HomeDashboardStyle.color(0x57636B))
+            let counts = displayedCounts()
+            drawTotals(counts.values.reduce(0, +), on: frontFace, accent: accent)
+            drawBreakdown(counts, on: frontFace)
         }
+        drawJoinHighlight(on: frontFace.totals, accent: accent)
+    }
 
-        drawBackingPlate(on: face)
-        if let track = budgetTrackRect { drawTrack(track, accent: accent, snapshot: snapshot) }
-        // 总数牌压在规则背板上，独立描边在左右两侧形成错位。
-        fill(total, colors: [HomeDashboardStyle.color(0x17232D), HomeDashboardStyle.color(0x0C151E),
-                             HomeDashboardStyle.color(0x101A25)], angle: 14,
-             border: HomeDashboardStyle.color(0x57636B))
-        let counts = displayedCounts()
-        drawTotals(counts.values.reduce(0, +), on: face, accent: accent)
-        drawBreakdown(counts, on: face)
-        if let revealFraction { drawRevealHighlight(in: surface, outline: total, accent: accent, fraction: revealFraction) }
+    private func drawPlates(opacity: CGFloat, _ draw: () -> Void) {
+        guard opacity < 1, let context = NSGraphicsContext.current?.cgContext else {
+            draw()
+            return
+        }
+        // 先合成两层再淡入，让重叠的部分也沿用同一透明度。
+        context.saveGState()
+        context.setAlpha(opacity)
+        context.beginTransparencyLayer(auxiliaryInfo: nil)
+        draw()
+        context.endTransparencyLayer()
+        context.restoreGState()
     }
 
     private func drawBackingPlate(on face: Face) {
@@ -270,13 +317,25 @@ final class HomeChallengeHUDView: NSView {
         let cut = HomeDashboardStyle.edgeOffset(for: plate.height)
         let topLeft = NSPoint(x: plate.minX + cut, y: plate.minY)
         let topRight = NSPoint(x: plate.maxX, y: plate.minY)
-        let joinY = face.totals.minY
-        let joinX = plate.maxX - HomeDashboardStyle.edgeOffset(for: joinY - plate.minY)
+        let bottomRight = NSPoint(x: plate.maxX - cut, y: plate.maxY)
+        let bottomLeft = NSPoint(x: plate.minX, y: plate.maxY)
         HomeDashboardStyle.line(from: topLeft, to: topRight, color: rim.withAlphaComponent(0.80), width: 1.25)
-        HomeDashboardStyle.line(from: topRight, to: NSPoint(x: joinX, y: joinY), color: rim.withAlphaComponent(0.65), width: 1.25)
         let leftRim = HomeDashboardStyle.slant(NSRect(x: plate.minX - 0.625, y: plate.minY,
                                                       width: cut + 1.25, height: plate.height))
         NSGradient(colors: [rim, rim.withAlphaComponent(0.58), rim.withAlphaComponent(0)])?.draw(in: leftRim, angle: 90)
+
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        // 右斜边和底边共用一条描边，右下角连续，底边左段逐渐融入背景。
+        context.saveGState()
+        context.beginPath()
+        context.addLines(between: [topRight, bottomRight, bottomLeft])
+        context.setLineWidth(1.25)
+        context.replacePathWithStrokedPath()
+        context.clip()
+        let fadeEnd = NSPoint(x: bottomLeft.x + (bottomRight.x - bottomLeft.x) * 0.45, y: bottomLeft.y)
+        NSGradient(starting: rim.withAlphaComponent(0), ending: rim.withAlphaComponent(0.65))?
+            .draw(from: bottomLeft, to: fadeEnd, options: .drawsAfterEndingLocation)
+        context.restoreGState()
     }
 
     private func drawTotals(_ totalCleared: Int, on face: Face, accent: NSColor) {
@@ -383,17 +442,19 @@ final class HomeChallengeHUDView: NSView {
                                 size: size, weight: weight, color: color, alignment: alignment)
     }
 
-    private func drawRevealHighlight(in face: NSRect, outline: NSBezierPath, accent: NSColor, fraction: CGFloat) {
-        // 斜光随卡面掠过一次，最终回到静态描边。
-        let intensity = sin(.pi * fraction)
-        guard intensity > 0 else { return }
+    private func drawJoinHighlight(on plate: NSRect, accent: NSColor) {
+        let progress = plateAssembly.highlight
+        guard progress > 0, progress < 1 else { return }
+        let left = plate.minX + HomeDashboardStyle.edgeOffset(for: plate.height)
+        let width = max(0, plate.maxX - left)
+        let beamWidth = min(160, width * 0.44)
+        let center = left + width * progress
+        let intensity = sin(.pi * progress)
+        let seam = NSRect(x: left, y: plate.minY - 1, width: width, height: 2)
         NSGraphicsContext.saveGraphicsState()
-        outline.addClip()
-        let width = min(140, face.width * 0.32) + HomeDashboardStyle.edgeOffset(for: face.height)
-        let x = face.maxX + width - (face.width + width * 2) * fraction
-        let beam = NSRect(x: x, y: face.minY, width: width, height: face.height)
-        NSGradient(colors: [.clear, accent.withAlphaComponent(0.22 * intensity), .clear])?
-            .draw(in: HomeDashboardStyle.slant(beam), angle: 0)
+        NSBezierPath(rect: seam).addClip()
+        NSGradient(colors: [.clear, accent.withAlphaComponent(0.84 * intensity), .clear])?
+            .draw(in: NSRect(x: center - beamWidth / 2, y: seam.minY, width: beamWidth, height: seam.height), angle: 0)
         NSGraphicsContext.restoreGraphicsState()
     }
 

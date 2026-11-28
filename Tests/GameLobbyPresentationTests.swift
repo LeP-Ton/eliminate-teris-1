@@ -103,6 +103,60 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         }
     }
 
+    func testStatisticsBackingRimContinuesDownRightSideAndFadesTowardLeft() throws {
+        _ = NSApplication.shared
+        let frame = NSRect(x: 0, y: 0, width: 336, height: 62)
+        let hud = HomeChallengeHUDView(frame: frame)
+        hud.refresh(snapshot: GameSnapshot(mode: .free, elapsedTime: 0, remainingTime: nil,
+                                          remainingSwaps: nil, isRunning: false, isFinished: false), mode: .free)
+        // 矮画布让错开后的背板底边高于前板，便于检查正常高度下会被盖住的描边。
+        hud.positionPlates(in: frame, assembling: true)
+        hud.plateAssembly = .init(backing: 0, front: 0, opacity: 1, highlight: 0)
+        let bitmap = try image(hud)
+        let bounds = hud.bounds
+        let scaleX = CGFloat(bitmap.pixelsWide) / bounds.width
+        let scaleY = CGFloat(bitmap.pixelsHigh) / bounds.height
+        let rest = hud.surfaceRect
+        let frontTop = rest.minY + rest.height * 52 / 186
+        let frontBottom = try XCTUnwrap(hud.breakdownCellRects.last).maxY
+        let backing = NSRect(x: rest.minX + hud.backingPlateOffset.x, y: rest.minY + hud.backingPlateOffset.y,
+                             width: rest.width, height: frontBottom - frontTop)
+        XCTAssertLessThan(backing.maxY + 2, frontTop + hud.frontPlateOffset.y)
+
+        func alpha(x: CGFloat, y: CGFloat) throws -> CGFloat {
+            let pixelX = Int(floor((x - bounds.minX) * scaleX))
+            let pixelY = Int(floor((y - bounds.minY) * scaleY))
+            return try XCTUnwrap(bitmap.colorAt(x: pixelX, y: pixelY)).alphaComponent
+        }
+
+        let rightTopX = backing.minX + backing.width * 606 / 636
+        for fraction: CGFloat in [0.55, 0.72, 0.88] {
+            let y = backing.minY + backing.height * fraction
+            let rightX = rightTopX - HomeDashboardStyle.edgeOffset(for: y - backing.minY)
+            let peak = try [-1, 0, 1].map { try alpha(x: rightX + CGFloat($0), y: y) }.max() ?? 0
+            let nearby = try max(alpha(x: rightX - 3, y: y), alpha(x: rightX + 3, y: y))
+            XCTAssertGreaterThan(peak, nearby + 0.10, "背板右斜边延伸至下段，采样高度 \(fraction)")
+        }
+
+        let cut = HomeDashboardStyle.edgeOffset(for: backing.height)
+        let leftBottomX = backing.minX + backing.width * 45 / 636 - cut
+        let rightBottomX = rightTopX - cut
+        func bottomX(at fraction: CGFloat) -> CGFloat { leftBottomX + (rightBottomX - leftBottomX) * fraction }
+        func bottomAlpha(at fraction: CGFloat) throws -> CGFloat {
+            let x = bottomX(at: fraction)
+            return try [-1, 0, 1].map { try alpha(x: x, y: backing.maxY + CGFloat($0)) }.max() ?? 0
+        }
+
+        let faintLeft = try bottomAlpha(at: 0.05)
+        let fade = try bottomAlpha(at: 0.25)
+        let solid = try bottomAlpha(at: 0.68)
+        XCTAssertLessThan(faintLeft, 0.15, "底边靠近左下角时接近透明")
+        XCTAssertGreaterThan(fade, faintLeft + 0.07, "底边左段亮度沿宽度渐变")
+        XCTAssertGreaterThan(solid, fade + 0.07, "底边右段保持清晰")
+        XCTAssertLessThan(try alpha(x: bottomX(at: 0.68), y: backing.maxY + 2), 0.03,
+                          "背板在与前板等高的描边下方保持透明")
+    }
+
     func testChallengeBudgetTrackReplacesOnlyTheTopBandContent() throws {
         _ = NSApplication.shared
         for size in [NSSize(width: 336, height: 148), NSSize(width: 692, height: 196)] {
@@ -338,7 +392,7 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         try export(home, name: "lobby-finished")
     }
 
-    func testChallengePreviewGrowsWithinScreenForOneSecondAndKeepsItsProgressOnRoundStart() throws {
+    func testStatisticsPlatesAssembleInPlaceAndKeepProgressAcrossRefreshes() throws {
         _ = NSApplication.shared
         let original = Localizer.shared.language
         defer { Localizer.shared.setLanguage(original) }
@@ -360,80 +414,130 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         home.layoutSubtreeIfNeeded()
         let intro = try modeIntro(in: header)
         let introFrame = intro.frame
-        let outgoing = home.challengeHUD
-        let restingX = outgoing.frame.minX
-        let restingWidth = outgoing.frame.width
-        let restingSurfaceY = outgoing.convert(outgoing.surfaceRect, to: home).minY
-        home.refresh(snapshot: timed, mode: .timed, manager: manager)
         let preview = home.challengeHUD
-        XCTAssertGreaterThan(preview.frame.minX, restingX)
-        XCTAssertLessThanOrEqual(preview.frame.minX, home.modePanel.frame.minX + 0.1)
-        XCTAssertEqual(preview.frame.width, restingWidth * 0.20, accuracy: 0.1)
-        XCTAssertEqual(preview.frame.width / preview.bounds.width, preview.frame.height / preview.bounds.height,
-                       accuracy: 0.001, "卡面起始帧须保持原有斜边角度")
-        try assertLaunchIsWithinScreen(preview, in: window)
-        XCTAssertLessThan(preview.alphaValue, 0.2)
+        let restingSurface = preview.convert(preview.surfaceRect, to: home)
+        XCTAssertEqual(preview.plateAssembly, .settled)
+        home.refresh(snapshot: timed, mode: .timed, manager: manager)
+        XCTAssertTrue(home.challengeHUD === preview, "模式切换复用同一张统计卡")
+        XCTAssertEqual(preview.plateAssembly, .separated)
+        XCTAssertEqual(preview.backingPlateOffset.x, -24, accuracy: 0.1)
+        XCTAssertEqual(preview.backingPlateOffset.y, -26, accuracy: 0.1)
+        XCTAssertEqual(preview.frontPlateOffset.x, 8, accuracy: 0.1)
+        XCTAssertEqual(preview.frontPlateOffset.y, 24, accuracy: 0.1)
 
         let steps = 25
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-challenge-preview.gif")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-statistics-plate-assembly.gif")
         let gif = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, steps + 1, nil))
         CGImageDestinationSetProperties(gif, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary)
         let duration = HomeModeHeaderView.previewDuration
-        XCTAssertEqual(duration, 1)
-        var previousWidth = preview.frame.width
+        XCTAssertEqual(duration, 1.20, accuracy: 0.001)
+        clock += 0.35
+        header.advanceAnimation()
+        XCTAssertEqual(preview.plateAssembly, .separated, "首帧前的等待不应消耗可见动画时间")
+        let firstFrameTime = clock
+        var previous = preview.plateAssembly
         for step in 0...steps {
-            clock = 100 + duration * Double(step) / Double(steps)
+            clock = firstFrameTime + duration * Double(step) / Double(steps)
+            if step == steps { clock += 0.001 }
             header.advanceAnimation()
-            XCTAssertGreaterThanOrEqual(preview.frame.width + 0.1, previousWidth)
-            XCTAssertLessThanOrEqual(preview.frame.maxX, header.bounds.maxX + 0.1)
-            XCTAssertEqual(preview.frame.width / preview.bounds.width, preview.frame.height / preview.bounds.height,
-                           accuracy: 0.001, "入场每帧都须等比缩放")
-            previousWidth = preview.frame.width
-            if step == steps / 2 {
-                let position = preview.frame.minX
-                XCTAssertGreaterThan(position, restingX)
-                XCTAssertGreaterThan(preview.alphaValue, 0.2)
+            home.layoutSubtreeIfNeeded()
+            let assembly = preview.plateAssembly
+            XCTAssertGreaterThanOrEqual(assembly.backing, previous.backing)
+            XCTAssertGreaterThanOrEqual(assembly.front, previous.front)
+            XCTAssertGreaterThanOrEqual(assembly.opacity, previous.opacity, "两层叠合时整体逐帧淡入")
+            previous = assembly
+            XCTAssertEqual(preview.convert(preview.surfaceRect, to: home), restingSurface, "两层移动时保留牌面的基准位置和尺寸")
+            XCTAssertEqual(intro.frame, introFrame, "模式切换保留标题位置")
+            assertStatisticsPlatesLeftOfModes(home, preview: preview)
+
+            switch step {
+            case 0:
+                XCTAssertEqual(assembly.opacity, 0, accuracy: 0.001, "入场首帧完全透明")
+            case 2:
+                XCTAssertGreaterThan(assembly.backing, 0)
+                XCTAssertEqual(assembly.front, 0, accuracy: 0.001, "前板延后启动")
+            case 6:
+                XCTAssertLessThan(preview.backingPlateOffset.y, -1)
+                XCTAssertGreaterThan(preview.frontPlateOffset.y, 1)
+                XCTAssertEqual(assembly.opacity, 0.31, accuracy: 0.02, "前段保留较浅的透明度")
+                try assertAssemblingPlatesAreVisible(home, preview: preview)
+            case 10:
+                XCTAssertEqual(assembly.opacity, 0.51, accuracy: 0.02, "叠合经过半透明状态")
+            case 12:
+                XCTAssertGreaterThan(assembly.front, 0)
+                XCTAssertLessThan(assembly.front, 1)
                 home.refresh(snapshot: timed, mode: .timed, manager: manager)
                 home.layoutSubtreeIfNeeded()
-                XCTAssertEqual(preview.frame.minX, position, accuracy: 1, "重复刷新不能重启动画")
+                XCTAssertEqual(preview.plateAssembly, assembly, "重复刷新保留统计卡组装进度")
+            case 16:
+                XCTAssertEqual(assembly.backing, 1, accuracy: 0.001)
+                XCTAssertEqual(preview.backingPlateOffset, .zero)
+                XCTAssertLessThan(assembly.front, 1, "背板先于前板到位")
+                XCTAssertEqual(assembly.highlight, 0, accuracy: 0.001)
+            case 22:
+                XCTAssertEqual(assembly.front, 1, accuracy: 0.001)
+                XCTAssertEqual(preview.frontPlateOffset, .zero)
+                XCTAssertEqual(assembly.opacity, 1, accuracy: 0.001, "接缝高光出现时牌面已完全显现")
+                XCTAssertGreaterThan(assembly.highlight, 0, "两层合拢后才播放高光")
+                XCTAssertLessThan(assembly.highlight, 1)
+            default:
+                break
             }
-            if step == steps / 3 { try assertPreviewLaysOverGapAndBehindPanel(home, preview: preview) }
-            XCTAssertEqual(intro.frame, introFrame, "切换统计卡时保留标题的位置")
-            XCTAssertEqual(preview.convert(preview.surfaceRect, to: home).minY, restingSurfaceY, accuracy: 0.1)
-            home.layoutSubtreeIfNeeded()
             let pixels = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: header.frame))
             home.cacheDisplay(in: header.frame, to: pixels)
             let frame = try XCTUnwrap(pixels.cgImage)
-            if step == steps * 3 / 4 {
-                try XCTUnwrap(pixels.representation(using: .png, properties: [:]))
-                    .write(to: url.deletingLastPathComponent().appendingPathComponent("eliminate-challenge-preview-motion.png"))
-            }
             let delay = step == steps ? 1.0 : duration / Double(steps)
             CGImageDestinationAddImage(gif, frame, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay]] as CFDictionary)
         }
         XCTAssertTrue(CGImageDestinationFinalize(gif))
-        XCTAssertEqual(preview.frame.minX, restingX, accuracy: 1)
-        XCTAssertEqual(preview.frame.width, restingWidth, accuracy: 0.1)
-        XCTAssertEqual(preview.alphaValue, 1)
-        XCTAssertTrue(outgoing.isHidden)
+        XCTAssertEqual(preview.plateAssembly, .settled)
+        XCTAssertEqual(preview.backingPlateOffset, .zero)
+        XCTAssertEqual(preview.frontPlateOffset, .zero)
         XCTAssertFalse(intro.isHidden)
 
         home.refresh(snapshot: moves, mode: .moves, manager: manager)
-        XCTAssertEqual(home.challengeHUD.budgetText, "30")
-        XCTAssertEqual(preview.mode, .timed, "离场卡保留原规则")
-        clock += 0.7
+        XCTAssertEqual(preview.mode, .moves)
+        XCTAssertEqual(preview.budgetText, "30")
+        XCTAssertEqual(preview.plateAssembly, .separated)
         header.advanceAnimation()
-        let frameDuringEntry = home.challengeHUD.frame
+        clock += duration * 0.32
+        header.advanceAnimation()
+        let assemblyDuringEntry = preview.plateAssembly
+        XCTAssertGreaterThan(assemblyDuringEntry.front, 0)
+        XCTAssertLessThan(assemblyDuringEntry.front, 1)
+        home.refresh(snapshot: timed, mode: .timed, manager: manager)
+        XCTAssertEqual(preview.mode, .timed)
+        XCTAssertEqual(preview.plateAssembly, .separated, "快速切回也从透明起步")
+        home.refresh(snapshot: moves, mode: .moves, manager: manager)
+        XCTAssertEqual(preview.plateAssembly, .separated)
+        header.advanceAnimation()
+        clock += duration * 0.32
+        header.advanceAnimation()
+        let restartedAssembly = preview.plateAssembly
+        XCTAssertEqual(restartedAssembly.opacity, assemblyDuringEntry.opacity, accuracy: 0.001)
+        window.setContentSize(NSSize(width: 960, height: 720))
+        home.layoutSubtreeIfNeeded()
+        XCTAssertEqual(home.bounds.width, 960, accuracy: 0.1)
+        XCTAssertEqual(preview.plateAssembly, restartedAssembly)
+        assertStatisticsPlatesLeftOfModes(home, preview: preview)
+        clock += duration * 0.08
+        header.advanceAnimation()
+        let assemblyAfterResize = preview.plateAssembly
+        XCTAssertGreaterThan(assemblyAfterResize.front, assemblyDuringEntry.front)
+        assertStatisticsPlatesLeftOfModes(home, preview: preview)
         let playing = GameSnapshot(mode: .moves(limit: 30), elapsedTime: 1, remainingTime: nil, remainingSwaps: 29, isRunning: true, isFinished: false)
         home.refresh(snapshot: playing, mode: .moves, manager: manager)
-        XCTAssertEqual(home.challengeHUD.frame, frameDuringEntry)
-        XCTAssertEqual(home.challengeHUD.budgetText, "29")
+        XCTAssertEqual(preview.plateAssembly, assemblyAfterResize, "开局更新数字时继续组装")
+        XCTAssertEqual(preview.budgetText, "29")
         reduceMotion = true
         header.advanceAnimation()
-        XCTAssertEqual(home.challengeHUD.frame.minX, restingX, accuracy: 1)
-        XCTAssertTrue(preview.isHidden)
+        XCTAssertEqual(preview.plateAssembly, .settled)
+        XCTAssertEqual(preview.backingPlateOffset, .zero)
+        XCTAssertEqual(preview.frontPlateOffset, .zero)
         home.refresh(snapshot: free, mode: .free, manager: manager)
-        XCTAssertFalse(home.challengeHUD.isHidden)
+        XCTAssertTrue(home.challengeHUD === preview)
+        XCTAssertEqual(preview.plateAssembly, .settled)
+        XCTAssertFalse(preview.isHidden)
         XCTAssertFalse(intro.isHidden)
     }
 
@@ -483,21 +587,23 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         }
     }
 
-    private func assertLaunchIsWithinScreen(_ preview: HomeChallengeHUDView, in window: NSWindow) throws {
-        XCTAssertLessThanOrEqual(preview.frame.maxX, try XCTUnwrap(preview.superview).bounds.maxX + 0.1)
-        if let screen = window.screen {
-            let right = preview.convert(preview.bounds, to: nil).maxX
-            let launchRight = window.convertPoint(toScreen: NSPoint(x: right, y: 0)).x
-            XCTAssertLessThanOrEqual(launchRight, screen.frame.maxX + 0.1)
+    private func assertStatisticsPlatesLeftOfModes(_ home: HomeDashboardView, preview: HomeChallengeHUDView,
+                                                   file: StaticString = #filePath, line: UInt = #line) {
+        for offset in [preview.backingPlateOffset, preview.frontPlateOffset] {
+            let shifted = preview.surfaceRect.offsetBy(dx: offset.x, dy: offset.y)
+            XCTAssertTrue(preview.bounds.contains(shifted), "绘制范围为移动中的板面留足空间", file: file, line: line)
+            let surface = preview.convert(shifted, to: home)
+            XCTAssertLessThan(surface.maxX, home.modePanel.frame.minX, "移动中的板面与右栏保留间隔", file: file, line: line)
         }
     }
 
-    private func assertPreviewLaysOverGapAndBehindPanel(_ home: HomeDashboardView, preview: HomeChallengeHUDView) throws {
-        let panel = home.modePanel.frame
-        let surface = preview.convert(preview.surfaceRect, to: home)
-        let gapPoint = NSPoint(x: panel.minX - 10, y: surface.midY)
-        let panelPoint = NSPoint(x: panel.minX + 10, y: gapPoint.y)
-        XCTAssertTrue(surface.contains(gapPoint) && surface.contains(panelPoint))
+    private func assertAssemblingPlatesAreVisible(_ home: HomeDashboardView, preview: HomeChallengeHUDView) throws {
+        let budget = try XCTUnwrap(preview.budgetTrackRect)
+        let cell = try XCTUnwrap(preview.breakdownCellRects.last)
+        let budgetPoint = preview.convert(NSPoint(x: budget.midX + preview.backingPlateOffset.x,
+                                                y: budget.midY + preview.backingPlateOffset.y), to: home)
+        let cellPoint = preview.convert(NSPoint(x: cell.midX + preview.frontPlateOffset.x,
+                                              y: cell.midY + preview.frontPlateOffset.y), to: home)
 
         func color(at point: NSPoint) throws -> NSColor {
             let rect = NSRect(x: point.x - 2, y: point.y - 2, width: 4, height: 4)
@@ -509,12 +615,12 @@ final class GameLobbyPresentationTests: AchievementTestCase {
             abs(first.redComponent - second.redComponent) + abs(first.greenComponent - second.greenComponent) + abs(first.blueComponent - second.blueComponent)
         }
 
-        let visibleGap = try color(at: gapPoint)
-        let visiblePanel = try color(at: panelPoint)
+        let visibleBudget = try color(at: budgetPoint)
+        let visibleCell = try color(at: cellPoint)
         preview.isHidden = true
         defer { preview.isHidden = false }
-        XCTAssertGreaterThan(difference(visibleGap, try color(at: gapPoint)), 0.012, "超出左栏的卡面应进入两栏间隙")
-        XCTAssertLessThan(difference(visiblePanel, try color(at: panelPoint)), 0.008, "右侧面板应在重叠处完整盖住统计卡")
+        XCTAssertGreaterThan(difference(visibleBudget, try color(at: budgetPoint)), 0.06, "组装时移动后的进度轨道可见")
+        XCTAssertGreaterThan(difference(visibleCell, try color(at: cellPoint)), 0.012, "组装时移动后的末尾分类格可见")
     }
 
     func testModeArtworkKeepsTransparencyAndIdentityAtSmallAndWideSizes() throws {

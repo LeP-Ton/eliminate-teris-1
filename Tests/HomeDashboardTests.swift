@@ -1,4 +1,5 @@
 import Cocoa
+import QuartzCore
 import XCTest
 @testable import EliminateTeris1
 
@@ -115,6 +116,157 @@ final class HomeDashboardTests: AchievementTestCase {
         XCTAssertFalse(board.snapshot().isRunning)
         XCTAssertFalse(board.snapshot().isFinished)
         XCTAssertEqual(home.challengeHUD.budgetText, "01:00", "等待开局期间保持完整时间限制")
+    }
+
+    private func openStatisticsTestWindow() throws -> (window: NSWindow, home: HomeDashboardView) {
+        _ = NSApplication.shared
+        let controller = GameViewController(achievements: manager, records: ModeRecordStore(defaults: defaults),
+                                            board: board(now: { Date() }), audioEnabled: false)
+        let home = try XCTUnwrap(controller.view as? HomeDashboardView)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 800), styleMask: [.titled],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = controller
+        window.orderFront(nil)
+        home.modeHeader.reducesMotion = { false }
+        home.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        CATransaction.flush()
+        // 先呈现初始大厅，再按模式按钮，避免把窗口首次显示的工作算进转场。
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.12))
+        return (window, home)
+    }
+
+    func testModeButtonsGiveStatisticsAssemblyItsFullVisibleDuration() throws {
+        let (window, home) = try openStatisticsTestWindow()
+        defer { window.close() }
+        let hud = home.challengeHUD
+
+        let onMode = try XCTUnwrap(home.onMode)
+        home.onMode = { mode in
+            onMode(mode)
+            // 模拟首次切换仍在同步处理启动工作，窗口要等按钮动作返回才可继续绘制。
+            if mode == .timed { Thread.sleep(forTimeInterval: 0.18) }
+        }
+
+        let duration = HomeModeHeaderView.previewDuration
+        let animationClock = home.modeHeader.now
+        var animationTicks: [TimeInterval] = []
+        home.modeHeader.now = {
+            let timestamp = animationClock()
+            animationTicks.append(timestamp)
+            return timestamp
+        }
+        func uptime() -> TimeInterval { ProcessInfo.processInfo.systemUptime }
+        for mode in [HomeGameMode.timed, .moves, .free] {
+            let button = try XCTUnwrap(home.modePanel.subviews.compactMap { $0 as? HomeModeButton }.first { $0.mode == mode })
+            animationTicks.removeAll(keepingCapacity: true)
+            button.performClick(nil)
+            let returnedAt = uptime()
+            XCTAssertTrue(button.selected)
+            XCTAssertEqual(hud.mode, mode)
+
+            var sawProgress = false
+            var halfwayOpacity: CGFloat?
+            var settledAt: TimeInterval?
+            // 让窗口自然绘制，采样过程不插入同步重绘。
+            repeat {
+                RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.008))
+                let sampledAt = uptime()
+                let assembly = hud.plateAssembly
+                if assembly != .settled {
+                    sawProgress = true
+                    if halfwayOpacity == nil && (0.30...0.75).contains(assembly.opacity) {
+                        halfwayOpacity = assembly.opacity
+                    }
+                } else if sawProgress {
+                    settledAt = sampledAt
+                }
+            } while settledAt == nil && uptime() < returnedAt + duration + 1
+
+            let settled = try XCTUnwrap(settledAt, "模式 \(mode.key) 的统计卡应完成可见动画")
+            let elapsed = settled - returnedAt
+            let opacity = try XCTUnwrap(halfwayOpacity, "模式 \(mode.key) 的统计卡应绘制半透明帧")
+            let firstTick = try XCTUnwrap(animationTicks.first)
+            let lastTick = try XCTUnwrap(animationTicks.last)
+            print(String(format: "统计卡模式切换 %@，按钮返回后 %.3f 秒到位，首个动画帧至完成 %.3f 秒，半透明帧不透明度 %.2f",
+                         mode.key, elapsed, lastTick - firstTick, Double(opacity)))
+            XCTAssertGreaterThanOrEqual(elapsed, duration - 0.04, "按钮动作中的同步工作不应缩短可见动画")
+            XCTAssertGreaterThanOrEqual(lastTick - firstTick, duration, "两层卡片应该走完整个动画时段")
+        }
+    }
+
+    func testStatisticsBudgetPixelsFadeInAgainWhenModeChangesDuringAssembly() throws {
+        let (window, home) = try openStatisticsTestWindow()
+        defer { window.close() }
+        let hud = home.challengeHUD
+        let buttons = home.modePanel.subviews.compactMap { $0 as? HomeModeButton }
+        let timed = try XCTUnwrap(buttons.first { $0.mode == .timed })
+        let moves = try XCTUnwrap(buttons.first { $0.mode == .moves })
+        let duration = HomeModeHeaderView.previewDuration
+        let animationClock = home.modeHeader.now
+        var firstTick: TimeInterval?
+        var latestTick: TimeInterval?
+        home.modeHeader.now = {
+            let timestamp = animationClock()
+            if firstTick == nil { firstTick = timestamp }
+            latestTick = timestamp
+            return timestamp
+        }
+
+        func budgetOpacity() throws -> CGFloat {
+            let track = try XCTUnwrap(hud.budgetTrackRect)
+            let center = NSPoint(x: track.midX + hud.backingPlateOffset.x, y: track.midY + hud.backingPlateOffset.y)
+            // 在轨道中线取一小段，限步轨道至少会命中一个实心分格。
+            let rect = NSRect(x: center.x - 9, y: center.y - 2, width: 18, height: 4)
+            let bitmap = try XCTUnwrap(hud.bitmapImageRepForCachingDisplay(in: rect))
+            hud.cacheDisplay(in: rect, to: bitmap)
+            let row = bitmap.pixelsHigh / 2
+            return (0..<bitmap.pixelsWide).compactMap { bitmap.colorAt(x: $0, y: row)?.alphaComponent }.max() ?? 0
+        }
+
+        func samplesThroughHalfOpacity() throws -> [(elapsed: TimeInterval, opacity: CGFloat)] {
+            let deadline = ProcessInfo.processInfo.systemUptime + duration + 1
+            var lastSampledTick: TimeInterval?
+            var samples: [(elapsed: TimeInterval, opacity: CGFloat)] = []
+            while ProcessInfo.processInfo.systemUptime < deadline {
+                RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.012))
+                guard let firstTick, let latestTick, latestTick != lastSampledTick else { continue }
+                lastSampledTick = latestTick
+                let opacity = try budgetOpacity()
+                samples.append((latestTick - firstTick, opacity))
+                if opacity >= 0.50 { break }
+            }
+            return samples
+        }
+
+        timed.performClick(nil)
+        XCTAssertTrue(timed.selected)
+        XCTAssertEqual(hud.mode, .timed)
+        let initial = try budgetOpacity()
+        let samples = try samplesThroughHalfOpacity()
+        let early = try XCTUnwrap(samples.first { $0.opacity >= 0.10 })
+        let halfway = try XCTUnwrap(samples.first { $0.opacity >= 0.50 })
+        print(String(format: "限时统计轨道实测，初始 %.2f，首段 %.2f，至半透明 %.3f 秒，取样 %d 帧",
+                     Double(initial), Double(early.opacity), halfway.elapsed, samples.count))
+        XCTAssertLessThan(initial, 0.10, "首次切换从接近透明开始")
+        XCTAssertLessThan(early.opacity + 0.15, halfway.opacity, "首段经过不同程度的半透明")
+        for (previous, current) in zip(samples, samples.dropFirst()) {
+            XCTAssertGreaterThanOrEqual(current.opacity + 0.03, previous.opacity, "可见像素逐步显现")
+        }
+        XCTAssertGreaterThanOrEqual(halfway.elapsed, duration * 0.30, "前段淡入为半透明状态保留足够时间")
+
+        XCTAssertNotEqual(hud.plateAssembly, .settled, "在上一次动画完成前点击下一个模式")
+        firstTick = nil
+        latestTick = nil
+        moves.performClick(nil)
+        XCTAssertTrue(moves.selected)
+        XCTAssertEqual(hud.mode, .moves)
+        let restarted = try budgetOpacity()
+        let movesSamples = try samplesThroughHalfOpacity()
+        let movesHalfway = try XCTUnwrap(movesSamples.first { $0.opacity >= 0.50 })
+        print(String(format: "限步统计轨道实测，中途切换后初始 %.2f，至半透明 %.3f 秒", Double(restarted), movesHalfway.elapsed))
+        XCTAssertLessThan(restarted, 0.12, "中途切换时新轨道从接近透明重新淡入")
     }
 
     func testAchievementRowSpansBothColumnsAndStartAlignsWithContact() throws {

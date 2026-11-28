@@ -1,33 +1,16 @@
 import Cocoa
 
-/// 上方文案和本局统计并排排版，切换模式时仅统计卡从右侧滑入。
+/// 上方文案和本局统计并排排版，切换模式时交错叠合统计卡的前后两层。
 final class HomeModeHeaderView: NSView {
-    static let previewDuration: TimeInterval = 1
-    private static let distantScale: CGFloat = 0.20
+    static let previewDuration: TimeInterval = 1.20
     var now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
     private let intro = HomeModeIntroView(frame: .zero)
-    private(set) var card = HomeChallengeHUDView(frame: .zero)
-    private var spareCard = HomeChallengeHUDView(frame: .zero)
-    private var selectedMode: HomeGameMode?
+    let card = HomeChallengeHUDView(frame: .zero)
     private var timer: Timer?
-    private var transition: Transition?
+    private var transitionStart: TimeInterval?
     private var cardColumn = NSRect.zero
-    private var entryX: CGFloat = 0
-
-    private struct Pose {
-        let offset: CGFloat
-        let scale: CGFloat
-        let alpha: CGFloat
-    }
-
-    private struct Transition {
-        let start: TimeInterval
-        let outgoing: Pose
-        let incoming: Pose
-        var fraction: CGFloat = 0
-    }
 
     override var isFlipped: Bool { true }
 
@@ -35,18 +18,17 @@ final class HomeModeHeaderView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer?.masksToBounds = true
-        addSubview(spareCard)
         addSubview(card)
         addSubview(intro)
-        settle()
     }
 
     required init?(coder: NSCoder) { nil }
     deinit { timer?.invalidate() }
 
     func position(leftColumn: NSRect, windowWidth: CGFloat, modePanelLeading: CGFloat) {
-        let topPadding = HomeChallengeHUDView.surfaceInsetY + 3
-        frame = NSRect(x: 0, y: leftColumn.minY - topPadding, width: windowWidth, height: leftColumn.height + topPadding)
+        let topPadding = HomeChallengeHUDView.surfaceInsetY + 3 + HomeChallengeHUDView.assemblyTopSpace
+        frame = NSRect(x: 0, y: leftColumn.minY - topPadding, width: windowWidth,
+                       height: leftColumn.height + topPadding + HomeChallengeHUDView.assemblyBottomSpace)
         let headingWidth = (leftColumn.width * 0.361).rounded(.down)
         let gap = min(16, leftColumn.width * 0.025)
         intro.frame = NSRect(x: leftColumn.minX, y: topPadding, width: headingWidth, height: leftColumn.height)
@@ -55,10 +37,9 @@ final class HomeModeHeaderView: NSView {
         let faceX = intro.frame.maxX + gap + HomeChallengeHUDView.trailingInset
         let faceRight = modePanelLeading - min(22, leftColumn.width * 0.031)
         let cardX = faceX - HomeChallengeHUDView.leadingInset(for: max(0, faceRight - faceX), height: cardHeight)
-        cardColumn = NSRect(x: cardX, y: topPadding + cardTop,
+        cardColumn = NSRect(x: cardX, y: topPadding + cardTop - HomeChallengeHUDView.surfaceInsetY,
                             width: max(0, faceRight + HomeChallengeHUDView.trailingInset - cardX),
                             height: cardHeight + HomeChallengeHUDView.surfaceInsetY * 2)
-        entryX = modePanelLeading
         needsLayout = true
     }
 
@@ -68,65 +49,52 @@ final class HomeModeHeaderView: NSView {
     }
 
     func refresh(snapshot: GameSnapshot, mode: HomeGameMode) {
-        let changedMode = selectedMode.map { $0 != mode } ?? false
-        let reuseIncoming = changedMode && !spareCard.isHidden && spareCard.mode == mode
-        if changedMode {
-            // 离场卡保留自己的快照，连续切换时只在回到同一模式后续用它的位置。
-            let previousCard = card
-            card = spareCard
-            spareCard = previousCard
-        }
-        selectedMode = mode
+        let changedMode = card.snapshot != nil && card.mode != mode
         card.refresh(snapshot: snapshot, mode: mode)
         intro.refresh(mode: mode)
 
-        if changedMode, window != nil, cardColumn.width > 0, !reducesMotion() {
-            animate(reuseIncoming: reuseIncoming)
-        } else if changedMode || transition == nil {
+        guard changedMode else { return }
+        guard window != nil, cardColumn.width > 0, !reducesMotion() else {
             settle()
+            return
         }
-    }
+        // 每次换模式都从透明起步。已运行的定时器继续驱动新一轮叠合。
+        transitionStart = nil
+        card.plateAssembly = .separated
+        guard timer == nil else { return }
+        card.positionPlates(in: cardColumn, assembling: true)
 
-    private func animate(reuseIncoming: Bool) {
-        // 以卡面宽度为单位记录位置，重设窗口尺寸时进度可按比例继续。
-        let right = visibleRightEdge - cardColumn.width * Self.distantScale - 6
-        let launchX = min(entryX, right)
-        let launch = Pose(offset: (launchX - cardColumn.minX) / cardColumn.width, scale: Self.distantScale, alpha: 0)
-        transition = Transition(start: now(), outgoing: pose(of: spareCard), incoming: reuseIncoming ? pose(of: card) : launch)
-        card.isHidden = false
-        card.setAccessibilityHidden(false)
-        spareCard.setAccessibilityHidden(true)
-        addSubview(card, positioned: .above, relativeTo: spareCard)
-        placeSubviews()
-
-        timer?.invalidate()
         let timer = Timer(timeInterval: 1 / 60, repeats: true) { [weak self] _ in self?.advanceAnimation() }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
     }
 
-    private var visibleRightEdge: CGFloat {
-        guard let window, let screen = window.screen else { return bounds.maxX }
-        let point = NSPoint(x: screen.frame.maxX, y: screen.frame.midY)
-        return min(bounds.maxX, convert(window.convertPoint(fromScreen: point), from: nil).x)
-    }
-
-    private func pose(of view: HomeChallengeHUDView) -> Pose {
-        Pose(offset: (view.frame.minX - cardColumn.minX) / cardColumn.width,
-             scale: view.bounds.width > 0 ? view.frame.width / view.bounds.width : 1,
-             alpha: view.alphaValue)
-    }
-
     func advanceAnimation() {
-        guard var transition else { return }
-        let elapsed = max(0, now() - transition.start)
-        if elapsed >= Self.previewDuration || reducesMotion() {
+        guard timer != nil else { return }
+        guard !reducesMotion() else {
             settle()
-        } else {
-            transition.fraction = CGFloat(elapsed / Self.previewDuration)
-            self.transition = transition
-            placeSubviews()
+            return
         }
+        let currentTime = now()
+        // 首次切换可能还在同步准备模式资源。等主循环驱动首帧再计时。
+        guard let transitionStart else {
+            self.transitionStart = currentTime
+            return
+        }
+        let elapsed = max(0, currentTime - transitionStart)
+        guard elapsed < Self.previewDuration else {
+            settle()
+            return
+        }
+        let time = CGFloat(elapsed / Self.previewDuration)
+        let backingRemaining = 1 - min(1, time / 0.62)
+        let frontTime = min(1, max(0, (time - 0.12) / 0.66))
+        let opacity = min(1, time / 0.78)
+        let highlight = max(0, (time - 0.78) / 0.22)
+        card.plateAssembly = .init(backing: 1 - backingRemaining * backingRemaining,
+                                   front: frontTime * frontTime * (3 - 2 * frontTime),
+                                   opacity: opacity,
+                                   highlight: highlight)
     }
 
     override func viewDidMoveToWindow() {
@@ -136,50 +104,15 @@ final class HomeModeHeaderView: NSView {
 
     override func layout() {
         super.layout()
-        placeSubviews()
+        card.positionPlates(in: cardColumn, assembling: timer != nil)
     }
 
     private func settle() {
-        transition = nil
+        transitionStart = nil
         timer?.invalidate()
         timer = nil
-        card.isHidden = false
-        card.setAccessibilityHidden(false)
-        spareCard.isHidden = true
-        spareCard.setAccessibilityHidden(true)
-        placeSubviews()
-    }
-
-    private func placeSubviews() {
-        guard let transition, cardColumn.width > 0 else {
-            place(card, pose: Pose(offset: 0, scale: 1, alpha: 1))
-            place(spareCard, pose: Pose(offset: 0, scale: 1, alpha: 1))
-            card.revealFraction = nil
-            spareCard.revealFraction = nil
-            return
-        }
-        let t = transition.fraction
-        let travel = t * t * (3 - 2 * t)
-        let incoming = transition.incoming
-        let scale = incoming.scale + (1 - incoming.scale) * travel
-        let rightmostOffset = (bounds.maxX - cardColumn.minX) / cardColumn.width - scale
-        let offset = min(incoming.offset * (1 - travel), rightmostOffset)
-        place(card, pose: Pose(offset: offset, scale: scale, alpha: incoming.alpha + (1 - incoming.alpha) * sqrt(travel)))
-        card.revealFraction = travel
-
-        let outgoing = transition.outgoing
-        place(spareCard, pose: Pose(offset: outgoing.offset * (1 - travel) - 0.08 * travel,
-                                    scale: outgoing.scale, alpha: outgoing.alpha * (1 - travel)))
-        spareCard.revealFraction = nil
-    }
-
-    private func place(_ view: HomeChallengeHUDView, pose: Pose) {
-        // 入场全程等比缩放，使卡片斜边和文字角度在移动时也保持一致。
-        view.frame = NSRect(x: cardColumn.minX + pose.offset * cardColumn.width,
-                            y: cardColumn.minY - HomeChallengeHUDView.surfaceInsetY * pose.scale,
-                            width: cardColumn.width * pose.scale, height: cardColumn.height * pose.scale)
-        view.bounds = NSRect(origin: .zero, size: cardColumn.size)
-        view.alphaValue = pose.alpha
+        card.plateAssembly = .settled
+        card.positionPlates(in: cardColumn, assembling: false)
     }
 }
 

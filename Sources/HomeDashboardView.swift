@@ -589,7 +589,6 @@ final class HomeDashboardView: NSView {
         appearance = NSAppearance(named: .darkAqua)
         hint.isSelectable = false
         hint.drawsBackground = false
-        // 右侧模式列表以相同背景遮住跨入右栏的统计卡，原生控件继续处理点击和键盘焦点。
         [hero, guide, hint, modeHeader, modePanel, startButton, achievementPath, contactPanel, records, rules, settings].forEach { addSubview($0) }
         startButton.style = .primary
         startButton.symbolName = "play.fill"
@@ -807,7 +806,7 @@ final class HomeDashboardView: NSView {
 
 }
 
-/// 单独绘制右侧外框，让它能遮住滑到后方的统计卡。
+/// 右栏标题和游戏模式按钮共用同一布局区域。
 final class HomeModePanelView: NSView {
     override var isFlipped: Bool { true }
     var isCompact: Bool { bounds.height < 340 }
@@ -820,9 +819,6 @@ final class HomeModePanelView: NSView {
     required init?(coder: NSCoder) { nil }
 
     override func draw(_ dirtyRect: NSRect) {
-        if let superview {
-            HomeDashboardStyle.backdrop(in: convert(superview.bounds, from: superview))
-        }
         let size: CGFloat = isCompact ? 24 : 29
         HomeDashboardStyle.mark(in: NSRect(x: 26, y: 7, width: 21, height: size * 0.83))
         HomeDashboardStyle.text(AchievementText.string("home.game_modes"),
