@@ -188,6 +188,7 @@
 "home.subtitle.free" = "No countdown. Play at your own pace.";
 "home.subtitle.timed" = "Clear as many tiles as you can in one minute.";
 "home.subtitle.moves" = "Take your time. Make every swap worthwhile.";
+"home.practice_hint" = "Practice in free play with no timer or goals";
 "home.mode.free" = "Free play";
 "home.mode.puzzle" = "Puzzle Mode";
 "home.mode.timed" = "Timed Challenge";

@@ -27,8 +27,16 @@ final class HomeChallengeHUDView: NSView {
     var plateAssembly = PlateAssembly.settled {
         didSet { if plateAssembly != oldValue { needsDisplay = true } }
     }
-    var budgetFillProgress: CGFloat = 1 {
-        didSet { if budgetFillProgress != oldValue { needsDisplay = true } }
+    var backingRevealProgress: CGFloat = 1 {
+        didSet { if backingRevealProgress != oldValue { needsDisplay = true } }
+    }
+    var hintPointSize = HomeDashboardStyle.hintPointSize(for: 0) {
+        didSet { if hintPointSize != oldValue { needsDisplay = true } }
+    }
+    private var practiceHint = ""
+
+    var displayedPracticeHint: String {
+        String(practiceHint.prefix(Int(ceil(CGFloat(practiceHint.count) * backingRevealProgress))))
     }
 
     var backingPlateOffset: NSPoint {
@@ -186,7 +194,7 @@ final class HomeChallengeHUDView: NSView {
         return CGFloat(min(1, max(0, fraction)))
     }
 
-    var displayedBudgetFraction: CGFloat { remainingFraction * budgetFillProgress }
+    var displayedBudgetFraction: CGFloat { remainingFraction * backingRevealProgress }
 
     var budgetText: String {
         guard showsBudget, let snapshot else { return "" }
@@ -199,7 +207,12 @@ final class HomeChallengeHUDView: NSView {
         updateCountAnimation(snapshot: snapshot, mode: mode)
         self.snapshot = snapshot; self.mode = mode
         var labels: [String] = []
-        if showsBudget { labels.append(AchievementText.string(budgetLabelKey) + ": " + budgetText) }
+        practiceHint = showsBudget ? "" : AchievementText.string("home.practice_hint")
+        if showsBudget {
+            labels.append(AchievementText.string(budgetLabelKey) + ": " + budgetText)
+        } else {
+            labels.append(practiceHint)
+        }
         labels.append(AchievementText.string("home.cleared_title") + ": \(snapshot.totalCleared)")
         labels += PieceKind.allCases.map { kind in
             AchievementText.string(kind.titleKey) + ": \(snapshot.clearedByKind[kind, default: 0])"
@@ -288,7 +301,11 @@ final class HomeChallengeHUDView: NSView {
         let frontFace = Face(frame: surface.offsetBy(dx: front.x, dy: front.y))
         drawPlates(opacity: plateAssembly.opacity) {
             drawBackingPlate(on: backFace)
-            if showsBudget { drawTrack(backFace.budgetTrack, accent: accent, snapshot: snapshot) }
+            if showsBudget {
+                drawTrack(backFace.budgetTrack, accent: accent, snapshot: snapshot)
+            } else {
+                drawPracticeHint(on: backFace)
+            }
             fill(HomeDashboardStyle.slant(frontFace.totals),
                  colors: [HomeDashboardStyle.color(0x17232D), HomeDashboardStyle.color(0x0C151E),
                           HomeDashboardStyle.color(0x101A25)], angle: 14, border: HomeDashboardStyle.color(0x57636B))
@@ -341,6 +358,22 @@ final class HomeChallengeHUDView: NSView {
         NSGradient(starting: rim.withAlphaComponent(0), ending: rim.withAlphaComponent(0.65))?
             .draw(from: bottomLeft, to: fadeEnd, options: .drawsAfterEndingLocation)
         context.restoreGState()
+    }
+
+    private func drawPracticeHint(on face: Face) {
+        let band = face.budgetTrack
+        let markSize = HomeDashboardStyle.hintMarkSize(for: hintPointSize)
+        let marker = NSRect(origin: NSPoint(x: band.minX, y: band.midY - markSize.height / 2), size: markSize)
+        HomeDashboardStyle.mark(in: marker)
+
+        let text = displayedPracticeHint
+        let x = marker.maxX + 9
+        let width = band.maxX - x - 4
+        guard !text.isEmpty, width > 0 else { return }
+        // 按完整文案计算字号，逐字显示时文字位置和大小不跳动。
+        let size = GameLobbyStyle.fittedSize(practiceHint, width: width, preferred: hintPointSize,
+                                           minimum: 9, weight: .regular)
+        label(text, x: x, y: band.midY, width: width, size: size, weight: .regular, color: HomeDashboardStyle.muted)
     }
 
     private func drawTotals(_ totalCleared: Int, on face: Face, accent: NSColor) {
@@ -470,7 +503,7 @@ final class HomeChallengeHUDView: NSView {
             let limit = HomeGameMode.moveLimit
             let remaining = min(limit, max(0, snapshot.remainingSwaps ?? limit))
             // 第一格随扫光起播，其余格按填充进度逐个点亮。
-            let lit = Int(ceil(CGFloat(remaining) * budgetFillProgress))
+            let lit = Int(ceil(CGFloat(remaining) * backingRevealProgress))
             let cut = HomeDashboardStyle.edgeOffset(for: track.height)
             let available = max(0, track.width - cut)
             let gap = min(2, available / CGFloat(limit * 2))

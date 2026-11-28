@@ -120,6 +120,14 @@ enum HomeDashboardStyle {
         slant(rect).fill()
     }
 
+    static func hintPointSize(for dashboardWidth: CGFloat) -> CGFloat {
+        min(16, max(12, dashboardWidth * 0.010))
+    }
+
+    static func hintMarkSize(for pointSize: CGFloat) -> NSSize {
+        NSSize(width: 10, height: pointSize + 1)
+    }
+
     static func backdrop(in rect: NSRect) {
         NSGradient(colors: [color(0x090F16), navy, color(0x080E16)])?.draw(in: rect, angle: 21)
         if let context = NSGraphicsContext.current?.cgContext, rect.width > 0, rect.height > 0 {

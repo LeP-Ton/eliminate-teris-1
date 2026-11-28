@@ -1,6 +1,10 @@
 # Agent 文档索引
 
 ## 当前变更文档
+`workflow/20261128104839-update-free-mode-practice-copy.md` - 会话-149 起更新自由模式背板文案，补充无时间与目标限制的说明。
+`workflow/20261128103633-match-practice-hint-and-start-hint-size.md` - 会话-147 起让自由模式提示和开局提示共用字号与蓝色斜杠尺寸。
+`workflow/20261128102721-match-practice-hint-description-tone.md` - 会话-145 起让自由模式练习提示与联系我们说明使用同样的常规字重和灰蓝色。
+`workflow/20261128101138-type-free-mode-practice-hint.md` - 会话-142 起在自由模式背板加入蓝色斜杠和逐字显示的练习提示。
 `workflow/20261128094456-synchronize-budget-fill-with-highlight.md` - 会话-136 起让统计卡预算填充和前板上沿扫光同步起播。
 `workflow/20261128090504-animate-statistics-budget-fill.md` - 会话-129 起在统计卡叠合后从零填充挑战预算，开局后动态跟随剩余值。
 `workflow/20261128084215-make-statistics-fade-visible.md` - 会话-124 起改为匀速淡入，每次换模式从透明起步，含真实窗口轨道像素实测。
@@ -121,6 +125,10 @@
 `workflow/20260214200042-run-script-always-rebuild.md` - 启动脚本改为每次先编译再启动，避免旧版本残留。
 
 ## 读取场景
+- 需要核对自由模式练习提示的五种语言文案时，读取 `20261128104839-update-free-mode-practice-copy.md`。
+- 需要调整自由模式提示或开局提示的字号、斜杠尺寸时，读取 `20261128103633-match-practice-hint-and-start-hint-size.md`。
+- 需要核对自由模式练习提示和联系我们说明的字重或颜色时，读取 `20261128102721-match-practice-hint-description-tone.md`。
+- 需要调整自由模式背板文案、蓝色斜杠、打字动画或首次进大厅的提示时，读取 `20261128101138-type-free-mode-practice-hint.md`。
 - 需要调整统计卡扫光和预算填充的共同起点，读取 `20261128094456-synchronize-budget-fill-with-highlight.md`。
 - 需要调整切换模式后的预算填充、开局时的剩余目标或限步分格显示时，读取 `20261128090504-animate-statistics-budget-fill.md`。
 - 需要调整统计卡淡入的可见节奏或验证快速换模式也从透明开始时，读取 `20261128084215-make-statistics-fade-visible.md`。

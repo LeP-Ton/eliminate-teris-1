@@ -187,9 +187,19 @@ final class GameLobbyPresentationTests: AchievementTestCase {
             }
             let headerBottom = surface.minY + surface.height * 52 / 186
             let headerRows = pixels(from: surface.minY, to: headerBottom)
-            let headerColumns = pixels(from: 0, to: size.width)
-            XCTAssertFalse(headerRows.contains { !cyanColumns(in: free, y: $0, x: headerColumns).isEmpty },
-                           "自由模式的背板顶部不应残留青色标记或文字")
+            let markBandEnd = surface.minX + surface.width / 4
+            let leftColumns = pixels(from: surface.minX, to: markBandEnd)
+            let rightColumns = pixels(from: markBandEnd, to: surface.maxX)
+            func hasBlueMark(in columns: Range<Int>) -> Bool {
+                headerRows.contains { y in
+                    columns.contains { x in
+                        guard let color = free.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return false }
+                        return color.alphaComponent > 0.65 && color.blueComponent > 0.60 && color.blueComponent - color.redComponent > 0.25
+                    }
+                }
+            }
+            XCTAssertTrue(hasBlueMark(in: leftColumns), "自由模式顶部保留左侧蓝色短斜杠")
+            XCTAssertFalse(hasBlueMark(in: rightColumns), "自由模式顶部右侧没有挑战进度轨道")
 
             var timedTrack: NSRect?
             for mode in [HomeGameMode.timed, .moves] {
@@ -609,7 +619,7 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         beginTransition()
         advance(to: sharedStart - firstFrameInterval)
         XCTAssertEqual(hud.plateAssembly.highlight, 0)
-        XCTAssertEqual(hud.budgetFillProgress, 0)
+        XCTAssertEqual(hud.backingRevealProgress, 0)
         XCTAssertTrue(try litColumns().isEmpty, "接缝扫光前只绘制暗色轨道")
 
         let steps = 12
@@ -625,13 +635,13 @@ final class GameLobbyPresentationTests: AchievementTestCase {
             home.layoutSubtreeIfNeeded()
             XCTAssertEqual(hud.plateAssembly.backing, 1, accuracy: 0.001, "扫光开始时背板已到位")
             XCTAssertEqual(hud.plateAssembly.front, 1, accuracy: 0.001, "扫光开始时前板已到位")
-            XCTAssertEqual(hud.budgetFillProgress, fraction, accuracy: 0.001)
+            XCTAssertEqual(hud.backingRevealProgress, fraction, accuracy: 0.001)
             XCTAssertEqual(hud.displayedBudgetFraction, fraction, accuracy: 0.001)
             if step == 0 {
                 XCTAssertEqual(hud.plateAssembly.highlight, 0, accuracy: 0.001)
             } else if step == 1 {
                 XCTAssertGreaterThan(hud.plateAssembly.highlight, 0, "扫光和预算在同一帧开始")
-                XCTAssertGreaterThan(hud.budgetFillProgress, 0)
+                XCTAssertGreaterThan(hud.backingRevealProgress, 0)
                 XCTAssertFalse(try litColumns().isEmpty, "限时轨道随扫光出现第一段青色填充")
             }
             if step == 0 || step == 1 + steps / 4 || step == 1 + steps / 2 || isLast {
@@ -652,24 +662,24 @@ final class GameLobbyPresentationTests: AchievementTestCase {
             XCTAssertEqual(Double(columns.count) / Double(full.count), fraction, accuracy: 0.05)
         }
         refresh(.timed, seconds: 48, running: true)
-        XCTAssertEqual(hud.budgetFillProgress, 1, "已填满后更新剩余时间无需重新填充")
+        XCTAssertEqual(hud.backingRevealProgress, 1, "已填满后更新剩余时间无需重新填充")
         XCTAssertEqual(Double(try litColumns().count) / Double(full.count), 0.8, accuracy: 0.05)
 
         refresh(.moves, swaps: 30)
-        XCTAssertEqual(hud.budgetFillProgress, 0)
+        XCTAssertEqual(hud.backingRevealProgress, 0)
         beginTransition()
         advance(to: sharedStart - firstFrameInterval)
         XCTAssertEqual(hud.plateAssembly.highlight, 0)
-        XCTAssertEqual(hud.budgetFillProgress, 0)
+        XCTAssertEqual(hud.backingRevealProgress, 0)
         XCTAssertEqual(try litSegments(), 0)
         advance(to: sharedStart + firstFrameInterval)
         XCTAssertGreaterThan(hud.plateAssembly.highlight, 0)
-        XCTAssertGreaterThan(hud.budgetFillProgress, 0)
+        XCTAssertGreaterThan(hud.backingRevealProgress, 0)
         XCTAssertEqual(try litSegments(), 1, "限步第一格随扫光出现")
         advance(to: sharedStart + fillDuration * 0.34)
         XCTAssertEqual(try litSegments(), 11, "限步填充以整格逐一显示")
         refresh(.moves, swaps: 30, running: true)
-        XCTAssertEqual(hud.budgetFillProgress, 0.34, accuracy: 0.001, "填充期间开局保留当前进度")
+        XCTAssertEqual(hud.backingRevealProgress, 0.34, accuracy: 0.001, "填充期间开局保留当前进度")
         XCTAssertEqual(try litSegments(), 11)
         refresh(.moves, swaps: 13, running: true)
         XCTAssertEqual(hud.remainingFraction, CGFloat(13) / 30, accuracy: 0.001)
@@ -678,19 +688,114 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         advance(to: sharedStart + fillDuration * 0.72)
         XCTAssertEqual(try litSegments(), 10)
         advance(to: sharedStart + fillDuration + 0.001)
-        XCTAssertEqual(hud.budgetFillProgress, 1)
+        XCTAssertEqual(hud.backingRevealProgress, 1)
         XCTAssertEqual(try litSegments(), 13, "动画结束时准确显示实际剩余步数")
 
         refresh(.timed, seconds: 60)
         beginTransition()
         advance(to: sharedStart + fillDuration * 0.5)
-        XCTAssertEqual(hud.budgetFillProgress, 0.5, accuracy: 0.001)
+        XCTAssertEqual(hud.backingRevealProgress, 0.5, accuracy: 0.001)
         refresh(.timed, seconds: 42, running: true)
-        XCTAssertEqual(hud.budgetFillProgress, 0.5, accuracy: 0.001)
+        XCTAssertEqual(hud.backingRevealProgress, 0.5, accuracy: 0.001)
         XCTAssertEqual(Double(try litColumns().count) / Double(full.count), 0.35, accuracy: 0.05, "限时开局后按当前剩余时间填充")
         refresh(.moves, swaps: 30)
         XCTAssertEqual(hud.plateAssembly, .separated)
-        XCTAssertEqual(hud.budgetFillProgress, 0, "上一模式尚在填充时，切换后仍重回空轨")
+        XCTAssertEqual(hud.backingRevealProgress, 0, "上一模式尚在填充时，切换后仍重回空轨")
+    }
+
+    func testPracticeHintTypesAtLaunchAndWithTheFreeModeHighlight() throws {
+        _ = NSApplication.shared
+        let original = Localizer.shared.language
+        defer { Localizer.shared.setLanguage(original) }
+        Localizer.shared.setLanguage(.chineseSimplified)
+        let hint = AchievementText.string("home.practice_hint")
+        XCTAssertEqual(hint, "在无时间与目标限制的自由模式中练习操作技巧")
+
+        let home = HomeDashboardView(frame: NSRect(x: 0, y: 0, width: 960, height: 720))
+        let header = home.modeHeader
+        let hud = home.challengeHUD
+        var clock: TimeInterval = 0
+        header.now = { clock }
+        header.reducesMotion = { false }
+        let duration = HomeModeHeaderView.practiceHintDuration
+        let frameInterval = 1.0 / 60
+        XCTAssertEqual(duration, 0.80, accuracy: 0.001)
+
+        let free = GameSnapshot(mode: .free, elapsedTime: 0, remainingTime: nil, remainingSwaps: nil, isRunning: false, isFinished: false)
+        let playing = GameSnapshot(mode: .free, elapsedTime: 1, remainingTime: nil, remainingSwaps: nil, isRunning: true, isFinished: false)
+        let timed = GameSnapshot(mode: .timed(duration: 60), elapsedTime: 0, remainingTime: 60, remainingSwaps: nil, isRunning: false, isFinished: false)
+        home.refresh(snapshot: free, mode: .free, manager: manager)
+        let window = NSWindow(contentRect: home.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = home
+        defer { window.close() }
+        home.layoutSubtreeIfNeeded()
+        XCTAssertEqual(hud.plateAssembly, .settled, "首次显示自由模式直接打字")
+        XCTAssertTrue(hud.displayedPracticeHint.isEmpty)
+        XCTAssertNil(hud.budgetTrackRect)
+        header.advanceAnimation()
+        clock = frameInterval
+        header.advanceAnimation()
+        XCTAssertEqual(hud.displayedPracticeHint, String(hint.prefix(1)))
+        XCTAssertEqual(hud.plateAssembly, .settled)
+        clock = duration * 0.5
+        header.advanceAnimation()
+        let partial = hud.displayedPracticeHint
+        XCTAssertGreaterThan(partial.count, 1)
+        XCTAssertLessThan(partial.count, hint.count)
+        XCTAssertEqual(partial, String(hint.prefix(partial.count)))
+        home.refresh(snapshot: playing, mode: .free, manager: manager)
+        XCTAssertEqual(hud.displayedPracticeHint, partial, "同模式开局保留已显示的字符")
+        clock = duration + frameInterval
+        header.advanceAnimation()
+        XCTAssertEqual(hud.displayedPracticeHint, hint)
+        home.refresh(snapshot: free, mode: .free, manager: manager)
+        XCTAssertEqual(hud.displayedPracticeHint, hint, "同模式刷新不重新打字")
+
+        home.refresh(snapshot: timed, mode: .timed, manager: manager)
+        XCTAssertTrue(hud.displayedPracticeHint.isEmpty)
+        header.advanceAnimation()
+        clock += HomeModeHeaderView.previewDuration + HomeModeHeaderView.budgetFillDuration
+        header.advanceAnimation()
+        home.refresh(snapshot: free, mode: .free, manager: manager)
+        XCTAssertEqual(hud.plateAssembly, .separated)
+        XCTAssertTrue(hud.displayedPracticeHint.isEmpty)
+        header.advanceAnimation()
+        let start = clock + HomeModeHeaderView.joinHighlightStart
+        clock = start - frameInterval
+        header.advanceAnimation()
+        XCTAssertEqual(hud.plateAssembly.highlight, 0)
+        XCTAssertTrue(hud.displayedPracticeHint.isEmpty, "前板扫光之前显示空提示")
+
+        let steps = 16
+        let offsets = [0, frameInterval] + (1...steps).map { duration * Double($0) / Double(steps) }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-statistics-practice-hint.gif")
+        let gif = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, offsets.count, nil))
+        CGImageDestinationSetProperties(gif, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary)
+        var previousCount = 0
+        for (step, offset) in offsets.enumerated() {
+            let isLast = step == offsets.count - 1
+            clock = start + offset + (isLast ? 0.001 : 0)
+            header.advanceAnimation()
+            let visibleHint = hud.displayedPracticeHint
+            XCTAssertGreaterThanOrEqual(visibleHint.count, previousCount)
+            XCTAssertEqual(visibleHint, String(hint.prefix(visibleHint.count)))
+            previousCount = visibleHint.count
+            if step == 1 {
+                XCTAssertGreaterThan(hud.plateAssembly.highlight, 0)
+                XCTAssertEqual(visibleHint, String(hint.prefix(1)), "扫光出现的第一帧同时显示首字")
+            }
+
+            home.layoutSubtreeIfNeeded()
+            let bitmap = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: header.frame))
+            home.cacheDisplay(in: header.frame, to: bitmap)
+            let frame = try XCTUnwrap(bitmap.cgImage)
+            let delay = isLast ? 1.0 : offsets[step + 1] - offset
+            CGImageDestinationAddImage(gif, frame, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay]] as CFDictionary)
+        }
+        XCTAssertTrue(CGImageDestinationFinalize(gif))
+        XCTAssertEqual(hud.displayedPracticeHint, hint)
+        XCTAssertNil(hud.budgetTrackRect)
     }
 
     private func modeIntro(in header: HomeModeHeaderView) throws -> NSView {

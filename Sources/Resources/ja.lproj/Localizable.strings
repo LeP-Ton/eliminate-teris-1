@@ -181,6 +181,7 @@
 "home.subtitle.free" = "時間を気にせず、自分のペースで。";
 "home.subtitle.timed" = "1 分間でできるだけ多く消そう。";
 "home.subtitle.moves" = "時間を気にせず、一手を大切に。";
+"home.practice_hint" = "時間・目標制限のないフリーモードで操作を練習";
 "home.mode.free" = "フリーモード";
 "home.mode.puzzle" = "パズルモード";
 "home.mode.timed" = "時間制チャレンジ";

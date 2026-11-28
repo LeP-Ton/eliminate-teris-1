@@ -181,6 +181,7 @@
 "home.subtitle.free" = "시간에 쫓기지 않고, 내 속도로 즐겨요.";
 "home.subtitle.timed" = "1분 안에 최대한 많은 블록을 제거하세요.";
 "home.subtitle.moves" = "시간에 쫓기지 말고 매번 신중하게 교환하세요.";
+"home.practice_hint" = "시간·목표 제한 없는 자유 모드에서 조작 연습";
 "home.mode.free" = "자유 모드";
 "home.mode.puzzle" = "퍼즐 모드";
 "home.mode.timed" = "시간 도전";

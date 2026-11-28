@@ -716,7 +716,8 @@ final class HomeDashboardView: NSView {
             let font = hintFont
             let width = (hint.stringValue as NSString).size(withAttributes: [.font: font]).width
             let x = hint.frame.midX - min(width, hint.frame.width) / 2 - 20
-            HomeDashboardStyle.mark(in: NSRect(x: x, y: hint.frame.minY + 3, width: 10, height: font.pointSize + 1))
+            let size = HomeDashboardStyle.hintMarkSize(for: font.pointSize)
+            HomeDashboardStyle.mark(in: NSRect(origin: NSPoint(x: x, y: hint.frame.minY + 3), size: size))
         }
     }
 
@@ -726,7 +727,7 @@ final class HomeDashboardView: NSView {
     }
 
     private var hintFont: NSFont {
-        .systemFont(ofSize: min(16, max(12, bounds.width * 0.010)), weight: .medium)
+        .systemFont(ofSize: HomeDashboardStyle.hintPointSize(for: bounds.width), weight: .medium)
     }
 
     private func updateHint(_ value: String) {
