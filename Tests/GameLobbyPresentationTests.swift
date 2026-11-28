@@ -554,8 +554,9 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         var transitionStartedAt = clock
         header.now = { clock }
         header.reducesMotion = { false }
-        let assemblyDuration = HomeModeHeaderView.previewDuration
+        let sharedStart = HomeModeHeaderView.joinHighlightStart
         let fillDuration = HomeModeHeaderView.budgetFillDuration
+        let firstFrameInterval = 1.0 / 60
         XCTAssertEqual(fillDuration, 0.60, accuracy: 0.001)
 
         func refresh(_ mode: HomeGameMode, seconds: TimeInterval? = nil, swaps: Int? = nil, running: Bool = false) {
@@ -606,30 +607,40 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         XCTAssertNil(hud.budgetTrackRect)
         refresh(.timed, seconds: 60)
         beginTransition()
-        advance(to: assemblyDuration * 0.96)
-        XCTAssertNotEqual(hud.plateAssembly, .settled)
+        advance(to: sharedStart - firstFrameInterval)
+        XCTAssertEqual(hud.plateAssembly.highlight, 0)
         XCTAssertEqual(hud.budgetFillProgress, 0)
-        XCTAssertTrue(try litColumns().isEmpty, "叠合期间只绘制暗色轨道")
+        XCTAssertTrue(try litColumns().isEmpty, "接缝扫光前只绘制暗色轨道")
 
         let steps = 12
+        let offsets = [0, firstFrameInterval] + (1...steps).map { fillDuration * Double($0) / Double(steps) }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-statistics-budget-fill.gif")
-        let gif = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, steps + 1, nil))
+        let gif = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, offsets.count, nil))
         CGImageDestinationSetProperties(gif, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary)
         var fillColumns: [[Int]] = []
-        for step in 0...steps {
-            let fraction = Double(step) / Double(steps)
-            advance(to: assemblyDuration + fillDuration * fraction + (step == steps ? 0.001 : 0))
+        for (step, offset) in offsets.enumerated() {
+            let isLast = step == offsets.count - 1
+            let fraction = CGFloat(offset / fillDuration)
+            advance(to: sharedStart + offset + (isLast ? 0.001 : 0))
             home.layoutSubtreeIfNeeded()
-            XCTAssertEqual(hud.plateAssembly, .settled, "预算填充开始时两层已到位")
-            XCTAssertEqual(hud.budgetFillProgress, CGFloat(fraction), accuracy: 0.001)
-            XCTAssertEqual(hud.displayedBudgetFraction, CGFloat(fraction), accuracy: 0.001)
-            if step == 0 || step == steps / 4 || step == steps / 2 || step == steps {
+            XCTAssertEqual(hud.plateAssembly.backing, 1, accuracy: 0.001, "扫光开始时背板已到位")
+            XCTAssertEqual(hud.plateAssembly.front, 1, accuracy: 0.001, "扫光开始时前板已到位")
+            XCTAssertEqual(hud.budgetFillProgress, fraction, accuracy: 0.001)
+            XCTAssertEqual(hud.displayedBudgetFraction, fraction, accuracy: 0.001)
+            if step == 0 {
+                XCTAssertEqual(hud.plateAssembly.highlight, 0, accuracy: 0.001)
+            } else if step == 1 {
+                XCTAssertGreaterThan(hud.plateAssembly.highlight, 0, "扫光和预算在同一帧开始")
+                XCTAssertGreaterThan(hud.budgetFillProgress, 0)
+                XCTAssertFalse(try litColumns().isEmpty, "限时轨道随扫光出现第一段青色填充")
+            }
+            if step == 0 || step == 1 + steps / 4 || step == 1 + steps / 2 || isLast {
                 fillColumns.append(try litColumns())
             }
             let bitmap = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: header.frame))
             home.cacheDisplay(in: header.frame, to: bitmap)
             let frame = try XCTUnwrap(bitmap.cgImage)
-            let delay = step == steps ? 1.0 : fillDuration / Double(steps)
+            let delay = isLast ? 1.0 : offsets[step + 1] - offset
             CGImageDestinationAddImage(gif, frame, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay]] as CFDictionary)
         }
         XCTAssertTrue(CGImageDestinationFinalize(gif))
@@ -647,24 +658,32 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         refresh(.moves, swaps: 30)
         XCTAssertEqual(hud.budgetFillProgress, 0)
         beginTransition()
-        advance(to: assemblyDuration + fillDuration * 0.34)
-        XCTAssertEqual(try litSegments(), 10, "限步只显示填满的整格")
+        advance(to: sharedStart - firstFrameInterval)
+        XCTAssertEqual(hud.plateAssembly.highlight, 0)
+        XCTAssertEqual(hud.budgetFillProgress, 0)
+        XCTAssertEqual(try litSegments(), 0)
+        advance(to: sharedStart + firstFrameInterval)
+        XCTAssertGreaterThan(hud.plateAssembly.highlight, 0)
+        XCTAssertGreaterThan(hud.budgetFillProgress, 0)
+        XCTAssertEqual(try litSegments(), 1, "限步第一格随扫光出现")
+        advance(to: sharedStart + fillDuration * 0.34)
+        XCTAssertEqual(try litSegments(), 11, "限步填充以整格逐一显示")
         refresh(.moves, swaps: 30, running: true)
         XCTAssertEqual(hud.budgetFillProgress, 0.34, accuracy: 0.001, "填充期间开局保留当前进度")
-        XCTAssertEqual(try litSegments(), 10)
+        XCTAssertEqual(try litSegments(), 11)
         refresh(.moves, swaps: 13, running: true)
         XCTAssertEqual(hud.remainingFraction, CGFloat(13) / 30, accuracy: 0.001)
         XCTAssertEqual(hud.displayedBudgetFraction, CGFloat(13) / 30 * 0.34, accuracy: 0.001)
-        XCTAssertEqual(try litSegments(), 4, "按填充进度换算当前剩余交换次数")
-        advance(to: assemblyDuration + fillDuration * 0.72)
-        XCTAssertEqual(try litSegments(), 9)
-        advance(to: assemblyDuration + fillDuration + 0.001)
+        XCTAssertEqual(try litSegments(), 5, "按填充进度换算当前剩余交换次数")
+        advance(to: sharedStart + fillDuration * 0.72)
+        XCTAssertEqual(try litSegments(), 10)
+        advance(to: sharedStart + fillDuration + 0.001)
         XCTAssertEqual(hud.budgetFillProgress, 1)
         XCTAssertEqual(try litSegments(), 13, "动画结束时准确显示实际剩余步数")
 
         refresh(.timed, seconds: 60)
         beginTransition()
-        advance(to: assemblyDuration + fillDuration * 0.5)
+        advance(to: sharedStart + fillDuration * 0.5)
         XCTAssertEqual(hud.budgetFillProgress, 0.5, accuracy: 0.001)
         refresh(.timed, seconds: 42, running: true)
         XCTAssertEqual(hud.budgetFillProgress, 0.5, accuracy: 0.001)

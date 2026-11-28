@@ -3,6 +3,7 @@ import Cocoa
 /// 上方文案和本局统计并排排版，切换模式时交错叠合统计卡的前后两层。
 final class HomeModeHeaderView: NSView {
     static let previewDuration: TimeInterval = 1.20
+    static let joinHighlightStart: TimeInterval = previewDuration * 0.78
     static let budgetFillDuration: TimeInterval = 0.60
     var now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
@@ -86,25 +87,27 @@ final class HomeModeHeaderView: NSView {
             return
         }
         let elapsed = max(0, currentTime - transitionStart)
+        // 扫光和预算填充同一帧起播，各自按原时长结束。
+        let highlightElapsed = elapsed - Self.joinHighlightStart
+        let fillProgress = min(1, max(0, highlightElapsed / Self.budgetFillDuration))
         if elapsed >= Self.previewDuration {
-            let progress = (elapsed - Self.previewDuration) / Self.budgetFillDuration
-            guard card.mode != .free, progress < 1 else {
+            guard card.mode != .free, fillProgress < 1 else {
                 settle()
                 return
             }
             finishAssembly()
-            card.budgetFillProgress = CGFloat(progress)
-            return
+        } else {
+            let time = CGFloat(elapsed / Self.previewDuration)
+            let backingRemaining = 1 - min(1, time / 0.62)
+            let frontTime = min(1, max(0, (time - 0.12) / 0.66))
+            let opacity = CGFloat(min(1, elapsed / Self.joinHighlightStart))
+            let highlight = CGFloat(max(0, highlightElapsed / (Self.previewDuration - Self.joinHighlightStart)))
+            card.plateAssembly = .init(backing: 1 - backingRemaining * backingRemaining,
+                                       front: frontTime * frontTime * (3 - 2 * frontTime),
+                                       opacity: opacity,
+                                       highlight: highlight)
         }
-        let time = CGFloat(elapsed / Self.previewDuration)
-        let backingRemaining = 1 - min(1, time / 0.62)
-        let frontTime = min(1, max(0, (time - 0.12) / 0.66))
-        let opacity = min(1, time / 0.78)
-        let highlight = max(0, (time - 0.78) / 0.22)
-        card.plateAssembly = .init(backing: 1 - backingRemaining * backingRemaining,
-                                   front: frontTime * frontTime * (3 - 2 * frontTime),
-                                   opacity: opacity,
-                                   highlight: highlight)
+        if card.mode != .free { card.budgetFillProgress = CGFloat(fillProgress) }
     }
 
     override func viewDidMoveToWindow() {

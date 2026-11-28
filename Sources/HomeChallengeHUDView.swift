@@ -469,7 +469,8 @@ final class HomeChallengeHUDView: NSView {
             // 30 个可消耗格让有限行动可视化，最后一步完成后清空。
             let limit = HomeGameMode.moveLimit
             let remaining = min(limit, max(0, snapshot.remainingSwaps ?? limit))
-            let lit = Int(CGFloat(remaining) * budgetFillProgress)
+            // 第一格随扫光起播，其余格按填充进度逐个点亮。
+            let lit = Int(ceil(CGFloat(remaining) * budgetFillProgress))
             let cut = HomeDashboardStyle.edgeOffset(for: track.height)
             let available = max(0, track.width - cut)
             let gap = min(2, available / CGFloat(limit * 2))
