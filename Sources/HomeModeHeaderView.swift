@@ -3,6 +3,7 @@ import Cocoa
 /// 上方文案和本局统计并排排版，切换模式时交错叠合统计卡的前后两层。
 final class HomeModeHeaderView: NSView {
     static let previewDuration: TimeInterval = 1.20
+    static let budgetFillDuration: TimeInterval = 0.60
     var now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
@@ -10,6 +11,7 @@ final class HomeModeHeaderView: NSView {
     let card = HomeChallengeHUDView(frame: .zero)
     private var timer: Timer?
     private var transitionStart: TimeInterval?
+    private var isAssembling = false
     private var cardColumn = NSRect.zero
 
     override var isFlipped: Bool { true }
@@ -60,9 +62,11 @@ final class HomeModeHeaderView: NSView {
         }
         // 每次换模式都从透明起步。已运行的定时器继续驱动新一轮叠合。
         transitionStart = nil
+        if !isAssembling { card.positionPlates(in: cardColumn, assembling: true) }
+        isAssembling = true
         card.plateAssembly = .separated
+        card.budgetFillProgress = mode == .free ? 1 : 0
         guard timer == nil else { return }
-        card.positionPlates(in: cardColumn, assembling: true)
 
         let timer = Timer(timeInterval: 1 / 60, repeats: true) { [weak self] _ in self?.advanceAnimation() }
         RunLoop.main.add(timer, forMode: .common)
@@ -82,8 +86,14 @@ final class HomeModeHeaderView: NSView {
             return
         }
         let elapsed = max(0, currentTime - transitionStart)
-        guard elapsed < Self.previewDuration else {
-            settle()
+        if elapsed >= Self.previewDuration {
+            let progress = (elapsed - Self.previewDuration) / Self.budgetFillDuration
+            guard card.mode != .free, progress < 1 else {
+                settle()
+                return
+            }
+            finishAssembly()
+            card.budgetFillProgress = CGFloat(progress)
             return
         }
         let time = CGFloat(elapsed / Self.previewDuration)
@@ -104,15 +114,22 @@ final class HomeModeHeaderView: NSView {
 
     override func layout() {
         super.layout()
-        card.positionPlates(in: cardColumn, assembling: timer != nil)
+        card.positionPlates(in: cardColumn, assembling: isAssembling)
+    }
+
+    private func finishAssembly() {
+        guard isAssembling else { return }
+        isAssembling = false
+        card.plateAssembly = .settled
+        card.positionPlates(in: cardColumn, assembling: false)
     }
 
     private func settle() {
         transitionStart = nil
         timer?.invalidate()
         timer = nil
-        card.plateAssembly = .settled
-        card.positionPlates(in: cardColumn, assembling: false)
+        finishAssembly()
+        card.budgetFillProgress = 1
     }
 }
 

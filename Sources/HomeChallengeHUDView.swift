@@ -27,6 +27,9 @@ final class HomeChallengeHUDView: NSView {
     var plateAssembly = PlateAssembly.settled {
         didSet { if plateAssembly != oldValue { needsDisplay = true } }
     }
+    var budgetFillProgress: CGFloat = 1 {
+        didSet { if budgetFillProgress != oldValue { needsDisplay = true } }
+    }
 
     var backingPlateOffset: NSPoint {
         NSPoint(x: Self.backingTravel.x * (1 - plateAssembly.backing), y: Self.backingTravel.y * (1 - plateAssembly.backing))
@@ -182,6 +185,8 @@ final class HomeChallengeHUDView: NSView {
             : Double(snapshot.remainingSwaps ?? HomeGameMode.moveLimit) / Double(HomeGameMode.moveLimit)
         return CGFloat(min(1, max(0, fraction)))
     }
+
+    var displayedBudgetFraction: CGFloat { remainingFraction * budgetFillProgress }
 
     var budgetText: String {
         guard showsBudget, let snapshot else { return "" }
@@ -463,7 +468,8 @@ final class HomeChallengeHUDView: NSView {
         if mode == .moves {
             // 30 个可消耗格让有限行动可视化，最后一步完成后清空。
             let limit = HomeGameMode.moveLimit
-            let remaining = snapshot.remainingSwaps ?? limit
+            let remaining = min(limit, max(0, snapshot.remainingSwaps ?? limit))
+            let lit = Int(CGFloat(remaining) * budgetFillProgress)
             let cut = HomeDashboardStyle.edgeOffset(for: track.height)
             let available = max(0, track.width - cut)
             let gap = min(2, available / CGFloat(limit * 2))
@@ -471,13 +477,13 @@ final class HomeChallengeHUDView: NSView {
             for index in 0..<limit {
                 let segment = NSRect(x: track.minX + CGFloat(index) * (width + gap), y: track.minY,
                                      width: width + cut, height: track.height)
-                (index < remaining ? accent : idleColor).setFill()
+                (index < lit ? accent : idleColor).setFill()
                 HomeDashboardStyle.slant(segment).fill()
             }
         } else {
             idleColor.setFill()
             HomeDashboardStyle.slant(track).fill()
-            let fill = HomeDashboardStyle.segmentFill(track, fraction: remainingFraction)
+            let fill = HomeDashboardStyle.segmentFill(track, fraction: displayedBudgetFraction)
             guard !fill.isEmpty else { return }
             NSGradient(colors: [accent, accent.blended(withFraction: 0.25, of: .white) ?? accent])?
                 .draw(in: fill, angle: 90)

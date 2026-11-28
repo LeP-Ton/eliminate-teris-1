@@ -541,6 +541,139 @@ final class GameLobbyPresentationTests: AchievementTestCase {
         XCTAssertFalse(intro.isHidden)
     }
 
+    func testChallengeBudgetTrackFillsAfterAssemblyAndFollowsTheLiveBudget() throws {
+        _ = NSApplication.shared
+        let home = HomeDashboardView(frame: NSRect(x: 0, y: 0, width: 1180, height: 800))
+        let window = NSWindow(contentRect: home.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = home
+        defer { window.close() }
+        let header = home.modeHeader
+        let hud = home.challengeHUD
+        var clock: TimeInterval = 0
+        var transitionStartedAt = clock
+        header.now = { clock }
+        header.reducesMotion = { false }
+        let assemblyDuration = HomeModeHeaderView.previewDuration
+        let fillDuration = HomeModeHeaderView.budgetFillDuration
+        XCTAssertEqual(fillDuration, 0.60, accuracy: 0.001)
+
+        func refresh(_ mode: HomeGameMode, seconds: TimeInterval? = nil, swaps: Int? = nil, running: Bool = false) {
+            let elapsed = seconds.map { HomeGameMode.timedDuration - $0 } ?? (running ? 1 : 0)
+            let snapshot = GameSnapshot(mode: mode.gameMode, elapsedTime: elapsed, remainingTime: seconds,
+                                        remainingSwaps: swaps, isRunning: running, isFinished: false)
+            home.refresh(snapshot: snapshot, mode: mode, manager: manager)
+        }
+
+        func beginTransition() {
+            transitionStartedAt = clock
+            header.advanceAnimation()
+        }
+
+        func advance(to elapsed: TimeInterval) {
+            clock = transitionStartedAt + elapsed
+            header.advanceAnimation()
+        }
+
+        func litColumns() throws -> [Int] {
+            home.layoutSubtreeIfNeeded()
+            let offset = hud.backingPlateOffset
+            let local = try XCTUnwrap(hud.budgetTrackRect).offsetBy(dx: offset.x, dy: offset.y)
+            let track = hud.convert(local, to: home)
+            // 用与动图相同的统计区合成帧采样，按裁剪区域的原点换算像素坐标。
+            let region = header.frame
+            let bitmap = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: region))
+            home.cacheDisplay(in: region, to: bitmap)
+            let scale = CGFloat(bitmap.pixelsWide) / region.width
+            let y = Int((track.midY - region.minY) * scale)
+            let first = Int(ceil((track.minX - region.minX) * scale))
+            let last = Int(floor((track.maxX - region.minX) * scale))
+            return (first..<last).filter { x in
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB) else { return false }
+                let cyan = min(color.greenComponent, color.blueComponent)
+                return cyan > 0.62 && cyan - color.redComponent > 0.22
+            }
+        }
+
+        func litSegments() throws -> Int {
+            let columns = try litColumns()
+            guard !columns.isEmpty else { return 0 }
+            return 1 + zip(columns, columns.dropFirst()).filter { left, right in right > left + 1 }.count
+        }
+
+        refresh(.free)
+        home.layoutSubtreeIfNeeded()
+        XCTAssertNil(hud.budgetTrackRect)
+        refresh(.timed, seconds: 60)
+        beginTransition()
+        advance(to: assemblyDuration * 0.96)
+        XCTAssertNotEqual(hud.plateAssembly, .settled)
+        XCTAssertEqual(hud.budgetFillProgress, 0)
+        XCTAssertTrue(try litColumns().isEmpty, "叠合期间只绘制暗色轨道")
+
+        let steps = 12
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("eliminate-statistics-budget-fill.gif")
+        let gif = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, steps + 1, nil))
+        CGImageDestinationSetProperties(gif, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary)
+        var fillColumns: [[Int]] = []
+        for step in 0...steps {
+            let fraction = Double(step) / Double(steps)
+            advance(to: assemblyDuration + fillDuration * fraction + (step == steps ? 0.001 : 0))
+            home.layoutSubtreeIfNeeded()
+            XCTAssertEqual(hud.plateAssembly, .settled, "预算填充开始时两层已到位")
+            XCTAssertEqual(hud.budgetFillProgress, CGFloat(fraction), accuracy: 0.001)
+            XCTAssertEqual(hud.displayedBudgetFraction, CGFloat(fraction), accuracy: 0.001)
+            if step == 0 || step == steps / 4 || step == steps / 2 || step == steps {
+                fillColumns.append(try litColumns())
+            }
+            let bitmap = try XCTUnwrap(home.bitmapImageRepForCachingDisplay(in: header.frame))
+            home.cacheDisplay(in: header.frame, to: bitmap)
+            let frame = try XCTUnwrap(bitmap.cgImage)
+            let delay = step == steps ? 1.0 : fillDuration / Double(steps)
+            CGImageDestinationAddImage(gif, frame, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay]] as CFDictionary)
+        }
+        XCTAssertTrue(CGImageDestinationFinalize(gif))
+        XCTAssertEqual(fillColumns.count, 4)
+        let full = try XCTUnwrap(fillColumns.last.flatMap { $0.isEmpty ? nil : $0 }, "未开局的限时模式填满整条轨道")
+        XCTAssertTrue(try XCTUnwrap(fillColumns.first).isEmpty)
+        for (columns, fraction) in zip(fillColumns.dropFirst().dropLast(), [0.25, 0.50]) {
+            XCTAssertEqual(columns.first, full.first, "预算从轨道左端开始填充")
+            XCTAssertEqual(Double(columns.count) / Double(full.count), fraction, accuracy: 0.05)
+        }
+        refresh(.timed, seconds: 48, running: true)
+        XCTAssertEqual(hud.budgetFillProgress, 1, "已填满后更新剩余时间无需重新填充")
+        XCTAssertEqual(Double(try litColumns().count) / Double(full.count), 0.8, accuracy: 0.05)
+
+        refresh(.moves, swaps: 30)
+        XCTAssertEqual(hud.budgetFillProgress, 0)
+        beginTransition()
+        advance(to: assemblyDuration + fillDuration * 0.34)
+        XCTAssertEqual(try litSegments(), 10, "限步只显示填满的整格")
+        refresh(.moves, swaps: 30, running: true)
+        XCTAssertEqual(hud.budgetFillProgress, 0.34, accuracy: 0.001, "填充期间开局保留当前进度")
+        XCTAssertEqual(try litSegments(), 10)
+        refresh(.moves, swaps: 13, running: true)
+        XCTAssertEqual(hud.remainingFraction, CGFloat(13) / 30, accuracy: 0.001)
+        XCTAssertEqual(hud.displayedBudgetFraction, CGFloat(13) / 30 * 0.34, accuracy: 0.001)
+        XCTAssertEqual(try litSegments(), 4, "按填充进度换算当前剩余交换次数")
+        advance(to: assemblyDuration + fillDuration * 0.72)
+        XCTAssertEqual(try litSegments(), 9)
+        advance(to: assemblyDuration + fillDuration + 0.001)
+        XCTAssertEqual(hud.budgetFillProgress, 1)
+        XCTAssertEqual(try litSegments(), 13, "动画结束时准确显示实际剩余步数")
+
+        refresh(.timed, seconds: 60)
+        beginTransition()
+        advance(to: assemblyDuration + fillDuration * 0.5)
+        XCTAssertEqual(hud.budgetFillProgress, 0.5, accuracy: 0.001)
+        refresh(.timed, seconds: 42, running: true)
+        XCTAssertEqual(hud.budgetFillProgress, 0.5, accuracy: 0.001)
+        XCTAssertEqual(Double(try litColumns().count) / Double(full.count), 0.35, accuracy: 0.05, "限时开局后按当前剩余时间填充")
+        refresh(.moves, swaps: 30)
+        XCTAssertEqual(hud.plateAssembly, .separated)
+        XCTAssertEqual(hud.budgetFillProgress, 0, "上一模式尚在填充时，切换后仍重回空轨")
+    }
+
     private func modeIntro(in header: HomeModeHeaderView) throws -> NSView {
         try XCTUnwrap(header.subviews.first { !$0.isHidden && !($0 is HomeChallengeHUDView) })
     }
@@ -598,10 +731,11 @@ final class GameLobbyPresentationTests: AchievementTestCase {
     }
 
     private func assertAssemblingPlatesAreVisible(_ home: HomeDashboardView, preview: HomeChallengeHUDView) throws {
-        let budget = try XCTUnwrap(preview.budgetTrackRect)
+        let backing = preview.surfaceRect.offsetBy(dx: preview.backingPlateOffset.x, dy: preview.backingPlateOffset.y)
         let cell = try XCTUnwrap(preview.breakdownCellRects.last)
-        let budgetPoint = preview.convert(NSPoint(x: budget.midX + preview.backingPlateOffset.x,
-                                                y: budget.midY + preview.backingPlateOffset.y), to: home)
+        let rimPoints = [-1.0, 0, 1].map { offset in
+            preview.convert(NSPoint(x: backing.midX, y: backing.minY + CGFloat(offset)), to: home)
+        }
         let cellPoint = preview.convert(NSPoint(x: cell.midX + preview.frontPlateOffset.x,
                                               y: cell.midY + preview.frontPlateOffset.y), to: home)
 
@@ -615,11 +749,14 @@ final class GameLobbyPresentationTests: AchievementTestCase {
             abs(first.redComponent - second.redComponent) + abs(first.greenComponent - second.greenComponent) + abs(first.blueComponent - second.blueComponent)
         }
 
-        let visibleBudget = try color(at: budgetPoint)
+        let visibleRim = try rimPoints.map { try color(at: $0) }
         let visibleCell = try color(at: cellPoint)
         preview.isHidden = true
         defer { preview.isHidden = false }
-        XCTAssertGreaterThan(difference(visibleBudget, try color(at: budgetPoint)), 0.06, "组装时移动后的进度轨道可见")
+        let rimContrast = try zip(visibleRim, rimPoints).map { colorWithCard, point in
+            difference(colorWithCard, try color(at: point))
+        }.max() ?? 0
+        XCTAssertGreaterThan(rimContrast, 0.06, "组装时移动后的背板上缘可见")
         XCTAssertGreaterThan(difference(visibleCell, try color(at: cellPoint)), 0.012, "组装时移动后的末尾分类格可见")
     }
 
